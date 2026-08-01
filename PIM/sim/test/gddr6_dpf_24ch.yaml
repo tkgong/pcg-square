@@ -1,0 +1,35 @@
+# L40S GDDR6 full-card PIM: 24 x16-channels, 4 BG x 4 banks = 16 banks/channel,
+# 2 banks share one PU (banks_per_pim_unit=2 -> 8 PUs/channel = 192 PUs total).
+# GDDR6 18 Gbps timing (CK=2.25 GHz, tCK=444ps; channel data bus 36 GB/s).
+Frontend:
+  impl: AiMTrace
+  clock_ratio: 1
+
+  Translation:
+    impl: NoTranslation
+    max_addr: 2147483648
+
+
+MemorySystem:
+  impl: AiMDRAM
+  clock_ratio: 1
+
+  DRAM:
+    impl: HBM2
+    org:
+      preset: GDDR6_L40S
+    timing:
+      preset: GDDR6_18Gbps
+
+  Controller:
+    impl: AiM
+    clock_ratio: 1
+    banks_per_pim_unit: 2
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+
+  AddrMapper:
+    impl: RoBaRaCoCh

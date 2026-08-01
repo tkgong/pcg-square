@@ -1,0 +1,9 @@
+== 8-read/8-write (register-exact: +4 seed re-read), 128b, cl=272, 64PU serial ==
+n=12 cl=0 reduce=none cycles=1670 ACT=128 RD=5200 WR=5200 ns=1043.750 ns/leaf=.2548
+n=12 cl=272 reduce=none cycles=5866 ACT=128 RD=5200 WR=5200 ns=3666.250 ns/leaf=.8950
+n=16 cl=0 reduce=none cycles=10906 ACT=1472 RD=66640 WR=66640 ns=6816.250 ns/leaf=.1040
+n=16 cl=272 reduce=none cycles=42621 ACT=1408 RD=66640 WR=66640 ns=26638.125 ns/leaf=.4064
+n=18 cl=0 reduce=none cycles=41074 ACT=6336 RD=263248 WR=263248 ns=25671.250 ns/leaf=.0979
+n=18 cl=272 reduce=none cycles=162832 ACT=6144 RD=263248 WR=263248 ns=101770.000 ns/leaf=.3882
+n=16 cl=272 reduce=fused cycles=63363 ACT=1920 RD=99408 WR=70736 ns=39601.875 ns/leaf=.6042
+n=18 cl=272 reduce=fused cycles=245094 ACT=8194 RD=394320 WR=279632 ns=153183.750 ns/leaf=.5843

@@ -1,0 +1,33 @@
+# GDDR6_ADA5K PIM: 16 channels x 16 banks, 2 banks/PU -> 128 PUs. Timing GDDR6_18Gbps.
+Frontend:
+  impl: AiMTrace
+  clock_ratio: 1
+
+  Translation:
+    impl: NoTranslation
+    max_addr: 2147483648
+
+
+MemorySystem:
+  impl: AiMDRAM
+  clock_ratio: 1
+
+  DRAM:
+    impl: HBM2
+    org:
+      preset: GDDR6_ADA5K
+    timing:
+      preset: GDDR6_18Gbps
+
+  Controller:
+    impl: AiM
+    clock_ratio: 1
+    banks_per_pim_unit: 2
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+
+  AddrMapper:
+    impl: RoBaRaCoCh

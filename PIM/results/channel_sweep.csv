@@ -1,0 +1,6 @@
+channels,cyc_mem,cyc_compute,delta_pct,bound
+1,123595,123760,0.1,store/mem
+2,111220,111385,0.1,store/mem
+4,110986,111151,0.1,store/mem
+8,110386,110551,0.1,store/mem
+16,109642,109807,0.2,store/mem

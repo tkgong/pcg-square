@@ -1,0 +1,33 @@
+# 64-channel PIM: 1 rank/channel, 1 bankgroup, 2 banks/rank sharing ONE PU
+# (banks_per_pim_unit=2 -> 64 PUs total). HBM3 6400Mbps timing (tCK=625ps).
+Frontend:
+  impl: AiMTrace
+  clock_ratio: 1
+
+  Translation:
+    impl: NoTranslation
+    max_addr: 2147483648
+
+
+MemorySystem:
+  impl: AiMDRAM
+  clock_ratio: 1
+
+  DRAM:
+    impl: HBM2
+    org:
+      preset: PIM64_2Banks
+    timing:
+      preset: HBM3_6400Mbps
+
+  Controller:
+    impl: AiM
+    clock_ratio: 1
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+
+  AddrMapper:
+    impl: RoBaRaCoCh

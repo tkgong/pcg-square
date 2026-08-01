@@ -1,0 +1,78 @@
+== PCG network calibration (measured, localhost 2PC)
+== source: comm-trace CSV, one row per exchange; the protocol
+== is party-serialized so each row is a full round trip.
+== see docs/network_model.md for the symbolic model.
+==
+---- 1. per-configuration phase breakdown ----
+                  cfg        phase   rows   MB sent  ms in net    B/exch  us/exch
+       2^20 c2 t64 w1    beaver_cw      4      0.13       0.14     32768     35.9
+       2^20 c2 t64 w1    beaver_de      4      0.26     102.31     65536  25576.4
+       2^20 c2 t64 w1  circuit_and     20     66.06      26.65   3303014   1332.4
+       2^20 c2 t64 w1      dpf_gen     60      3.93     266.75     65536   4445.9
+
+       2^20 c4 t16 w1    beaver_cw     16      0.03       0.39      2048     24.3
+       2^20 c4 t16 w1    beaver_de     16      0.07      30.89      4096   1930.6
+       2^20 c4 t16 w1  circuit_and     96     18.76      26.87    195413    279.9
+       2^20 c4 t16 w1      dpf_gen    272      1.11      58.78      4096    216.1
+
+        2^20 c8 t8 w1    beaver_cw     64      0.03       1.55       512     24.2
+        2^20 c8 t8 w1    beaver_de     64      0.07     264.96      1024   4140.0
+        2^20 c8 t8 w1  circuit_and    384     19.90      16.42     51818     42.8
+        2^20 c8 t8 w1      dpf_gen   1152      1.18     396.47      1024    344.2
+
+       2^22 c2 t64 w1    beaver_cw      4      0.13       0.14     32768     34.9
+       2^22 c2 t64 w1    beaver_de      4      0.26     483.15     65536 120786.9
+       2^22 c2 t64 w1  circuit_and     24     75.04      25.69   3126613   1070.2
+       2^22 c2 t64 w1      dpf_gen     68      4.46     721.05     65536  10603.7
+
+       2^22 c4 t16 w1    beaver_cw     16      0.03       0.38      2048     24.0
+       2^22 c4 t16 w1    beaver_de     16      0.07     195.05      4096  12190.6
+       2^22 c4 t16 w1  circuit_and     96     21.04      12.96    219136    135.0
+       2^22 c4 t16 w1      dpf_gen    304      1.25     324.36      4096   1067.0
+
+        2^22 c8 t8 w1    beaver_cw     64      0.03       1.56       512     24.3
+        2^22 c8 t8 w1    beaver_de     64      0.07     394.38      1024   6162.3
+        2^22 c8 t8 w1  circuit_and    384     22.18      17.36     57749     45.2
+        2^22 c8 t8 w1      dpf_gen   1280      1.31     531.02      1024    414.9
+
+
+       2^24 c2 t64 w1    beaver_cw      4      0.13       0.16     32768     39.5
+       2^24 c2 t64 w1    beaver_de      4      0.26     602.64     65536 150659.5
+       2^24 c2 t64 w1  circuit_and     24     84.15      81.20   3506176   3383.3
+       2^24 c2 t64 w1      dpf_gen     76      4.98     485.97     65536   6394.3
+
+       2^24 c4 t16 w1    beaver_cw     16      0.03       0.40      2048     25.3
+       2^24 c4 t16 w1    beaver_de     16      0.07     519.57      4096  32472.9
+       2^24 c4 t16 w1  circuit_and     96     23.31      14.01    242858    145.9
+       2^24 c4 t16 w1      dpf_gen    336      1.38     827.92      4096   2464.1
+
+        2^24 c8 t8 w1    beaver_cw     64      0.03       1.63       512     25.5
+        2^24 c8 t8 w1    beaver_de     64      0.07    1934.94      1024  30233.4
+        2^24 c8 t8 w1  circuit_and    384     24.45      18.88     63680     49.2
+        2^24 c8 t8 w1      dpf_gen   1408      1.44    2613.89      1024   1856.5
+
+---- 2. alpha / beta fit (all exchanges pooled) ----
+   dur_ns = 1551150 + 0.5085 * bytes
+   alpha_rt = 1551.1 us per round trip (party-serialized send+recv)
+   BW_eff   = 1.97 GB/s = 15.73 Gbps (loopback)
+   small-message median (4304 rows <=1KB): 26.8 us  -> latency floor
+   large-message throughput (300 rows >64KB): 1.64 GB/s
+
+---- 3. latency-critical vs bandwidth-critical split ----
+                  cfg  rounds       MB   net ms  dpfgen rounds  dltsft MB
+       2^20 c2 t64 w1      88    70.39    395.9             60      66.06
+       2^20 c4 t16 w1     400    19.97    116.9            272      18.76
+        2^20 c8 t8 w1    1664    21.18    679.4           1152      19.90
+       2^22 c2 t64 w1     100    79.89   1230.0             68      75.04
+       2^22 c4 t16 w1     432    22.38    532.8            304      21.04
+        2^22 c8 t8 w1    1792    23.58    944.3           1280      22.18
+       2^23 c4 t16 w2       0     0.00      0.0              0       0.00
+       2^24 c2 t64 w1     108    89.52   1170.0             76      84.15
+       2^24 c4 t16 w1     464    24.79   1361.9            336      23.31
+        2^24 c8 t8 w1    1920    25.99   4569.3           1408      24.45
+
+   NOTE: dpf_gen rows are the levels x c^2 blocking round
+   trips (constant 16*B*(m-1) bytes each) -- pure latency;
+   circuit_and bytes are dominated by the delta-shift AND
+   triples -- pure bandwidth. Raising w trades the former
+   for the latter.

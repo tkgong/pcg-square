@@ -1,0 +1,4 @@
+bank_mode,cycles,RD,WR,ACTs
+concentrate,172844,9216,18432,3898
+spread,123760,9216,18432,4219
+double_buffer,120767,9216,18432,2854

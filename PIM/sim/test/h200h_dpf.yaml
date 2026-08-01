@@ -1,0 +1,33 @@
+# HBM3E_H200H PIM: 96 channels x 16 banks, 2 banks/PU -> 768 PUs. Timing HBM3_6400Mbps.
+Frontend:
+  impl: AiMTrace
+  clock_ratio: 1
+
+  Translation:
+    impl: NoTranslation
+    max_addr: 2147483648
+
+
+MemorySystem:
+  impl: AiMDRAM
+  clock_ratio: 1
+
+  DRAM:
+    impl: HBM2
+    org:
+      preset: HBM3E_H200H
+    timing:
+      preset: HBM3_6400Mbps
+
+  Controller:
+    impl: AiM
+    clock_ratio: 1
+    banks_per_pim_unit: 2
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+
+  AddrMapper:
+    impl: RoBaRaCoCh

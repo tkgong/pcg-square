@@ -1,0 +1,7 @@
+gpu,tag,stage,intensity_blocks_per_byte,gblocks_per_s,ms_per_run
+NVIDIA L40S,n18_B256,tree_expand,0.008929,7.263,9.240
+NVIDIA L40S,n18_B256,leaf_convert,0.050000,43.428,3.091
+NVIDIA L40S,n18_B256,full_dpf,0.019737,16.327,12.331
+NVIDIA L40S,n24_B16,tree_expand,0.008929,7.184,37.364
+NVIDIA L40S,n24_B16,leaf_convert,0.050000,29.845,17.989
+NVIDIA L40S,n24_B16,full_dpf,0.019737,14.549,55.352

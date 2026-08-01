@@ -1,0 +1,5 @@
+# Single DPF batch = 1 GGM_EXTEND, opsize=8 (8 seeds), compute_latency=274
+#   = 256 ChaCha + 16 feed-forward + 2 VCXOR (DPF CW apply). channel 0 = bit 31.
+# fields: opsize ch_mask bank row_in row_out compute_latency col_in col_out write_bank nbanks
+AiM GGM_EXTEND 8 0 0 0 1 274 0 0 0 1
+AiM EOC

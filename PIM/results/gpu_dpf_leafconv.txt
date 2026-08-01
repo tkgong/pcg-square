@@ -1,0 +1,12 @@
+# GPU DPF full-domain expand + leaf_convert (1x NVIDIA L40S, PRG=AES-128, CUDA 12.6)
+# vs PIM 64-PU ChaCha8 model (HBM3 tCK=625ps, 1.6GHz). ns/leaf = total_ms*1e6/leaves.
+# Caveats: GPU expand INCLUDES device->host copy of leaves (fused-on-device would be
+# lower); leaf_convert is pure on-device kernel; GPU=AES vs PIM=ChaCha8 (different PRG).
+# bench: test/gpu_dpf_leafconv_bench.cu, warmup 1 + 5 iters, cudaEvent timing.
+#
+# leaves     GPU expand   GPU full(exp+lc)   GPU leaves/s   | PIM full   PIM leaves/s
+# n=16  65536   9.74         10.37 ns/leaf     9.6e7          | 0.463(n16) 2.2e9
+# n=18 262144   4.19          4.79 ns/leaf     2.1e8          | 0.450(n18) 2.2e9   <- matched
+# n=20 1.05M    2.73          3.31 ns/leaf     3.0e8          |
+# n=22 4.19M    2.36          2.94 ns/leaf     3.4e8 (GPU asymptote)
+# B=256 n=14 4.19M  2.32       2.83 ns/leaf     3.5e8

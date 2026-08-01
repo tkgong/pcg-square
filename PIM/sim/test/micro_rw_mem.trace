@@ -1,0 +1,9 @@
+# minimal plain R/W MEM trace for HBM2 bring-up
+# format: [R|W] MEM <channel> <bank_index> <row>
+W MEM 0 0 8
+W MEM 0 1 9
+W MEM 0 2 10
+R MEM 0 0 8
+R MEM 0 1 9
+R MEM 0 2 10
+AiM EOC

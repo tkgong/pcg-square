@@ -1,0 +1,40 @@
+== SM-stream Level-1 contention experiment ==
+== Third traffic class injected into the same trace: the SM's NTT HBM traffic
+== (read g [MAU output], read a-hat, write z), modeled as cl=0 GGM_REDUCE
+== column streams (same device as the MAU: exact column stepping, no PU charge,
+== no gating; plain R MEM lines have no column field and would coalesce).
+== 64ch, instances I=256, 8r8w cl=272, gated. Volume per instance per channel:
+== 2x used_cols reads (g + a-hat) + used_cols writes (z) ~ same magnitude as
+== the MAU stream. Regions: g @bank^1 rows 1024+parity*256 (MAU-written),
+== a-hat @bank^1 rows 2048+, z @bank rows 2048+512+.
+==
+== (a) mau baseline      (from tree_sweeps_mau.txt)
+== (b) mau + sm-stream   (all three classes in the same windows)
+== (c) sm-stream alone   (drain reference)
+n=10 (a) cycles=167531 ns/leaf=0.3994
+n=10 (b) cycles=184023 ACT=23424  RD=524288  WR=399360  ns/leaf=0.4387   (+9.8% vs a)
+n=10 (c) cycles=15507  ACT=3072   RD=131072  WR=66560   ns/leaf-equiv=0.0370
+n=12 (a) cycles=672771 ns/leaf=0.4010
+n=12 (b) cycles=742152 ACT=101880 RD=2097152 WR=1585152 ns/leaf=0.4424   (+10.3% vs a)
+n=12 (c) cycles=62451  ACT=12288  RD=524288  WR=266240  ns/leaf-equiv=0.0372
+==
+== Conservation: WR(b) = WR(a)+WR(c) exactly (1585152). RD(b) short by 4096
+== (0.2%): the exposed TAIL window has the SM block reading the same g rows the
+== MAU block is writing in that window -> same-address coalescing; tail-only,
+== amortized 1/rounds, noted not fixed.
+==
+== READING (the important part): +10% is an UPPER BOUND, not the true value.
+== (b)-(a) ~= (c)'s full serial time + ACT overhead: the SM stream does NOT
+== hide in the compute slack, because this simulator's frontend is a single
+== in-order FIFO with per-channel backpressure -- the SM traffic is forced
+== through the PIM host-command issue path and serializes there (same
+== mechanism as MAU placement iterations v1/v2). A REAL system's SM requests
+== do not traverse the PIM ISR queue at all; they enter the memory controller
+== out-of-band and compete only for bank slots. Bounds:
+==   lower ~2-3%  (bank column-slot share of the SM stream: ~6k CK of bank
+==                 time per 70k CK window, if perfectly interleaved)
+==   upper ~10%   (this measurement: full frontend serialization)
+== Tightening to the true value requires an independent SM injection path =
+== exactly phase-2 (Accel-Sim SM side driving Ramulator2 controllers directly).
+== The external-bus thesis (T_bus ~ 0 on the HBM->SM interface) is untouched:
+== these effects are all bank/issue-side, inside the stack.

@@ -1,0 +1,8 @@
+bench,peer,msg_bytes,rtt_p50_us,rtt_p10_us,rtt_p90_us
+alpha_nvlink,4096,10.02,9.54,10.72,ok_gpu1-2
+alpha_nvlink,2048,NA,NA,NA,only_1_gpu
+alpha_nvlink,65536,20.67,19.62,28.86,ok_gpu1-2
+alpha_tcp,127.0.0.1,4096,10.02,9.81,10.27
+alpha_tcp,127.0.0.1,2048,9.84,9.65,10.21
+alpha_tcp,127.0.0.1,65536,45.35,43.29,46.79
+alpha_nvlink,2048,10.08,9.89,11.04,ok

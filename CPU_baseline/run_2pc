@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Launch both parties of a 2PC test binary (emp party IDs: ALICE=1, BOB=2).
+# Usage: ./run_2pc <binary> [port] [extra args passed to both parties]
+set -euo pipefail
+BIN="${1:?usage: ./run_2pc <binary> [port]}"
+shift
+
+PORT="7788"
+if [[ $# -gt 0 && "$1" =~ ^[0-9]+$ ]]; then
+    PORT="$1"
+    shift
+fi
+
+mkdir -p data
+for f in data/pre_ot_data_reg_send data/pre_ot_data_reg_recv; do
+    if [[ -e "$f" && ! -w "$f" ]]; then
+        echo "error: $f exists but is not writable" >&2
+        exit 1
+    fi
+done
+
+P0=""
+cleanup() {
+    local status=$?
+    if [[ -n "${P0:-}" ]] && kill -0 "$P0" 2>/dev/null; then
+        kill "$P0" 2>/dev/null || true
+        wait "$P0" 2>/dev/null || true
+    fi
+    exit "$status"
+}
+trap cleanup EXIT INT TERM
+
+"$BIN" 1 "$PORT" "$@" &
+P0=$!
+sleep 0.3
+
+set +e
+"$BIN" 2 127.0.0.1 "$PORT" "$@"
+P1_STATUS=$?
+if [[ "$P1_STATUS" -ne 0 ]] && kill -0 "$P0" 2>/dev/null; then
+    kill "$P0" 2>/dev/null || true
+fi
+wait "$P0"
+P0_STATUS=$?
+P0=""
+set -e
+
+if [[ "$P1_STATUS" -ne 0 ]]; then
+    exit "$P1_STATUS"
+fi
+exit "$P0_STATUS"

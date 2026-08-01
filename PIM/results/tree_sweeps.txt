@@ -1,0 +1,10 @@
+== GGM tree dataflow (inter-layer read-back), 64ch x 1 PU, serial PU, HBM3 tCK=625ps ==
+== columns: n  cl  reduce  ops  cycles  ACT  RD  WR  ns_total  ns_per_leaf ==
+n=12 cl=0 reduce=none ops=650 cycles=2310 ACT=128 RD=5200 WR=10400 ns=1443.750 ns/leaf=.3524
+n=12 cl=282 reduce=none ops=650 cycles=6066 ACT=128 RD=5200 WR=10400 ns=3791.250 ns/leaf=.9255
+n=16 cl=0 reduce=none ops=8330 cycles=16964 ACT=2816 RD=66640 WR=133280 ns=10602.500 ns/leaf=.1617
+n=16 cl=282 reduce=none ops=8330 cycles=49148 ACT=2944 RD=66640 WR=133280 ns=30717.500 ns/leaf=.4687
+n=18 cl=0 reduce=none ops=32906 cycles=64846 ACT=12288 RD=263248 WR=526496 ns=40528.750 ns/leaf=.1546
+n=18 cl=282 reduce=none ops=32906 cycles=189678 ACT=12416 RD=263248 WR=526496 ns=118548.750 ns/leaf=.4522
+n=20 cl=0 reduce=none ops=131210 cycles=256565 ACT=49865 RD=1049680 WR=2099360 ns=160353.125 ns/leaf=.1529
+n=16 cl=282 reduce=fused ops=9354 cycles=213257 ACT=3968 RD=132176 WR=141472

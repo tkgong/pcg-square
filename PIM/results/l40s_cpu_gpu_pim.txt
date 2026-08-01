@@ -1,0 +1,135 @@
+== L40S THREE-BASELINE report (ALL MEASURED on this host/GPU)
+== CPU  : bench_pcg_ole_2pc 2PC wall (Xeon Gold 6442Y, localhost,
+==        chacha8, verify=PASS gated), gen_and_expand total.
+== GPU  : L40S silicon, newDPF curve + naive/4step NTT.
+== PIM+GPU: Ramulator2 GDDR6_L40S 192-PU DPF lane (dual-issue,
+==        +LSU) overlapped with SM 4step NTT lane; GDDR DRU
+==        rule -> e2e DRU gain 0 (no shadow bandwidth).
+==
+---- A. 30 security rows: ms per expansion + speedups ----
+    lam     N  c    t |        CPU  GPUnaive  GPU4step |    PIM-L    PIM+L |   x_cpu x_naive x_4step | lane
+     80 2^20   2   64 |      88587    120.59    119.50 |    57.73    52.49 |   1688x    2.3x    2.3x | DPF
+     80 2^21   2   64 |     169384    256.44    242.09 |   115.45   104.98 |   1613x    2.4x    2.3x | DPF
+     80 2^22   2   64 |     339333    530.38    490.43 |   230.91   209.97 |   1616x    2.5x    2.3x | DPF
+     80 2^23   2   64 |     679836   1070.65    983.71 |   461.81   419.93 |   1619x    2.5x    2.3x | DPF
+     80 2^24   2   64 |    1397900   2160.25   1968.16 |   923.63   839.86 |   1664x    2.6x    2.3x | DPF
+     80 2^20   4   16 |      90811    169.51    133.51 |    57.73    52.49 |   1730x    3.2x    2.5x | DPF
+     80 2^21   4   16 |     181488    344.26    268.17 |   115.45   104.98 |   1729x    3.3x    2.6x | DPF
+     80 2^22   4   16 |     372712    699.03    543.66 |   230.91   209.97 |   1775x    3.3x    2.6x | DPF
+     80 2^23   4   16 |     760648   1444.39   1099.29 |   461.81   419.93 |   1811x    3.4x    2.6x | DPF
+     80 2^24   4   16 |    1631240   2962.27   2202.30 |   923.63   839.86 |   1942x    3.5x    2.6x | DPF
+     80 2^20   8    4 |     124119    321.44    180.64 |    63.07    63.07 |   1968x    5.1x    2.9x | NTT
+     80 2^21   8    4 |     256521    661.98    364.94 |   128.72   128.72 |   1993x    5.1x    2.8x | NTT
+     80 2^22   8    4 |     559124   1374.49    756.40 |   283.96   283.96 |   1969x    4.8x    2.7x | NTT
+     80 2^23   8    4 |    1188020   2941.60   1562.25 |   617.36   617.36 |   1924x    4.8x    2.5x | NTT
+     80 2^24   8    4 |    2605080   6169.43   3138.77 |  1248.99  1248.99 |   2086x    4.9x    2.5x | NTT
+    128 2^20   2  128 |     190438    239.24    238.15 |   115.45   104.98 |   1814x    2.3x    2.3x | DPF
+    128 2^21   2  128 |     349802    492.67    478.32 |   230.91   209.97 |   1666x    2.3x    2.3x | DPF
+    128 2^22   2  128 |     696246   1002.82    962.87 |   461.81   419.93 |   1658x    2.4x    2.3x | DPF
+    128 2^23   2  128 |    1382100   2015.54   1928.60 |   923.63   839.86 |   1646x    2.4x    2.3x | DPF
+    128 2^24   2  128 |    2794170   4050.04   3857.95 |  1847.26  1679.73 |   1663x    2.4x    2.3x | DPF
+    128 2^20   4   16 |      90811    169.51    133.51 |    57.73    52.49 |   1730x    3.2x    2.5x | DPF
+    128 2^21   4   16 |     181488    344.26    268.17 |   115.45   104.98 |   1729x    3.3x    2.6x | DPF
+    128 2^22   4   16 |     372712    699.03    543.66 |   230.91   209.97 |   1775x    3.3x    2.6x | DPF
+    128 2^23   4   16 |     760648   1444.39   1099.29 |   461.81   419.93 |   1811x    3.4x    2.6x | DPF
+    128 2^24   4   16 |    1631240   2962.27   2202.30 |   923.63   839.86 |   1942x    3.5x    2.6x | DPF
+    128 2^20   8    8 |     200767    440.09    299.29 |   115.45   104.98 |   1912x    4.2x    2.9x | DPF
+    128 2^21   8    8 |     406286    898.20    601.16 |   230.91   209.97 |   1935x    4.3x    2.9x | DPF
+    128 2^22   8    8 |     864792   1846.93   1228.85 |   461.81   419.93 |   2059x    4.4x    2.9x | DPF
+    128 2^23   8    8 |    1829260   3886.50   2507.14 |   923.63   839.86 |   2178x    4.6x    3.0x | DPF
+    128 2^24   8    8 |    3866590   8059.21   5028.56 |  1847.26  1679.73 |   2302x    4.8x    3.0x | DPF
+
+---- B. DPF ablation: dual/single issue x +-LSU (ns/leaf, L40S) ----
+   dual  = XADD + VXORL interleaved QR chains (cl 155/465)
+   single= one fused XOR/ADD ALU            (cl 282/846)
+     issue |               +LSU |               -LSU | LSU gain
+      dual |   0.0978 ( 1.00x) |   0.1075 ( 1.10x) | 1.100x
+    single |   0.1708 ( 1.75x) |   0.1806 ( 1.85x) | 1.057x
+   (x) = slowdown vs dual+LSU. DPF-bound e2e rows scale by the
+   same factor; NTT-bound rows are insensitive until the DPF
+   lane overtakes the NTT lane.
+
+---- B2. Layout ablation: node-major (baseline) -> word-major ----
+   BASELINE  node-major: one col holds complete words of a
+     node. Each vector register needs 8 words scattered
+     across 4 cols' 32b sub-slots; the column is the minimum
+     access unit and the fixed PACKLR cannot compose an 8x4
+     transpose -> per-word strided access, 4x rd+wr column
+     traffic (cl unchanged). Measured: the extra traffic
+     tips the loop past the 155-CK compute bound -- memory
+     becomes the critical path (the bank-pair read/write
+     split absorbs part of the 4x; the rest is exposed).
+   DESIGN    word-major: storage view == register view
+     (col j = word j of 8 seeds); VLD IS the transpose,
+     0 permute ops, same hardware.
+                     config |   ns/leaf | vs design | col traffic
+      node-major (baseline) |    0.1140 |     1.17x | 4x (measured)
+        word-major (design) |    0.0978 |     1.00x | 1x
+   WHY: the SIMD lane axis IS the seed axis (QR ops are
+   word-vs-word), so the register view is fixed by the
+   compute; word-major makes the storage view identical --
+   the layout, not the datapath, performs the transpose.
+   Producer==consumer (children are emitted register-wise),
+   so the convention sustains itself across all levels for
+   free; only the final leaf->g scatter needs node order,
+   and that is AGU address arithmetic, not data movement.
+
+---- C. NTT 4step +-DRU on L40S (per-mul, batch=c^2) ----
+       N   b |  4step ms transp ms  transp% | NTT-lane ub | e2e gain
+   2^20    4 |    0.2404    0.0690    28.7% |       1.40x | 1.00x
+   2^20   16 |    0.4980    0.1630    32.7% |       1.49x | 1.00x
+   2^20   64 |    0.4927    0.1580    32.1% |       1.47x | 1.00x
+   2^21    4 |    0.7338    0.2230    30.4% |       1.44x | 1.00x
+   2^21   16 |    0.9982    0.3250    32.6% |       1.48x | 1.00x
+   2^21   64 |    1.0056    0.3210    31.9% |       1.47x | 1.00x
+   2^22    4 |    2.2476    0.6990    31.1% |       1.45x | 1.00x
+   2^22   16 |    2.2254    0.7020    31.5% |       1.46x | 1.00x
+   2^22   64 |    2.2184    0.7030    31.7% |       1.46x | 1.00x
+   2^23    4 |    4.8517    1.4740    30.4% |       1.44x | 1.00x
+   2^23   16 |    4.8250    1.4870    30.8% |       1.45x | 1.00x
+   2^23   64 |    4.8231    1.4830    30.7% |       1.44x | 1.00x
+   2^24    4 |    9.7974    3.0660    31.3% |       1.46x | 1.00x
+   2^24   16 |    9.7661    3.0610    31.3% |       1.46x | 1.00x
+   2^24   64 |    9.7577    3.0490    31.2% |       1.45x | 1.00x
+   NTT-lane ub = hypothetical NTT-lane speedup IF shadow
+   bandwidth existed (transpose fully hidden). e2e gain on
+   L40S/GDDR = 1.00x by the honest rule: SMs are BW-bound on
+   GDDR, there is no idle bandwidth for the DRU to borrow.
+
+---- D. FULL ablation grid: PIM speedup vs GPU-4step ----
+   configs: [1] dual+LSU+DRU (flagship)  [2] dual+LSU-DRU
+            [3] dual-LSU-DRU  [4] single+LSU-DRU
+            [5] single-LSU-DRU
+   On L40S/GDDR [1]==[2] (DRU e2e gain 0, no shadow BW;
+   DRU differentiates only on HBM -- see e2e_secparams #3).
+    lam     N  c    t |  GPU4step |     [1]     [2]     [3]     [4]     [5] | lane
+     80 2^20   2   64 |    119.50 |   2.28x   2.28x   2.07x   1.30x   1.23x | DPF
+     80 2^21   2   64 |    242.09 |   2.31x   2.31x   2.10x   1.32x   1.25x | DPF
+     80 2^22   2   64 |    490.43 |   2.34x   2.34x   2.12x   1.34x   1.26x | DPF
+     80 2^23   2   64 |    983.71 |   2.34x   2.34x   2.13x   1.34x   1.27x | DPF
+     80 2^24   2   64 |   1968.16 |   2.34x   2.34x   2.13x   1.34x   1.27x | DPF
+     80 2^20   4   16 |    133.51 |   2.54x   2.54x   2.31x   1.46x   1.38x | DPF
+     80 2^21   4   16 |    268.17 |   2.55x   2.55x   2.32x   1.46x   1.38x | DPF
+     80 2^22   4   16 |    543.66 |   2.59x   2.59x   2.35x   1.48x   1.40x | DPF
+     80 2^23   4   16 |   1099.29 |   2.62x   2.62x   2.38x   1.50x   1.42x | DPF
+     80 2^24   4   16 |   2202.30 |   2.62x   2.62x   2.38x   1.50x   1.42x | DPF
+     80 2^20   8    4 |    180.64 |   2.86x   2.86x   2.86x   1.97x   1.86x | NTT
+     80 2^21   8    4 |    364.94 |   2.84x   2.84x   2.84x   1.99x   1.88x | NTT
+     80 2^22   8    4 |    756.40 |   2.66x   2.66x   2.66x   2.06x   1.95x | NTT
+     80 2^23   8    4 |   1562.25 |   2.53x   2.53x   2.53x   2.13x   2.01x | NTT
+     80 2^24   8    4 |   3138.77 |   2.51x   2.51x   2.51x   2.14x   2.02x | NTT
+    128 2^20   2  128 |    238.15 |   2.27x   2.27x   2.06x   1.30x   1.23x | DPF
+    128 2^21   2  128 |    478.32 |   2.28x   2.28x   2.07x   1.30x   1.23x | DPF
+    128 2^22   2  128 |    962.87 |   2.29x   2.29x   2.08x   1.31x   1.24x | DPF
+    128 2^23   2  128 |   1928.60 |   2.30x   2.30x   2.09x   1.31x   1.24x | DPF
+    128 2^24   2  128 |   3857.95 |   2.30x   2.30x   2.09x   1.31x   1.24x | DPF
+    128 2^20   4   16 |    133.51 |   2.54x   2.54x   2.31x   1.46x   1.38x | DPF
+    128 2^21   4   16 |    268.17 |   2.55x   2.55x   2.32x   1.46x   1.38x | DPF
+    128 2^22   4   16 |    543.66 |   2.59x   2.59x   2.35x   1.48x   1.40x | DPF
+    128 2^23   4   16 |   1099.29 |   2.62x   2.62x   2.38x   1.50x   1.42x | DPF
+    128 2^24   4   16 |   2202.30 |   2.62x   2.62x   2.38x   1.50x   1.42x | DPF
+    128 2^20   8    8 |    299.29 |   2.85x   2.85x   2.59x   1.63x   1.54x | DPF
+    128 2^21   8    8 |    601.16 |   2.86x   2.86x   2.60x   1.64x   1.55x | DPF
+    128 2^22   8    8 |   1228.85 |   2.93x   2.93x   2.66x   1.68x   1.58x | DPF
+    128 2^23   8    8 |   2507.14 |   2.99x   2.99x   2.71x   1.71x   1.62x | DPF
+    128 2^24   8    8 |   5028.56 |   2.99x   2.99x   2.72x   1.71x   1.62x | DPF

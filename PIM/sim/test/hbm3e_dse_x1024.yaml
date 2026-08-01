@@ -1,0 +1,35 @@
+# DSE probe: 1024 pseudo-channels x 8 SPU = 8192 SPU (above the B200 ceiling).
+# DSE probe: 1024 pseudo-channels x 8 SPU = 8192 SPU (above the B200 ceiling).
+# HBM3e 8 GT/s timing (CK=2.0 GHz, tCK=500ps; 32 GB/s per PC, 4.1 TB/s domain).
+Frontend:
+  impl: AiMTrace
+  clock_ratio: 1
+
+  Translation:
+    impl: NoTranslation
+    max_addr: 2147483648
+
+
+MemorySystem:
+  impl: AiMDRAM
+  clock_ratio: 1
+
+  DRAM:
+    impl: HBM2
+    org:
+      preset: HBM3E_X1024
+    timing:
+      preset: HBM3E_8000
+
+  Controller:
+    impl: AiM
+    clock_ratio: 1
+    banks_per_pim_unit: 2
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+
+  AddrMapper:
+    impl: RoBaRaCoCh

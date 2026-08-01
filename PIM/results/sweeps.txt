@@ -1,0 +1,8 @@
+== DPF on HBM3-PIM (tCK=625ps), single-issue serial PU. Ref: 1batch=337, 408/b (240 mem + 274 compute serial), packed 347/b ==
+sanity 1batch@64ch (expect 337):        337
+A  64ch B=1024 cl=274 (408/batch):      6536   (16 batch/ch)
+A  1ch  B=1024 cl=274 (scaling 65.6x):  428916
+B  64ch cl=0   (mem only, 240/batch):   3836
+B  64ch cl=1000:                        17426
+C  64ch packed cl=274 (347/batch):      5552
+C  64ch packed cl=0:                    2261

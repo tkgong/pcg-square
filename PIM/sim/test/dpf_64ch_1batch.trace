@@ -1,0 +1,5 @@
+# B=1 batches round-robin over 64 channels, cl=274
+# fields: opsize ch_idx bank row_in row_out compute_latency col_in col_out write_bank nbanks
+AiM GGM_EXTEND 8 0 0 0 60000 274 0 0 1 1
+AiM SYNC
+AiM EOC

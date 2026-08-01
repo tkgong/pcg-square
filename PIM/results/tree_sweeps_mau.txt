@@ -1,0 +1,47 @@
+== MAU (channel-level modular arithmetic unit) validation ==
+== leaf_convert moved OFF the bank PU onto the per-channel MAU (base-die,
+== fused 1-op/CK pipeline, sparse-prime P=2^62-3*2^25+1 shift-add reduction).
+== Sim model: GGM_REDUCE with compute_latency=0 (never charges the PU FPU,
+== never gated -- AiM_dram_controller.cpp:157,322-324); only the CCDL-paced
+== column traffic remains, which IS the MAU's cost (its pipeline never binds:
+== 1 op/CK >> 32B/4CK stream). 64ch x 1 PU, 8r8w cl=272, modmul-cl=32 (fused
+== only), gated, HBM3 tCK=625ps. RD/WR counts: mau == fused exactly (trace
+== equivalence); only compute placement differs.
+==
+== Placement iterations (n=12 instances, documented for the record):
+==   v1 tail-of-window append : 0.4122  (finite request queue -> serialized)
+==   v2 interleaved w/ EXTENDs: 0.4423  (head-of-line blocking, worse)
+==   v3 prepend to window     : 0.4018  (true overlap begins)
+==   v4 prepend + round-robin across channels: 0.4010  (final)
+==
+== instances mode I=256 (4 rounds x 64ch), overlap across adjacent rounds ==
+n=10 reduce=none  cycles=158982 ACT=5632  RD=266240  WR=266240  ns/leaf=0.3790
+n=10 reduce=mau   cycles=167531 ACT=13440 RD=397312  WR=332800  ns/leaf=0.3994
+n=10 reduce=fused cycles=182785 ACT=6720  RD=397312  WR=332800  ns/leaf=0.4357
+n=12 reduce=none  cycles=639826 ACT=24576 RD=1052672 WR=1052672 ns/leaf=0.3813
+n=12 reduce=mau   cycles=672771 ACT=58889 RD=1576960 WR=1318912 ns/leaf=0.4010
+n=12 reduce=fused cycles=743485 ACT=28736 RD=1576960 WR=1318912 ns/leaf=0.4431
+== subtree n=18 (mau = serial tail: no adjacent instance to hide behind; upper bound) ==
+n=18 subtree reduce=none  cycles=162832 ACT=6144 RD=263248 WR=263248 ns/leaf=0.3882
+n=18 subtree reduce=mau   cycles=176260 ACT=7232 RD=394320 WR=329808 ns/leaf=0.4202
+n=18 subtree reduce=fused cycles=188770 ACT=7232 RD=394320 WR=329808 ns/leaf=0.4501
+==
+== VERDICT: MAU full DPF = 0.40 ns/leaf steady-state (0.3994/0.4010), between
+== the 0.38 expansion-only floor and the 0.45 PU-fused baseline. The residual
+== +5% over the floor is PHYSICAL bank contention (ACT 24.6k->58.9k at n=12):
+== with 2 banks/channel the MAU's leaf-region reads + g writes must share both
+== banks with the deepest level's expansion traffic. A 3rd bank per channel
+== (dedicated leaf region) would recover most of it -> org sweep parameter.
+== The original 0.39 estimate assumed zero contention; 0.40 is the honest
+== 2-bank-org number. MAU-side check: leaf arrival 64 leaves/272CK/ch = 0.24
+== leaves/CK << 1 op/CK pipeline; CCDL stream 16B/CK/ch >> demand. Never binds.
+==
+== n=14 addendum (landed after finalization; ~3.5h sim each):
+n=14 reduce=none  cycles=2567938  ACT=100860 RD=4198400 WR=4198400 ns/leaf=0.3827   (consistent)
+n=14 reduce=mau   cycles=2780571  ACT=157455 RD=6295552 WR=5263360 ns/leaf=0.4143   (consistent, +8.3%)
+n=14 reduce=fused cycles=19386277 ACT=134204 RD=6295552 WR=5263360 ns/leaf=2.8888   (** ANOMALY **)
+== fused@n=14 flag: hand-computed PU reduce compute adds only ~0.33M CK
+== (128 ops/ch/inst, cl<=1152) -> predicted ~2.9M total, measured 19.4M (7x).
+== Suspected simulator artifact (large-cl REDUCE x fpu_gate x deep-queue
+== interaction), NOT a physical result; excluded from baselines. The quoted
+== fused baseline remains n=10/12 (0.4357/0.4431, mutually consistent).

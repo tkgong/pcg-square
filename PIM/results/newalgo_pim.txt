@@ -1,0 +1,15 @@
+== NEW-ALGORITHM PIM (Beaver output layer, no MAU, no multiplier)
+== near-bank ARX PU + sparse-prime mod-ALU (REDP/ADDP/CADDP/NEGP);
+== last level = fused CONVERT (expand + ChaCha8 H' + mod-P + 8B wr);
+== NTT entirely on SM. Full load n=12, 4 rounds, gated, broadcast.
+== L40S MEASURED chacha465/none ratio = 1.780 (sens: 310=1.374 620=2.186).
+== other devices: ratio x per-device none anchor x tck (channel
+== linearity +-4%). ns/leaf = card-level.
+==
+dev         PU(card) | none    convert  conv/none | tck(ns) ch
+L40S         192   | 0.0549  0.0978   1.780     | 0.444  24
+RTX5000Ada   128   | 0.0824  0.1467   1.780     | 0.444  16
+RTXPRO6000   512   | 0.0262  0.0465   1.780     | 0.571  64
+A100-80      640   | 0.0237  0.0423   1.780     | 0.625  80
+H200        1536   | 0.0100  0.0178   1.780     | 0.625  96
+B200        2048   | 0.0060  0.0107   1.780     | 0.500  128

@@ -1,0 +1,50 @@
+== L40S large-N silicon (GPU 3, direct run, 2026-07-08) ==
+-- merge poly-mul (full: 2 fwd + pointwise + inv) --
+N=2^16 backend=merge N=65536 device_ms=2.1858 checksum=223fbd4b0635084d
+N=2^17 backend=merge N=131072 device_ms=1.9653 checksum=b01780c31d8193e7
+N=2^18 backend=merge N=262144 device_ms=1.4476 checksum=9c5f90b1164ececd
+N=2^19 backend=merge N=524288 device_ms=1.1487 checksum=dd43dfdc2b216859
+N=2^20 backend=merge N=1048576 device_ms=1.0037 checksum=babb94fb35b146c9
+N=2^21 backend=merge N=2097152 device_ms=2.4670 checksum=ec8a53c072f4a7bc
+N=2^22 backend=merge N=4194304 device_ms=2.7911 checksum=381001dd47612b4b
+N=2^23 backend=merge N=8388608 device_ms=3.9745 checksum=88a5e3625e233774
+N=2^24 backend=merge N=16777216 device_ms=6.7027 checksum=7f46f4f90a98dd41
+-- ChaCha DPF+leaf_convert, large total leaves (wall incl copies) --
+GPU ChaCha8 DPF  n=16 B=64 w=1  total_leaves=4194304  checksum=f32fc5203ef04040
+  FULL        : 12.7121 ms  3.0308 ns/leaf  3.299e+08 leaves/s
+GPU ChaCha8 DPF  n=16 B=256 w=1  total_leaves=16777216  checksum=0aa6305e280a5500
+  FULL        : 49.6374 ms  2.9586 ns/leaf  3.380e+08 leaves/s
+GPU ChaCha8 DPF  n=18 B=64 w=1  total_leaves=16777216  checksum=f32fc5203ef04040
+  FULL        : 47.8833 ms  2.8541 ns/leaf  3.504e+08 leaves/s
+== L40S large-N silicon (GPU 3, 2026-07-08) ==
+-- merge poly-mul (full: 2 fwd + pointwise + inv), 5 iters after warmup --
+N=2^16 backend=merge N=65536 device_ms=2.1961 checksum=223fbd4b0635084d
+N=2^17 backend=merge N=131072 device_ms=2.0056 checksum=b01780c31d8193e7
+N=2^18 backend=merge N=262144 device_ms=1.4577 checksum=9c5f90b1164ececd
+N=2^19 backend=merge N=524288 device_ms=1.1553 checksum=dd43dfdc2b216859
+N=2^20 backend=merge N=1048576 device_ms=1.0178 checksum=babb94fb35b146c9
+N=2^21 backend=merge N=2097152 device_ms=2.4650 checksum=ec8a53c072f4a7bc
+N=2^22 backend=merge N=4194304 device_ms=2.8585 checksum=381001dd47612b4b
+N=2^23 backend=merge N=8388608 device_ms=4.0063 checksum=88a5e3625e233774
+N=2^24 backend=merge N=16777216 device_ms=6.7820 checksum=7f46f4f90a98dd41
+-- ChaCha DPF+leaf_convert, large total leaves (wall incl copies) --
+GPU ChaCha8 DPF  n=16 B=64 w=1  total_leaves=4194304  checksum=f32fc5203ef04040
+  FULL        : 12.4896 ms  2.9778 ns/leaf  3.358e+08 leaves/s
+GPU ChaCha8 DPF  n=16 B=256 w=1  total_leaves=16777216  checksum=0aa6305e280a5500
+  FULL        : 48.1979 ms  2.8728 ns/leaf  3.481e+08 leaves/s
+GPU ChaCha8 DPF  n=18 B=64 w=1  total_leaves=16777216  checksum=f32fc5203ef04040
+  FULL        : 48.0564 ms  2.8644 ns/leaf  3.491e+08 leaves/s
+done
+
+-- nsys kernel-only (the honest metric; device_ms above is single-shot wall
+-- incl. first-call table build + H2D/D2H and must not be used) --
+N=2^16:   20.2 us  (fwd 62%)   <- reproduces the original anchor exactly
+N=2^18:   42.3 us  (fwd 62%)
+N=2^20:  126.0 us  (fwd 64%)
+N=2^21:  246.3 us  (fwd 64%)
+N=2^22:  551.2 us  (fwd 61%)
+N=2^23: 1791.0 us  (fwd 56%)   <- L2 (96MB) overflow: slope 2.2x -> 3.2x/octave
+N=2^24: 4513.1 us  (fwd 57%)      = the DRAM-bound regime, visible in silicon
+-- Finding: the Ada merge table's large-N entries include copy/staging overhead
+-- and overestimate kernel-only NTT ~6x at 2^20; all model uses now switch to
+-- this silicon table.

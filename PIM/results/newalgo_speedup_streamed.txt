@@ -1,0 +1,146 @@
+== NEW-ALGORITHM speedup vs all-GPU, per (N,t), overlapped steady
+== T = max(T_pim_dpf+convert, T_ntt_sm). GPU serial = leaves x
+== newDPF+convert(leaves) + 2 x polymul16(N). Single PIM config
+== (no MAU/DRU/multiplier). GPU DPF+convert MEASURED on L40S;
+== PIM NTT lane sched=streamed (streamed = Move2: fwd+pw per block, INTT/16).
+== est = GPU baseline scaled (new silicon only on L40S). cl=465.
+== W = capacity-wall cell (block-streaming, measured faster).
+==
+-- L40S (192 PU): PIM DPF+convert ns/leaf = 0.0978
+        N   t |    GPU ms |      x | lane flags
+     2^16   4 |      0.39 |   7.6x |  DPF 
+     2^16   8 |      0.51 |   4.9x |  DPF 
+     2^16  16 |      0.73 |   3.5x |  DPF 
+     2^16  32 |      1.05 |   2.6x |  DPF 
+     2^18   4 |      0.77 |   3.8x |  DPF 
+     2^18   8 |      1.09 |   2.7x |  DPF 
+     2^18  16 |      1.99 |   2.4x |  DPF 
+     2^18  32 |      3.68 |   2.2x |  DPF 
+     2^20   4 |      2.47 |   3.0x |  DPF 
+     2^20   8 |      4.16 |   2.5x |  DPF 
+     2^20  16 |      7.78 |   2.4x |  DPF 
+     2^20  32 |     15.03 |   2.3x |  DPF 
+     2^22   4 |      9.64 |   2.9x |  DPF 
+     2^22   8 |     16.89 |   2.6x |  DPF 
+     2^22  16 |     31.52 |   2.4x |  DPF 
+     2^22  32 |     60.91 |   2.3x |  DPF 
+     2^24   4 |     39.03 |   3.0x |  DPF W
+     2^24   8 |     68.42 |   2.6x |  DPF W
+     2^24  16 |    127.48 |   2.4x |  DPF 
+     2^24  32 |    246.13 |   2.3x |  DPF 
+
+-- RTX5000Ada (128 PU) est: PIM DPF+convert ns/leaf = 0.1467
+        N   t |    GPU ms |      x | lane flags
+     2^16   4 |      0.50 |   6.6x |  DPF 
+     2^16   8 |      0.66 |   4.3x |  DPF 
+     2^16  16 |      0.95 |   3.1x |  DPF 
+     2^16  32 |      1.36 |   2.2x |  DPF 
+     2^18   4 |      1.00 |   3.3x |  DPF 
+     2^18   8 |      1.42 |   2.3x |  DPF 
+     2^18  16 |      2.59 |   2.1x |  DPF 
+     2^18  32 |      4.78 |   1.9x |  DPF 
+     2^20   4 |      3.24 |   2.6x |  DPF 
+     2^20   8 |      5.43 |   2.2x |  DPF 
+     2^20  16 |     10.14 |   2.1x |  DPF 
+     2^20  32 |     19.56 |   2.0x |  DPF 
+     2^22   4 |     12.66 |   2.6x |  DPF 
+     2^22   8 |     22.08 |   2.2x |  DPF 
+     2^22  16 |     41.10 |   2.1x |  DPF 
+     2^22  32 |     79.31 |   2.0x |  DPF 
+     2^24   4 |     51.23 |   2.6x |  DPF W
+     2^24   8 |     89.45 |   2.3x |  DPF W
+     2^24  16 |    166.22 |   2.1x |  DPF 
+     2^24  32 |    320.46 |   2.0x |  DPF 
+
+-- RTXPRO6000 (512 PU) est: PIM DPF+convert ns/leaf = 0.0465
+        N   t |    GPU ms |      x | lane flags
+     2^16   4 |      0.22 |   9.1x |  DPF 
+     2^16   8 |      0.29 |   5.9x |  DPF 
+     2^16  16 |      0.42 |   4.3x |  DPF 
+     2^16  32 |      0.60 |   3.1x |  DPF 
+     2^18   4 |      0.45 |   4.6x |  DPF 
+     2^18   8 |      0.63 |   3.2x |  DPF 
+     2^18  16 |      1.14 |   2.9x |  DPF 
+     2^18  32 |      2.10 |   2.7x |  DPF 
+     2^20   4 |      1.48 |   3.8x |  DPF 
+     2^20   8 |      2.44 |   3.1x |  DPF 
+     2^20  16 |      4.50 |   2.9x |  DPF 
+     2^20  32 |      8.63 |   2.8x |  DPF 
+     2^22   4 |      5.81 |   3.7x |  DPF 
+     2^22   8 |      9.94 |   3.2x |  DPF 
+     2^22  16 |     18.27 |   2.9x |  DPF 
+     2^22  32 |     35.03 |   2.8x |  DPF 
+     2^24   4 |     23.53 |   3.8x |  DPF W
+     2^24   8 |     40.28 |   3.2x |  DPF W
+     2^24  16 |     73.94 |   3.0x |  DPF 
+     2^24  32 |    141.56 |   2.8x |  DPF 
+
+-- A100-80 (640 PU) est: PIM DPF+convert ns/leaf = 0.0423
+        N   t |    GPU ms |      x | lane flags
+     2^16   4 |      0.31 |  14.2x |  DPF 
+     2^16   8 |      0.41 |   9.2x |  DPF 
+     2^16  16 |      0.59 |   6.6x |  DPF 
+     2^16  32 |      0.84 |   4.8x |  DPF 
+     2^18   4 |      0.63 |   7.1x |  DPF 
+     2^18   8 |      0.89 |   5.0x |  DPF 
+     2^18  16 |      1.61 |   4.5x |  DPF 
+     2^18  32 |      2.96 |   4.2x |  DPF 
+     2^20   4 |      1.94 |   5.5x |  DPF 
+     2^20   8 |      3.28 |   4.6x |  DPF 
+     2^20  16 |      6.18 |   4.4x |  DPF 
+     2^20  32 |     11.97 |   4.2x |  DPF 
+     2^22   4 |      7.49 |   5.3x |  DPF 
+     2^22   8 |     13.28 |   4.7x |  DPF 
+     2^22  16 |     24.97 |   4.4x |  DPF 
+     2^22  32 |     48.44 |   4.3x |  DPF 
+     2^24   4 |     30.49 |   5.4x |  DPF W
+     2^24   8 |     53.96 |   4.8x |  DPF W
+     2^24  16 |    101.13 |   4.5x |  DPF 
+     2^24  32 |    195.90 |   4.3x |  DPF 
+
+-- H200 (1536 PU) est: PIM DPF+convert ns/leaf = 0.0178
+        N   t |    GPU ms |      x | lane flags
+     2^16   4 |      0.26 |  27.4x |  DPF 
+     2^16   8 |      0.33 |  17.7x |  DPF 
+     2^16  16 |      0.47 |  12.6x |  DPF 
+     2^16  32 |      0.68 |   9.1x |  DPF 
+     2^18   4 |      0.52 |  14.0x |  DPF 
+     2^18   8 |      0.73 |   9.8x |  DPF 
+     2^18  16 |      1.30 |   8.7x |  DPF 
+     2^18  32 |      2.38 |   8.0x |  DPF 
+     2^20   4 |      1.52 |  10.2x |  DPF 
+     2^20   8 |      2.60 |   8.7x |  DPF 
+     2^20  16 |      4.91 |   8.2x |  DPF 
+     2^20  32 |      9.53 |   8.0x |  DPF 
+     2^22   4 |      5.84 |   9.8x |  DPF 
+     2^22   8 |     10.46 |   8.8x |  DPF 
+     2^22  16 |     19.79 |   8.3x |  DPF 
+     2^22  32 |     38.54 |   8.1x |  DPF 
+     2^24   4 |     23.85 |  10.0x |  DPF W
+     2^24   8 |     42.60 |   8.9x |  DPF W
+     2^24  16 |     80.28 |   8.4x |  DPF 
+     2^24  32 |    155.97 |   8.2x |  DPF 
+
+-- B200 (2048 PU) est: PIM DPF+convert ns/leaf = 0.0107
+        N   t |    GPU ms |      x | lane flags
+     2^16   4 |      0.22 |  38.6x |  DPF 
+     2^16   8 |      0.28 |  24.9x |  DPF 
+     2^16  16 |      0.40 |  17.7x |  DPF 
+     2^16  32 |      0.57 |  12.7x |  DPF 
+     2^18   4 |      0.44 |  19.8x |  DPF 
+     2^18   8 |      0.62 |  13.8x |  DPF 
+     2^18  16 |      1.10 |  12.3x |  DPF 
+     2^18  32 |      2.00 |  11.2x |  DPF 
+     2^20   4 |      1.29 |  14.5x |  DPF 
+     2^20   8 |      2.19 |  12.3x |  DPF 
+     2^20  16 |      4.13 |  11.5x |  DPF 
+     2^20  32 |      8.00 |  11.2x |  DPF 
+     2^22   4 |      4.97 |  13.9x |  DPF 
+     2^22   8 |      8.84 |  12.3x |  DPF 
+     2^22  16 |     16.65 |  11.6x |  DPF 
+     2^22  32 |     32.35 |  11.3x |  DPF 
+     2^24   4 |     20.45 |  14.3x |  DPF W
+     2^24   8 |     36.15 |  12.6x |  DPF W
+     2^24  16 |     67.68 |  11.8x |  DPF 
+     2^24  32 |    131.03 |  11.4x |  DPF 
+

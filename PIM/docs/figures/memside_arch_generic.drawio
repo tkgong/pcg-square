@@ -1,0 +1,212 @@
+<mxfile host="app.diagrams.net" agent="pcg2" version="24.7.7">
+  <diagram name="memside-arch" id="memside-arch">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1250" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ======== title ======== -->
+        <mxCell id="t0" value="GPU + Memory-Side Architecture (baseline; applies to both GDDR and HBM systems)" style="text;html=1;align=left;fontSize=16;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="8" width="800" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ======== Panel A: GPU ======== -->
+        <mxCell id="pA" value="(a) GPU" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;verticalAlign=top;align=left;spacing=8;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="360" height="500" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sm1" value="SM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=1.5;fontSize=13;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="65" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="sm2" value="SM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=1.5;fontSize=13;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="135" y="80" width="65" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="sm3" value="SM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=1.5;fontSize=13;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="210" y="80" width="65" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="smdots" value="..." style="text;html=1;align=center;fontSize=16;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="280" y="90" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="sm4" value="SM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=1.5;fontSize=13;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="315" y="80" width="65" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="noc" value="Interconnect / NoC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2F7;strokeColor=#000000;strokeWidth=1.5;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="165" width="320" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" value="L2 Cache + Memory Controllers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2F7;strokeColor=#000000;strokeWidth=1.5;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="225" width="320" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="eA1" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="sm2" target="noc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eA2" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="noc" target="l2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eA3" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="l2" target="dmem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dmem" value="Device Memory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;verticalAlign=top;align=left;spacing=8;fontSize=13;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="285" width="320" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="ch0" value="CH 0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="75" y="320" width="55" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ch1" value="CH 1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="140" y="320" width="55" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ch2" value="CH 2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="205" y="320" width="55" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="chdots" value="..." style="text;html=1;align=center;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="265" y="325" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="chN" value="CH N-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="300" y="320" width="65" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dmemnote" value="GDDR6/GDDR7: N = 24-64 channels, on-PCB DRAM chips&#10;HBM2e/HBM3/HBM3e: 16 ch per stack x 4-8 stacks, in-package&#10;(pseudo-channel: 2 per channel on HBM3+)" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#333333;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="75" y="375" width="295" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="dmemnote2" value="Same channel-&gt;bank-group-&gt;bank hierarchy on every generation; only channel count, bank count, and per-pin rate change." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontStyle=2;fontColor=#333333;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="75" y="450" width="295" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- ======== Panel B: one memory channel ======== -->
+        <mxCell id="pB" value="(b) One memory channel (GDDR chip / HBM die slice)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;verticalAlign=top;align=left;spacing=8;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="480" y="40" width="360" height="500" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bg0" value="Bank Group 0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;verticalAlign=top;fontSize=11;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="500" y="85" width="150" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="bg0b0" value="Bank 0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="510" y="110" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg0b1" value="Bank 1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="580" y="110" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg0b2" value="Bank 2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="510" y="160" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg0b3" value="Bank 3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="580" y="160" width="60" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bg1" value="Bank Group 1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;verticalAlign=top;fontSize=11;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="670" y="85" width="150" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="bg1b0" value="Bank 0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="680" y="110" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg1b1" value="Bank 1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="750" y="110" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg1b2" value="Bank 2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="680" y="160" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg1b3" value="Bank 3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="750" y="160" width="60" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bg2" value="Bank Group 2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;verticalAlign=top;fontSize=11;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="500" y="235" width="150" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="bg2b0" value="Bank 0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="510" y="260" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg2b1" value="Bank 1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="580" y="260" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg2b2" value="Bank 2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="510" y="310" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg2b3" value="Bank 3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="580" y="310" width="60" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bg3" value="Bank Group 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;verticalAlign=top;fontSize=11;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="670" y="235" width="150" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="bg3b0" value="Bank 0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="680" y="260" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg3b1" value="Bank 1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="750" y="260" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg3b2" value="Bank 2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="680" y="310" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bg3b3" value="Bank 3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="750" y="310" width="60" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gbus" value="Global Bus (GBUS) + I/O sense amplifiers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2F7;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="500" y="390" width="320" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="chio" value="Channel I/O: GDDR = PCB trace to MC; HBM = TSV + interposer to MC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2F7;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="500" y="440" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="eB1" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="bg2" target="gbus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eB2" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="bg3" target="gbus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eB3" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="gbus" target="chio">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pBnote" value="16 banks/ch (GDDR) or 32 banks/ch (HBM3e)" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="500" y="495" width="320" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ======== Panel C: one bank ======== -->
+        <mxCell id="pC" value="(c) One bank" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;verticalAlign=top;align=left;spacing=8;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="900" y="40" width="310" height="500" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rowdec" value="Row Decoder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2F7;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;horizontal=0;" vertex="1" parent="1">
+          <mxGeometry x="915" y="90" width="40" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="cellarray" value="DRAM cell array&#10;&#10;(row = 1-2 KB page)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F6F8;strokeColor=#000000;strokeWidth=2;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="965" y="90" width="230" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="rowbuf" value="Sense Amps / Row Buffer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2F7;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="965" y="355" width="230" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="coldec" value="Column Decoder / CSL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2F7;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="965" y="400" width="230" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="colio" value="Column I/O: 256 b (= 32 B) per access, to bank-group local bus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2F7;strokeColor=#000000;strokeWidth=1.5;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="965" y="445" width="230" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="eC1" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="cellarray" target="rowbuf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eC2" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="rowbuf" target="coldec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eC3" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1" source="coldec" target="colio">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ======== dashed zoom links ======== -->
+        <mxCell id="z1" style="endArrow=none;dashed=1;html=1;strokeColor=#666666;strokeWidth=1.5;exitX=1;exitY=0;entryX=0;entryY=0;" edge="1" parent="1" source="ch0" target="pB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z2" style="endArrow=none;dashed=1;html=1;strokeColor=#666666;strokeWidth=1.5;exitX=1;exitY=1;entryX=0;entryY=1;" edge="1" parent="1" source="ch0" target="pB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z3" style="endArrow=none;dashed=1;html=1;strokeColor=#666666;strokeWidth=1.5;exitX=1;exitY=0;entryX=0;entryY=0;" edge="1" parent="1" source="bg1b1" target="pC">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z4" style="endArrow=none;dashed=1;html=1;strokeColor=#666666;strokeWidth=1.5;exitX=1;exitY=1;entryX=0;entryY=1;" edge="1" parent="1" source="bg1b1" target="pC">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

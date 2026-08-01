@@ -1,0 +1,3 @@
+# opsize ch_idx bank row_in row_out compute_lat col_in col_out write_bank
+AiM GGM_EXTEND 8 0 0 0 1 128 0 0 0
+AiM EOC

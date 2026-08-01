@@ -1,0 +1,4 @@
+== leaf_convert REMODELED: two-pass (sum+VXSUM4 -> scale modmul=32/group SIMD + ADD64M) + expand 8r8w cl=272 ==
+n=12 full-DPF cycles=6281 ACT=128 RD=7248 WR=6288 ns=3925.625 ns/leaf=.9584
+n=16 full-DPF cycles=48595 ACT=1728 RD=99408 WR=83280 ns=30371.875 ns/leaf=.4634
+n=18 full-DPF cycles=188770 ACT=7232 RD=394320 WR=329808 ns=117981.250 ns/leaf=.4500

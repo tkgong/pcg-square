@@ -1,0 +1,30 @@
+REAL-KERNEL DPF+convert  n=18 B=64 t=8 w=1 prg=chacha8  leaves=16777216  gN=1048576  checksum=16e395febfd6d23f
+  tier=phase-wall (cudaEvent; use nsys for kernel-only):
+  expand (hash+expand kernels + CW D2H/H2D)   :    2.447 ms  0.1458 ns/leaf
+  out_sums   (per-leaf ChaCha8 H' + mod-P)    :    0.469 ms  0.0280 ns/leaf
+  out_scatter (y=C+tau?CW + negacyclic fold)  :    0.844 ms  0.0503 ns/leaf
+  TOTAL DPF+convert                           :    3.760 ms  0.2241 ns/leaf
+REAL-KERNEL DPF+convert  n=18 B=256 t=16 w=1 prg=chacha8  leaves=67108864  gN=2097152  checksum=27cb4298e84744ed
+  tier=phase-wall (cudaEvent; use nsys for kernel-only):
+  expand (hash+expand kernels + CW D2H/H2D)   :    9.570 ms  0.1426 ns/leaf
+  out_sums   (per-leaf ChaCha8 H' + mod-P)    :    1.562 ms  0.0233 ns/leaf
+  out_scatter (y=C+tau?CW + negacyclic fold)  :    2.388 ms  0.0356 ns/leaf
+  TOTAL DPF+convert                           :   13.521 ms  0.2015 ns/leaf
+REAL-KERNEL DPF+convert  n=20 B=64 t=8 w=1 prg=chacha8  leaves=67108864  gN=4194304  checksum=104646e15a59c497
+  tier=phase-wall (cudaEvent; use nsys for kernel-only):
+  expand (hash+expand kernels + CW D2H/H2D)   :    9.497 ms  0.1415 ns/leaf
+  out_sums   (per-leaf ChaCha8 H' + mod-P)    :    1.546 ms  0.0230 ns/leaf
+  out_scatter (y=C+tau?CW + negacyclic fold)  :    3.925 ms  0.0585 ns/leaf
+  TOTAL DPF+convert                           :   14.968 ms  0.2230 ns/leaf
+REAL-KERNEL DPF+convert  n=20 B=256 t=16 w=1 prg=chacha8  leaves=268435456  gN=8388608  checksum=204a14f81d54aa7e
+  tier=phase-wall (cudaEvent; use nsys for kernel-only):
+  expand (hash+expand kernels + CW D2H/H2D)   :   37.736 ms  0.1406 ns/leaf
+  out_sums   (per-leaf ChaCha8 H' + mod-P)    :    5.857 ms  0.0218 ns/leaf
+  out_scatter (y=C+tau?CW + negacyclic fold)  :   12.401 ms  0.0462 ns/leaf
+  TOTAL DPF+convert                           :   55.994 ms  0.2086 ns/leaf
+REAL-KERNEL DPF+convert  n=24 B=16 t=4 w=1 prg=chacha8  leaves=268435456  gN=33554432  checksum=02a9707398f918d0
+  tier=phase-wall (cudaEvent; use nsys for kernel-only):
+  expand (hash+expand kernels + CW D2H/H2D)   :   37.802 ms  0.1408 ns/leaf
+  out_sums   (per-leaf ChaCha8 H' + mod-P)    :    5.919 ms  0.0220 ns/leaf
+  out_scatter (y=C+tau?CW + negacyclic fold)  :   25.017 ms  0.0932 ns/leaf
+  TOTAL DPF+convert                           :   68.738 ms  0.2561 ns/leaf

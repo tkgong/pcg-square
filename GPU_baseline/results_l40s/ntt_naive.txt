@@ -1,0 +1,5 @@
+backend=naive N=1048576 batch=16 iters=5 device_ms=25.9670 ms_per_mul=1.6229 checksum=8599dd17bf241164 vs_4step=BITEXACT tier=phase-wall
+backend=naive N=2097152 batch=16 iters=5 device_ms=53.9111 ms_per_mul=3.3694 checksum=5fb52a0c5b54f915 vs_4step=BITEXACT tier=phase-wall
+backend=naive N=4194304 batch=16 iters=5 device_ms=113.2090 ms_per_mul=7.0756 checksum=38038829b66515dc vs_4step=BITEXACT tier=phase-wall
+backend=naive N=8388608 batch=16 iters=5 device_ms=250.0227 ms_per_mul=15.6264 checksum=367f90da6d93fa72 vs_4step=BITEXACT tier=phase-wall
+backend=naive N=16777216 batch=16 iters=5 device_ms=536.6958 ms_per_mul=33.5435 checksum=4856d45b904c6465 vs_4step=BITEXACT tier=phase-wall

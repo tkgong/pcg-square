@@ -1,0 +1,7 @@
+bench,peer,msg_bytes,rtt_p50_us,rtt_p10_us,rtt_p90_us
+alpha_nvlink,4096,19.71,18.98,20.10,ok
+alpha_nvlink,2048,19.68,18.98,19.94,ok
+alpha_nvlink,65536,18.75,18.11,19.20,ok
+alpha_tcp,127.0.0.1,4096,5.27,5.11,5.56
+alpha_tcp,127.0.0.1,2048,5.03,4.91,5.28
+alpha_tcp,127.0.0.1,65536,12.73,12.53,13.31

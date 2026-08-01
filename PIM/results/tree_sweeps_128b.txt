@@ -1,0 +1,10 @@
+== dpf.cpp-ALIGNED (128b seeds, 4rd/8wr per op, cl=279, modmul=1/leaf-block) ==
+n=12 cl=0 reduce=none cycles=1350 ACT=128 RD=2600 WR=5200 ns=843.750 ns/leaf=.2059
+n=12 cl=279 reduce=none cycles=5814 ACT=128 RD=2600 WR=5200 ns=3633.750 ns/leaf=.8871
+n=16 cl=0 reduce=none cycles=10266 ACT=3207 RD=33320 WR=66640 ns=6416.250 ns/leaf=.0979
+n=16 cl=279 reduce=none cycles=43317 ACT=1408 RD=33320 WR=66640 ns=27073.125 ns/leaf=.4131
+n=18 cl=0 reduce=none cycles=35672 ACT=9834 RD=131624 WR=263248 ns=22295.000 ns/leaf=.0850
+n=18 cl=279 reduce=none cycles=166179 ACT=6144 RD=131624 WR=263248 ns=103861.875 ns/leaf=.3962
+n=16 cl=279 reduce=fused cycles=64059 ACT=1920 RD=66088 WR=70736 ns=40036.875 ns/leaf=.6109
+n=18 cl=279 reduce=fused cycles=248441 ACT=8194 RD=262696 WR=279632 ns=155275.625 ns/leaf=.5923
+PCG(N=2^12,t=4): 64 inst x n=11 +fused, cycles=122615 ACT=3968 RD=131584 WR=140288

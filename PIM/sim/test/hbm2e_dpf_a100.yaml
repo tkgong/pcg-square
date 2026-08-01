@@ -1,0 +1,34 @@
+# A100-80GB HBM2e PIM: 80 pseudo-channels x 16 banks, 2 banks/PU -> 640 PUs.
+# HBM2e 3.2 GT/s timing (CK=1.6 GHz, tCK=625ps; 25.6 GB/s per PC, 2.05 TB/s card).
+Frontend:
+  impl: AiMTrace
+  clock_ratio: 1
+
+  Translation:
+    impl: NoTranslation
+    max_addr: 2147483648
+
+
+MemorySystem:
+  impl: AiMDRAM
+  clock_ratio: 1
+
+  DRAM:
+    impl: HBM2
+    org:
+      preset: HBM2E_A100
+    timing:
+      preset: HBM2E_3200
+
+  Controller:
+    impl: AiM
+    clock_ratio: 1
+    banks_per_pim_unit: 2
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+
+  AddrMapper:
+    impl: RoBaRaCoCh

@@ -1,0 +1,3 @@
+# opsize ch_idx bank leaf_row g_row compute_lat col_in col_out write_bank wrsize
+AiM GGM_REDUCE 16 0 0 0 100 64 0 0 1 4
+AiM EOC

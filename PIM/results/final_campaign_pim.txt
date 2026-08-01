@@ -1,0 +1,18 @@
+== FINAL CAMPAIGN, PIM sim tier (Ramulator2, all-bank broadcast,
+== gated, 128b seeds 8r8w, full load 4 rounds, n=12; card-level
+== ns/leaf = sim/card_factor). Ablation cases:
+==   A: MAU = DPF lc + NTT stage-1 (_ntt1 = contention-loaded)
+==   B: MAU = DPF lc only          (_sm  = SM traffic loaded)
+==   C: no MAU, fused modmul on PU
+==
+dev        PU(card) | floor  | 1ALU: none  mau   fused | 2ALU: none  mau   fused | mau_sm(2A) ntt1(2A) | n14x | 2ALUx  mau/fused
+L40S        192   | 0.0093 | 0.0884 0.1163 0.1019 | 0.0549 0.0828 0.0683 | 0.1107  0.1198 |   -   | 1.40x  0.83x
+RTX5000Ada  128   | 0.0139 | 0.1327 0.1745 0.1528 | 0.0824 0.1242 0.1025 | 0.1661  0.1797 |   -   | 1.40x  0.83x
+RTXPRO6000  512   | 0.0045 | 0.0423 0.0558 0.0488 | 0.0262 0.0396 0.0326 | 0.0531  0.0574 |   -   | 1.41x  0.82x
+A100-80     640   | 0.0039 | 0.0379 0.0497 0.0441 | 0.0237 0.0355 0.0299 | 0.0473  0.0511 |   -   | 1.40x  0.84x
+H200       1536   | 0.0016 | 0.0159 0.0208 0.0185 | 0.0100 0.0149 0.0126 | 0.0198  0.0214 |   -   | 1.40x  0.84x
+B200       2048   | 0.0010 | 0.0095 0.0125 0.0111 | 0.0060 0.0089 0.0075 | 0.0119  0.0128 |   -   | 1.40x  0.84x
+
+== v2 full-load measured points (n=12, 4 rounds, fixed sim): 66
+
+== MISSING points (rerun needed): bc_n14_cl155_mau ada5k_n14_cl155_mau gddr7_n14_cl155_mau a100_n14_cl155_mau h200h_n14_cl155_mau b200_n14_cl155_mau
