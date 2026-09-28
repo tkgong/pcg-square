@@ -195,10 +195,12 @@ struct Plan {
     Data64 *psi2_rev = nullptr, *psi2inv_rev = nullptr;
     Data64 *tw = nullptr, *twi = nullptr;
 
-    Plan(int logN_, uint64_t prime) : logN(logN_), N(1 << logN_), p(prime), mod(prime) {
+    // row_log > 0 fixes the row-transform length n2 = 2^row_log (n1 = N / n2);
+    // default is the balanced split n1 = 2^ceil(logN/2), n2 = 2^floor(logN/2).
+    Plan(int logN_, uint64_t prime, int row_log = 0) : logN(logN_), N(1 << logN_), p(prime), mod(prime) {
         if (logN < 8 || logN > 24) throw std::runtime_error("fused4: logN must be in [8, 24]");
-        log1 = (logN + 1) / 2;          // n1 = 2^ceil(logN/2)
-        log2 = logN / 2;                // n2 = 2^floor(logN/2)
+        log2 = row_log > 0 ? row_log : logN / 2;
+        log1 = logN - log2;
         n1 = 1 << log1;
         n2 = 1 << log2;
         using pcg_cuda::mod_mul_u64;

@@ -237,7 +237,7 @@ struct SubNTT {
     static constexpr int kMaxZ = 65535;
 
     SubNTT(int lg, uint64_t p, uint64_t psi) : logn(lg), mod(p) {
-        if (lg < 10 || lg > 12) throw std::runtime_error("fused4g: sub-transform length must be 2^10..2^12");
+        if (lg < 10 || lg > 14) throw std::runtime_error("fused4g: sub-transform length must be 2^10..2^14");
         const uint64_t omega = pcg_cuda::mod_mul_u64(psi, psi, p);
         NTTFactors<TU> f(Modulus<TU>(p), omega, psi);
         NTTParameters<TU> params(lg, f, ReductionPolynomial::X_N_plus);
@@ -307,14 +307,19 @@ struct SubNTT {
 };
 
 // Same pipeline and tables as fused4::Plan; sub-transforms on GPU-NTT's kernels.
+// Split: the row transform is fixed at n2 = 2^10 (one library kernel, twiddle fused
+// into its load) and the column transform takes n1 = N / 2^10 (library kernels as
+// configured for that length). Per forward transform this is 2 SM kernels at
+// logN 20 and 3 at logN 21..24 -- never more than merge's 3.
 struct PlanG {
+    static constexpr int kRowLog = 10;
     fused4::Plan base;          // tables (tw, twi), transposes, pointwise
-    SubNTT col, row;            // col: length n1 (psi1), row: length n2 (psi2)
+    SubNTT col, row;            // col: length n1 (psi1 = psi^n2), row: length n2 (psi2 = psi^n1)
 
     PlanG(int logN, uint64_t p)
-        : base(logN, p),
-          col((logN + 1) / 2, p, pcg_cuda::mod_pow_u64(pcg_cuda::negacyclic_psi(p, 1 << logN), 1ull << (logN / 2), p)),
-          row(logN / 2, p, pcg_cuda::mod_pow_u64(pcg_cuda::negacyclic_psi(p, 1 << logN), 1ull << ((logN + 1) / 2), p)) {}
+        : base(logN, p, kRowLog),
+          col(logN - kRowLog, p, pcg_cuda::mod_pow_u64(pcg_cuda::negacyclic_psi(p, 1 << logN), 1ull << kRowLog, p)),
+          row(kRowLog, p, pcg_cuda::mod_pow_u64(pcg_cuda::negacyclic_psi(p, 1 << logN), 1ull << (logN - kRowLog), p)) {}
 
     void multiply(TU* a, TU* b, TU* ta, TU* tb, int batch, int lanes = 3) const {
         const bool sm = lanes & 1, dru = lanes & 2;
