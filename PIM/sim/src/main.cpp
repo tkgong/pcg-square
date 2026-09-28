@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
             frontend->tick();
         }
 
-        if (frontend->is_finished()) {
+        if ((frontend->is_finished() && memory_system->aux_done()) || memory_system->hard_stop()) {
             break;
         }
 
@@ -132,4 +132,4 @@ int main(int argc, char *argv[]) {
     memory_system->finalize();
 
     return 0;
-}
+}

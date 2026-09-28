@@ -82,6 +82,31 @@ private:
 
     bool is_reg_RW_mode = false;
 
+    // ---- GPU-PIM contention co-simulation ----------------------------------
+    // Traffic classes (Request::req_class): 0 PIM, 1 GPU, 2 DRU, 3 AGG.
+    static constexpr int NCLS = 4;
+    std::vector<int> m_class_prio = {0, 1, 3, 2};   // highest priority first
+    int m_class_min_run = 0;
+    bool m_pim_strict = false;
+    size_t s_cls_wq_count[4] = {};
+    double s_cls_wq_mean[4] = {};
+    double m_wqsum[4] = {};     // keep serving the last-served class this many cycles
+    int m_last_class = -1;
+    Clk_t m_last_class_until = 0;
+    int64_t m_watchdog_cycles = 5000000;
+    Clk_t m_last_issue_clk = 0;
+    // per-class statistics
+    size_t s_cls_rd[NCLS] = {}, s_cls_wr[NCLS] = {}, s_cls_bus_cycles[NCLS] = {};
+    size_t s_cls_row_hit[NCLS] = {}, s_cls_row_miss[NCLS] = {}, s_cls_row_conflict[NCLS] = {};
+    size_t s_cls_q_count[NCLS] = {}, s_cls_r_count[NCLS] = {};
+    double s_cls_q_mean[NCLS] = {}, s_cls_q_p50[NCLS] = {}, s_cls_q_p95[NCLS] = {}, s_cls_q_p99[NCLS] = {};
+    double s_cls_r_mean[NCLS] = {}, s_cls_r_p50[NCLS] = {}, s_cls_r_p95[NCLS] = {}, s_cls_r_p99[NCLS] = {};
+    size_t s_ab_col = 0, s_ab_slot_cycles = 0;
+    static constexpr int HB = 4;          // histogram bucket width (cycles)
+    static constexpr int NHB = 4096;      // last bucket collects everything above
+    std::vector<uint64_t> m_qhist[NCLS], m_rhist[NCLS];
+    double m_qsum[NCLS] = {}, m_rsum[NCLS] = {};
+
 public:
     void init() override {
         m_wr_low_watermark = param<float>("wr_low_watermark").desc("Threshold for switching back to read mode.").default_val(0.2f);
@@ -92,6 +117,27 @@ public:
         m_rf_per_bg = param<int>("rf_per_bg").desc("Register files per bank-group (= max in-flight compute ops). -1 = unlimited.").default_val(-1);
         m_fpu_gate_issue = param<bool>("fpu_gate_issue").desc("Gate GGM op issue on FPU-busy (single-ALU compute-bound throughput).").default_val(false);
         m_clock_ratio = param<uint>("clock_ratio").required();
+        {
+            std::string pr = param<std::string>("class_priority")
+                .desc("Comma list of traffic classes, highest first (0 PIM, 1 GPU, 2 DRU, 3 AGG).")
+                .default_val("0,1,3,2");
+            m_class_prio.clear();
+            for (size_t i = 0; i < pr.size();) {
+                size_t j = pr.find(',', i);
+                if (j == std::string::npos) j = pr.size();
+                m_class_prio.push_back(std::stoi(pr.substr(i, j - i)));
+                i = j + 1;
+            }
+        }
+        m_pim_strict = param<bool>("pim_strict")
+            .desc("While any PIM request is queued or active, only PIM may use the channel.")
+            .default_val(false);
+        m_class_min_run = param<int>("class_min_run")
+            .desc("Cycles to keep serving the last-served class while it has ready requests.")
+            .default_val(0);
+        m_watchdog_cycles = param<int64_t>("watchdog_cycles")
+            .desc("Abort if requests are pending but no command issues for this many cycles.")
+            .default_val(5000000);
 
         m_scheduler = create_child_ifce<IScheduler>();
         m_refresh = create_child_ifce<IRefreshManager>();
@@ -140,6 +186,32 @@ public:
                 .name(fmt::format("CH{}_num_{}_commands", m_channel_id, std::string(m_dram->m_commands(command_id))))
                 .desc(fmt::format("total number of {} commands", std::string(m_dram->m_commands(command_id))));
         }
+
+        static const char* CN[NCLS] = {"pim", "gpu", "dru", "agg"};
+        for (int c = 0; c < NCLS; c++) {
+            m_qhist[c].assign(NHB + 1, 0);
+            m_rhist[c].assign(NHB + 1, 0);
+            register_stat(s_cls_rd[c]).name(fmt::format("CH{}_{}_rd_cols", m_channel_id, CN[c]));
+            register_stat(s_cls_wr[c]).name(fmt::format("CH{}_{}_wr_cols", m_channel_id, CN[c]));
+            register_stat(s_cls_bus_cycles[c]).name(fmt::format("CH{}_{}_bus_cycles", m_channel_id, CN[c]));
+            register_stat(s_cls_row_hit[c]).name(fmt::format("CH{}_{}_row_hit", m_channel_id, CN[c]));
+            register_stat(s_cls_row_miss[c]).name(fmt::format("CH{}_{}_row_miss", m_channel_id, CN[c]));
+            register_stat(s_cls_row_conflict[c]).name(fmt::format("CH{}_{}_row_conflict", m_channel_id, CN[c]));
+            register_stat(s_cls_q_count[c]).name(fmt::format("CH{}_{}_q_count", m_channel_id, CN[c]));
+            register_stat(s_cls_q_mean[c]).name(fmt::format("CH{}_{}_q_mean", m_channel_id, CN[c]));
+            register_stat(s_cls_q_p50[c]).name(fmt::format("CH{}_{}_q_p50", m_channel_id, CN[c]));
+            register_stat(s_cls_q_p95[c]).name(fmt::format("CH{}_{}_q_p95", m_channel_id, CN[c]));
+            register_stat(s_cls_q_p99[c]).name(fmt::format("CH{}_{}_q_p99", m_channel_id, CN[c]));
+            register_stat(s_cls_wq_count[c]).name(fmt::format("CH{}_{}_wq_count", m_channel_id, CN[c]));
+            register_stat(s_cls_wq_mean[c]).name(fmt::format("CH{}_{}_wq_mean", m_channel_id, CN[c]));
+            register_stat(s_cls_r_count[c]).name(fmt::format("CH{}_{}_rdlat_count", m_channel_id, CN[c]));
+            register_stat(s_cls_r_mean[c]).name(fmt::format("CH{}_{}_rdlat_mean", m_channel_id, CN[c]));
+            register_stat(s_cls_r_p50[c]).name(fmt::format("CH{}_{}_rdlat_p50", m_channel_id, CN[c]));
+            register_stat(s_cls_r_p95[c]).name(fmt::format("CH{}_{}_rdlat_p95", m_channel_id, CN[c]));
+            register_stat(s_cls_r_p99[c]).name(fmt::format("CH{}_{}_rdlat_p99", m_channel_id, CN[c]));
+        }
+        register_stat(s_ab_col).name(fmt::format("CH{}_pim_allbank_cols", m_channel_id));
+        register_stat(s_ab_slot_cycles).name(fmt::format("CH{}_pim_allbank_slot_cycles", m_channel_id));
 
         register_stat(s_num_idle_cycles)
             .name(fmt::format("CH{}_idle_cycles", m_channel_id))
@@ -194,11 +266,13 @@ public:
 
     bool send(Request &req) override {
         if (req.type == Type::AIM) {
-            if ((m_write_buffer.size() != 0) || (m_read_buffer.size() != 0))
+            // Barriers (SYNC/EOC) wait only for PIM-class traffic; GPU/DRU
+            // requests keep flowing around them.
+            if (pim_rw_pending())
                 return false;
             req.final_command = m_dram->m_aim_request_translations((int)req.opcode);
         } else {
-            if (m_aim_buffer.size() != 0)
+            if (req.req_class == 0 && m_aim_buffer.size() != 0)
                 return false;
             req.final_command = m_dram->m_request_translations((int)req.type);
             // ALL-BANK GGM sub-requests (nbanks>1, channel-scoped, bank=-1): route to the all-bank
@@ -307,10 +381,14 @@ public:
 
                 // If we find a real request to serve
                 // m_logger->info("[CLK {}] Issuing {} for {}", m_clk, std::string(m_dram->m_commands(req_it->command)).c_str(), req_it->str());
+                const bool first_cmd = (req_it->issue == -1);
                 if (req_it->issue == -1)
                     req_it->issue = m_clk - 1;
                 m_dram->issue_command(req_it->command, req_it->addr_vec);
                 s_num_commands[req_it->command] += 1;
+                if (buffer != &m_priority_buffer)       // refresh is not progress
+                    m_last_issue_clk = m_clk;
+                record_issue(*req_it, first_cmd);
                 // shared channel data bus: column commands (RD/WR/ABRD/ABWR)
                 // occupy it m_dru_bus_slot cycles, delaying the DRU tap.
                 if (m_dram->m_command_meta(req_it->command).is_accessing)
@@ -401,6 +479,15 @@ public:
             s_num_idle_cycles += 1;
         }
 
+        if (!request_found && m_watchdog_cycles > 0 &&
+            (m_read_buffer.size() || m_write_buffer.size() || m_active_buffer.size() || m_priority_buffer.size()) &&
+            (int64_t)(m_clk - m_last_issue_clk) > m_watchdog_cycles) {
+            throw std::runtime_error(fmt::format(
+                "AiM controller CH{}: watchdog -- no command issued for {} cycles with requests pending "
+                "(rd {} wr {} act {} prio {} aim {})", m_channel_id, m_clk - m_last_issue_clk,
+                m_read_buffer.size(), m_write_buffer.size(), m_active_buffer.size(),
+                m_priority_buffer.size(), m_aim_buffer.size()));
+        }
         if (m_dram->m_open_rows[m_channel_id] == 0) {
             s_num_precharged_cycles += 1;
         } else {
@@ -441,31 +528,40 @@ private:
     }
 
     void serve_completed_reqs() {
-        if (pending_reads.size()) {
-            // Check the first pending_reads request
-            auto &req = pending_reads[0];
-            if (req.depart <= m_clk) {
-                // Request received data from dram
-
-                if (((req.opcode != Opcode::ISR_EOC) && (req.opcode != Opcode::ISR_SYNC)) ||
-                    (pending_writes.size() == 0)) {
-
-                    if (req.callback) {
-                        // If the request comes from outside (e.g., processor), call its callback
-                        // m_logger->info("[CLK {}] Calling back {}!", m_clk, req.str());
-                        req.callback(req);
-                    }
-                    // else {
-                    //     m_logger->info("[CLK {}] Warning: {} doesn't have callback set but it is in the pending_reads queue!", m_clk, req.str());
-                    // }
-                    // Finally, r emove this request from the pending_reads queue
-                    pending_reads.pop_front();
+        // PIM-class (0) completions keep the original semantics: only the oldest
+        // PIM entry is considered, at most one per cycle, and a barrier waits for
+        // the PIM writes. Other classes complete out of order as soon as their
+        // data returns -- otherwise a PIM read carrying ChaCha compute latency
+        // would hold every later GPU read hostage in this FIFO.
+        bool pim_considered = false;
+        for (auto it = pending_reads.begin(); it != pending_reads.end();) {
+            Request &req = *it;
+            if (req.req_class != 0) {
+                if (req.depart <= m_clk) {
+                    record_read_latency(req);
+                    if (req.callback) req.callback(req);
+                    it = pending_reads.erase(it);
+                    continue;
                 }
+                ++it;
+                continue;
             }
+            if (pim_considered) { ++it; continue; }
+            pim_considered = true;
+            if (req.depart <= m_clk &&
+                (((req.opcode != Opcode::ISR_EOC) && (req.opcode != Opcode::ISR_SYNC)) ||
+                 (pim_pending_writes() == 0))) {
+                if (req.callback) req.callback(req);
+                it = pending_reads.erase(it);
+                continue;
+            }
+            ++it;
         }
         auto write_req_it = pending_writes.begin();
         while (write_req_it != pending_writes.end()) {
             if (write_req_it->depart <= m_clk) {
+                if (write_req_it->req_class != 0 && write_req_it->callback)
+                    write_req_it->callback(*write_req_it);   // host streams track write completion
                 // Remove this write request
                 // m_logger->info("[CLK {}] Finished {}!", m_clk, write_req_it->str());
                 write_req_it = pending_writes.erase(write_req_it);
@@ -491,6 +587,160 @@ private:
         }
     };
 
+    bool pim_rw_pending() {
+        for (auto &r : m_read_buffer) if (r.req_class == 0) return true;
+        for (auto &r : m_write_buffer) if (r.req_class == 0) return true;
+        return false;
+    }
+    bool pim_present() {
+        if (pim_rw_pending()) return true;
+        for (auto &r : m_active_buffer) if (r.req_class == 0) return true;
+        return false;
+    }
+    size_t pim_pending_writes() const {
+        size_t n = 0;
+        for (const auto &r : pending_writes) if (r.req_class == 0) n++;
+        return n;
+    }
+
+    // FRFCFS within a class, strict priority across classes. For class 0 this is
+    // exactly the original FRFCFS pick (ready first, then oldest) followed by the
+    // FPU gate, so a PIM-only run schedules identically to the unmodified model.
+    // A gated or unready class falls through to the next class, which is how GPU
+    // traffic uses the cycles the SPUs spend computing.
+    ReqBuffer::iterator pick_by_class(ReqBuffer &buffer, bool &found) {
+        found = false;
+        if (buffer.size() == 0) return buffer.end();
+        for (auto &req : buffer)
+            req.command = m_dram->get_preq_command(req.final_command, req.addr_vec);
+        auto best_of = [&](int cls) {
+            auto cand = buffer.end();
+            bool cand_ready = false;
+            for (auto it = buffer.begin(); it != buffer.end(); ++it) {
+                if (it->req_class != cls) continue;
+                const bool rdy = m_dram->check_ready(it->command, it->addr_vec);
+                if (cand == buffer.end() || (rdy && !cand_ready) ||
+                    (rdy == cand_ready && it->arrive < cand->arrive)) {
+                    cand = it;
+                    cand_ready = rdy;
+                }
+            }
+            return cand;
+        };
+        if (m_pim_strict && pim_present()) {
+            auto it = best_of(0);
+            if (it != buffer.end())
+                found = m_dram->check_ready(it->command, it->addr_vec) && ggm_fpu_ready(*it);
+            return it;
+        }
+        std::vector<int> order;
+        if (m_class_min_run > 0 && m_last_class >= 0 && m_clk < m_last_class_until)
+            order.push_back(m_last_class);
+        for (int c : m_class_prio) if (order.empty() || c != order[0]) order.push_back(c);
+        auto fallback = buffer.end();
+        for (int c : order) {
+            auto it = best_of(c);
+            if (it == buffer.end()) continue;
+            if (fallback == buffer.end()) fallback = it;
+            if (m_dram->check_ready(it->command, it->addr_vec) && ggm_fpu_ready(*it)) {
+                found = true;
+                return it;
+            }
+        }
+        return fallback;
+    }
+
+    void record_issue(const Request &r, bool first_cmd) {
+        if (r.opcode == Opcode::ISR_EOC || r.opcode == Opcode::ISR_SYNC) return;
+        const int c = (r.req_class >= 0 && r.req_class < NCLS) ? r.req_class : 0;
+        const auto &meta = m_dram->m_command_meta(r.command);
+        if (first_cmd && r.arrive >= 0) {
+            const Clk_t q = m_clk - r.arrive;
+            if (r.type == Type::Write) {       // posted writes: queued, but never stall the issuer
+                m_wqsum[c] += q;
+                s_cls_wq_count[c] += 1;
+            } else {
+                m_qhist[c][std::min<Clk_t>(q / HB, NHB)] += 1;
+                m_qsum[c] += q;
+                s_cls_q_count[c] += 1;
+            }
+            if (r.command == r.final_command) s_cls_row_hit[c] += 1;
+            else if (meta.is_closing) s_cls_row_conflict[c] += 1;
+            else s_cls_row_miss[c] += 1;
+        }
+        if (meta.is_accessing) {
+            static const int ABRD = m_dram->m_commands("ABRD");
+            static const int ABWR = m_dram->m_commands("ABWR");
+            if (r.command == ABRD || r.command == ABWR) {
+                s_ab_col += 1;
+                s_ab_slot_cycles += m_dram->m_timing_vals("nCCDL");
+            } else {
+                if (r.type == Type::Read) s_cls_rd[c] += 1; else s_cls_wr[c] += 1;
+                s_cls_bus_cycles[c] += m_dram->m_timing_vals("nBL");
+            }
+            if (m_class_min_run > 0 && c != 0) {
+                m_last_class = c;
+                m_last_class_until = m_clk + m_class_min_run;
+            }
+        }
+    }
+
+    void record_read_latency(const Request &r) {
+        const int c = (r.req_class >= 0 && r.req_class < NCLS) ? r.req_class : 0;
+        if (r.arrive < 0) return;
+        const Clk_t l = m_clk - r.arrive;
+        m_rhist[c][std::min<Clk_t>(l / HB, NHB)] += 1;
+        m_rsum[c] += l;
+        s_cls_r_count[c] += 1;
+    }
+
+    static double pct(const std::vector<uint64_t> &h, uint64_t n, double q) {
+        if (n == 0) return 0.0;
+        const uint64_t target = static_cast<uint64_t>(q * n);
+        uint64_t acc = 0;
+        for (size_t i = 0; i < h.size(); i++) {
+            acc += h[i];
+            if (acc > target) return (i + 0.5) * HB;
+        }
+        return h.size() * HB;
+    }
+
+public:
+    void dump_pending(const char *tag, ReqBuffer &b) {
+        int n = 0;
+        for (auto &r : b) {
+            if (n++ >= 4) break;
+            std::string av;
+            for (auto x : r.addr_vec) av += std::to_string(x) + " ";
+            std::fprintf(stderr, "[CH%d %s] class %d type %d cmd %s final %s arrive %ld issue %ld addr [%s]\n",
+                         m_channel_id, tag, (int)r.req_class, (int)r.type,
+                         r.command >= 0 ? std::string(m_dram->m_commands(r.command)).c_str() : "-",
+                         r.final_command >= 0 ? std::string(m_dram->m_commands(r.final_command)).c_str() : "-",
+                         (long)r.arrive, (long)r.issue, av.c_str());
+        }
+    }
+
+    void finalize() override {
+        if (getenv("CTRL_DUMP") && (m_read_buffer.size() || m_write_buffer.size() || m_active_buffer.size())) {
+            dump_pending("act", m_active_buffer);
+            dump_pending("rd", m_read_buffer);
+            dump_pending("wr", m_write_buffer);
+        }
+        for (int c = 0; c < NCLS; c++) {
+            const uint64_t nq = s_cls_q_count[c], nr = s_cls_r_count[c];
+            s_cls_q_mean[c] = nq ? m_qsum[c] / nq : 0.0;
+            s_cls_q_p50[c] = pct(m_qhist[c], nq, 0.50);
+            s_cls_q_p95[c] = pct(m_qhist[c], nq, 0.95);
+            s_cls_q_p99[c] = pct(m_qhist[c], nq, 0.99);
+            s_cls_r_mean[c] = nr ? m_rsum[c] / nr : 0.0;
+            s_cls_wq_mean[c] = s_cls_wq_count[c] ? m_wqsum[c] / s_cls_wq_count[c] : 0.0;
+            s_cls_r_p50[c] = pct(m_rhist[c], nr, 0.50);
+            s_cls_r_p95[c] = pct(m_rhist[c], nr, 0.95);
+            s_cls_r_p99[c] = pct(m_rhist[c], nr, 0.99);
+        }
+    }
+
+private:
     /**
      * @brief    Helper function to find a request to schedule from the buffers.
      * 
@@ -546,11 +796,19 @@ private:
                 } else {
                     // Query the write policy to decide which buffer to serve
                     set_write_mode();
-                    auto &buffer = m_is_write_mode ? m_write_buffer : m_read_buffer;
-                    if (req_it = m_scheduler->get_best_request(buffer); req_it != buffer.end()) {
-                        request_found = m_dram->check_ready(req_it->command, req_it->addr_vec) && ggm_fpu_ready(*req_it);
-                        req_buffer = &buffer;
+                    if (m_pim_strict && pim_present()) {
+                        // PIM owns the channel: serve whichever buffer holds its requests,
+                        // otherwise its writes starve behind host reads (and vice versa).
+                        bool rd0 = false, wr0 = false;
+                        for (auto &r : m_read_buffer) if (r.req_class == 0) { rd0 = true; break; }
+                        for (auto &r : m_write_buffer) if (r.req_class == 0) { wr0 = true; break; }
+                        if (m_is_write_mode && !wr0 && rd0) m_is_write_mode = false;
+                        else if (!m_is_write_mode && !rd0 && wr0) m_is_write_mode = true;
                     }
+                    auto &buffer = m_is_write_mode ? m_write_buffer : m_read_buffer;
+                    req_it = pick_by_class(buffer, request_found);
+                    if (req_it != buffer.end())
+                        req_buffer = &buffer;
                 }
                 // DRU stream FIFO: strictly in-order head service, O(1). Fills
                 // the cycles the gated EXTEND stream leaves idle (which is
@@ -563,14 +821,19 @@ private:
         // 2.3 If we find a request to schedule, we need to check if it will close an opened row in the active buffer.
         if (request_found) {
             if (m_dram->m_command_meta(req_it->command).is_closing) {
-                std::vector<Addr_t> rowgroup((req_it->addr_vec).begin(), (req_it->addr_vec).begin() + m_row_addr_idx);
-
-                // Search the active buffer with the row address (inkl. banks, etc.)
+                // Do not close a row that a request in the active buffer has opened and
+                // not yet used. -1 (all-bank / channel scope) overlaps every bank, so a
+                // PREA cannot interrupt a single-bank request and a PRE cannot interrupt
+                // an all-bank one.
                 for (auto _it = m_active_buffer.begin(); _it != m_active_buffer.end(); _it++) {
-                    std::vector<Addr_t> _it_rowgroup(_it->addr_vec.begin(), _it->addr_vec.begin() + m_row_addr_idx);
-                    if (rowgroup == _it_rowgroup) {
-                        // Invalidate this scheduling outcome if we are to interrupt a request in the active buffer
+                    bool overlap = true;
+                    for (int l = 0; l < m_row_addr_idx; l++) {
+                        const Addr_t a = req_it->addr_vec[l], b = _it->addr_vec[l];
+                        if (a != -1 && b != -1 && a != b) { overlap = false; break; }
+                    }
+                    if (overlap) {
                         request_found = false;
+                        break;
                     }
                 }
             }

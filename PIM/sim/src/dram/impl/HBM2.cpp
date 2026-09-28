@@ -461,6 +461,23 @@ class HBM2 : public IDRAM, public Implementation {
           // Refresh interlock (all-bank ACT cannot overlap a refresh, and vice-versa)
           {.level = "channel", .preceding = {"REFab"}, .following = {"ACT16"}, .latency = V("nRFC")},
           {.level = "channel", .preceding = {"ACT16"}, .following = {"REFab"}, .latency = V("nRC")},
+          // Single-bank (host/GPU/DRU) <-> all-bank (PIM) interlocks. Without these a
+          // single-bank RD/WR could issue on the same data bus cycle as an ABRD/ABWR,
+          // and a bank opened by ACT16 could be precharged before tRAS.
+          {.level = "channel", .preceding = {"RD", "RDA"}, .following = {"ABRD"}, .latency = V("nCCDL")},
+          {.level = "channel", .preceding = {"ABRD"}, .following = {"RD", "RDA"}, .latency = V("nCCDL")},
+          {.level = "channel", .preceding = {"WR", "WRA"}, .following = {"ABWR"}, .latency = V("nCCDL")},
+          {.level = "channel", .preceding = {"ABWR"}, .following = {"WR", "WRA"}, .latency = V("nCCDL")},
+          {.level = "channel", .preceding = {"RD", "RDA"}, .following = {"ABWR"}, .latency = V("nCL") + V("nBL") + 2 - V("nCWL")},
+          {.level = "channel", .preceding = {"ABRD"}, .following = {"WR", "WRA"}, .latency = V("nCL") + V("nBL") + 2 - V("nCWL")},
+          {.level = "channel", .preceding = {"WR", "WRA"}, .following = {"ABRD"}, .latency = V("nCWL") + V("nBL") + V("nWTRL")},
+          {.level = "channel", .preceding = {"ABWR"}, .following = {"RD", "RDA"}, .latency = V("nCWL") + V("nBL") + V("nWTRL")},
+          {.level = "channel", .preceding = {"ACT16"}, .following = {"ACT"}, .latency = V("nRRDL")},
+          {.level = "channel", .preceding = {"ACT"}, .following = {"ACT16"}, .latency = V("nRRDL")},
+          {.level = "channel", .preceding = {"ACT16"}, .following = {"PRE"}, .latency = V("nRAS")},
+          {.level = "channel", .preceding = {"ABRD"}, .following = {"PRE"}, .latency = V("nRTPS")},
+          {.level = "channel", .preceding = {"ABWR"}, .following = {"PRE"}, .latency = V("nCWL") + V("nBL") + V("nWR")},
+          {.level = "channel", .preceding = {"PRE"}, .following = {"ACT16"}, .latency = V("nRP")},
 
           /*** Pseudo Channel (Table 3 — Array Access Timings Counted Individually Per Pseudo Channel, JESD-235C) ***/ 
           // RAS <-> RAS

@@ -57,6 +57,14 @@ public:
     virtual void tick() = 0;
 
     /**
+     * @brief    True once every auxiliary (non-frontend) traffic source has drained.
+     *           The simulation ends when the frontend AND the memory system are done.
+     */
+    virtual bool aux_done() { return true; };
+    /** @brief True if a configured hard cycle limit was reached (ends the run). */
+    virtual bool hard_stop() { return false; };
+
+    /**
      * @brief    Returns 
      * 
      * @return   int 
@@ -74,4 +82,4 @@ public:
 
 } // namespace Ramulator
 
-#endif // RAMULATOR_MEMORYSYSTEM_MEMORY_H
+#endif // RAMULATOR_MEMORYSYSTEM_MEMORY_H

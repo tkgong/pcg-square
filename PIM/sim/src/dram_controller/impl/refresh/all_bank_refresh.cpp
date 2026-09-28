@@ -22,8 +22,11 @@ private:
     Clk_t m_next_refresh_cycle = -1;
 
 public:
+    bool m_enable = true;
+
     void init() override {
         m_ctrl = cast_parent<IDRAMController>();
+        m_enable = param<bool>("enable").desc("Issue all-bank refreshes every nREFI.").default_val(true);
     };
 
     void setup(IFrontEnd *frontend, IMemorySystem *memory_system) override {
@@ -31,6 +34,15 @@ public:
 
         m_dram_org_levels = m_dram->m_levels.size();
         m_num_ranks = m_dram->get_level_size("rank");
+        // Organisations without a rank level (the HBM2 class, also used for the
+        // GDDR6/GDDR7 presets) returned -1 here, so the loop below never ran and
+        // no refresh was ever issued. Refresh every pseudochannel (or the whole
+        // channel) instead.
+        if (m_num_ranks < 0) {
+            const int npc = m_dram->get_level_size("pseudochannel");
+            m_num_ranks = npc > 0 ? npc : 1;
+        }
+        if (!m_enable) m_num_ranks = 0;
 
         m_nrefi = m_dram->m_timing_vals("nREFI");
         m_ref_req_id = m_dram->m_requests("all-bank-refresh");

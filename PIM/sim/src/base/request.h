@@ -120,6 +120,13 @@ struct Request {
     // per-cycle get_best_request scan is O(buffer)).
     bool is_dru = false;
 
+    // Traffic class for GPU-PIM contention co-simulation:
+    //   0 = PIM (ISR-trace SPU ops and their sub-requests, the original traffic)
+    //   1 = GPU (SM kernels' DRAM traffic, injected per channel by the memory system)
+    //   2 = DRU (channel-level transpose unit, injected per channel)
+    //   3 = AGG (synthetic GPU-side aggressor, used only to validate against silicon)
+    int8_t req_class = 0;
+
     int source_id = -1; // An identifier for where the request is coming from (e.g., which core)
 
     int command = -1;       // The command that need to be issued to progress the request

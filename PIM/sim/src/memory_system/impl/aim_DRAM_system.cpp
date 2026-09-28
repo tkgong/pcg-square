@@ -6,6 +6,8 @@
 #include "memory_system/memory_system.h"
 #include "translation/translation.h"
 #include <cassert>
+#include <fstream>
+#include <sstream>
 #include <cstdint>
 #include <cstdio>
 #include <math.h>
@@ -43,6 +45,39 @@ protected:
     Clk_t s_net_busy_cycles = 0;   // total NIC-lane occupancy (for U_NET)
 
     std::function<void(Request &)> callback;
+
+    // ---- Host-side traffic streams for GPU-PIM contention co-simulation ----
+    // Each stream is replicated on every channel and injected straight into the
+    // channel controllers (never through the in-order ISR queue above), with a
+    // closed-loop window of outstanding reads and an optional think time between
+    // issues. Spec file, one stream per line ('#' comments):
+    //   <class> <bytes_per_ch> <rd_frac> <window> <gap_ck> <run_cols> <row_base> [start_ck]
+    //   class 1 GPU, 2 DRU, 3 AGG; run_cols consecutive 32 B columns of one row in
+    //   one bank before moving to the next bank (bank-interleaved address stream).
+    struct StreamSpec {
+        int cls; uint64_t bytes; double rd_frac; int window; int gap; int run; int row_base; Clk_t start;
+    };
+    struct StreamState {
+        uint64_t cols_left = 0;     // columns still to issue
+        int outstanding = 0;        // reads in flight
+        int wr_outstanding = 0;     // posted writes not yet written
+        Clk_t next_issue = 0;
+        double rd_acc = 0.0;
+        int bank = 0, row = 0, col = 0, run_pos = 0;
+        int wbank = 0, wrow = 0, wcol = 0, wrun_pos = 0;
+        Clk_t finish = -1;
+        bool pending = false;       // a built request waits for controller space
+        Request req{Addr_t(-1), -1};
+    };
+    std::vector<StreamSpec> m_streams;
+    std::vector<std::vector<StreamState>> m_sstate;   // [stream][channel]
+    int m_nbanks_total = 16, m_ncols = 64, m_nrows = 65536;
+    Clk_t s_pim_done_clk = -1;
+    std::vector<Clk_t> s_stream_finish_max, s_stream_finish_min;
+    std::vector<uint64_t> s_stream_cols;
+    std::vector<double> s_stream_finish_mean;
+    bool m_streams_done = true;
+    Clk_t m_max_cycles = 0;
 
     uint8_t CountSetBit(const int64_t ch_mask) const {
         assert(ch_mask > 0);
@@ -170,12 +205,156 @@ public:
                 .name(fmt::format("total_num_AiM_{}_requests", AiMISRInfo::convert_AiM_opcode_to_str((Opcode)opcode)))
                 .desc(fmt::format("total number of AiM {} requests", AiMISRInfo::convert_AiM_opcode_to_str((Opcode)opcode)));
         }
+        register_stat(s_pim_done_clk)
+            .name("pim_done_cycles")
+            .desc("cycle at which the PIM ISR trace reached EOC (-1 if never)");
+        load_streams(param<std::string>("host_streams")
+                         .desc("Host traffic stream spec file (GPU/DRU/AGG co-simulation); empty = none.")
+                         .default_val(""));
+        m_max_cycles = param<int64_t>("max_cycles").desc("Hard stop (0 = none).").default_val(0);
+
         register_stat(s_net_busy_cycles)
             .name("net_busy_cycles")
             .desc("total NIC-lane occupancy advanced by ISR_NET_DELAY (for U_NET)");
     };
 
-    void setup(IFrontEnd *frontend, IMemorySystem *memory_system) override {}
+    void setup(IFrontEnd *frontend, IMemorySystem *memory_system) override {
+        m_nbanks_total = m_dram->get_level_size("bankgroup") * m_dram->get_level_size("bank");
+        m_ncols = m_dram->get_level_size("column");
+        m_nrows = m_dram->get_level_size("row");
+        const int nch = (int)m_controllers.size();
+        m_sstate.assign(m_streams.size(), std::vector<StreamState>(nch));
+        s_stream_finish_max.assign(m_streams.size(), -1);
+        s_stream_finish_min.assign(m_streams.size(), -1);
+        s_stream_finish_mean.assign(m_streams.size(), 0.0);
+        s_stream_cols.assign(m_streams.size(), 0);
+        for (size_t k = 0; k < m_streams.size(); k++) {
+            const auto &sp = m_streams[k];
+            for (int ch = 0; ch < nch; ch++) {
+                auto &st = m_sstate[k][ch];
+                st.cols_left = (sp.bytes + 31) / 32;
+                st.next_issue = sp.start;
+                st.row = sp.row_base;
+                st.wrow = sp.row_base + 4096;      // writes go to their own region
+                st.bank = st.wbank = ch % m_nbanks_total;
+            }
+            register_stat(s_stream_finish_max[k]).name(fmt::format("stream{}_class{}_finish_max", k, sp.cls));
+            register_stat(s_stream_finish_min[k]).name(fmt::format("stream{}_class{}_finish_min", k, sp.cls));
+            register_stat(s_stream_finish_mean[k]).name(fmt::format("stream{}_class{}_finish_mean", k, sp.cls));
+            register_stat(s_stream_cols[k]).name(fmt::format("stream{}_class{}_cols_per_ch", k, sp.cls));
+        }
+        m_streams_done = m_streams.empty();
+    }
+
+    bool aux_done() override { return m_streams_done; }
+    bool hard_stop() override { return m_max_cycles > 0 && m_clk >= m_max_cycles; }
+
+    void load_streams(const std::string &path) {
+        if (path.empty()) return;
+        std::ifstream f(path);
+        if (!f.is_open()) throw ConfigurationError("AiMDRAMSystem: cannot open host_streams file {}", path);
+        std::string line;
+        while (std::getline(f, line)) {
+            auto h = line.find('#');
+            if (h != std::string::npos) line = line.substr(0, h);
+            std::istringstream is(line);
+            StreamSpec sp{};
+            long long start = 0;
+            if (!(is >> sp.cls >> sp.bytes >> sp.rd_frac >> sp.window >> sp.gap >> sp.run >> sp.row_base)) continue;
+            if (is >> start) sp.start = start; else sp.start = 0;
+            if (sp.cls < 1 || sp.cls > 3) throw ConfigurationError("host stream class must be 1..3");
+            if (sp.window < 1) sp.window = 1;
+            if (sp.run < 1) sp.run = 1;
+            m_streams.push_back(sp);
+        }
+        m_logger->info("AiMDRAMSystem: {} host traffic stream(s) from {}", m_streams.size(), path);
+    }
+
+    // Advance a bank-interleaved column cursor: run_cols columns of one row, next bank,
+    // and after all banks the next column block, then the next row.
+    void advance(int &bank, int &row, int &col, int &run_pos, int run, int row_base) {
+        if (++run_pos < run && col + 1 < m_ncols) { col += 1; return; }
+        const int block_start = col - run_pos + 1;
+        run_pos = 0;
+        bank = (bank + 1) % m_nbanks_total;
+        col = block_start;
+        if (bank == 0) {
+            col = block_start + run;
+            if (col >= m_ncols) { col = 0; row = row + 1; if (row >= m_nrows) row = row_base; }
+        }
+    }
+
+    void tick_streams() {
+        if (m_streams_done) return;
+        bool all_done = true;
+        const int nch = (int)m_controllers.size();
+        for (size_t k = 0; k < m_streams.size(); k++) {
+            const auto &sp = m_streams[k];
+            for (int ch = 0; ch < nch; ch++) {
+                auto &st = m_sstate[k][ch];
+                if (st.finish >= 0) continue;
+                if (st.cols_left == 0 && !st.pending && st.outstanding == 0 && st.wr_outstanding == 0) {
+                    st.finish = m_clk;
+                    continue;
+                }
+                all_done = false;
+                if (!st.pending) {
+                    if (st.cols_left == 0 || m_clk < st.next_issue) continue;
+                    st.rd_acc += sp.rd_frac;
+                    const bool is_read = st.rd_acc >= 1.0 - 1e-9;
+                    if (is_read) {
+                        if (st.outstanding >= sp.window) { st.rd_acc -= sp.rd_frac; continue; }
+                        st.rd_acc -= 1.0;
+                    }
+                    Request r(Addr_t(-1), -1);
+                    r.type = is_read ? Type::Read : Type::Write;
+                    r.mem_access_region = MemAccessRegion::MEM;
+                    r.opcode = Opcode::MAX;
+                    r.req_class = (int8_t)sp.cls;
+                    r.nbanks = 1;
+                    r.bank_index = (int16_t)(is_read ? st.bank : st.wbank);
+                    r.row_addr = is_read ? st.row : st.wrow;
+                    r.col_addr = is_read ? st.col : st.wcol;
+                    apply_addr_mapp(r, ch);
+                    r.addr = ((int64_t)sp.cls << 58) | ((int64_t)ch << 46) | ((int64_t)r.bank_index << 38) |
+                             ((int64_t)r.row_addr << 8) | r.col_addr;
+                    if (is_read) {
+                        StreamState *sp_state = &st;
+                        r.callback = [sp_state](Request &) { sp_state->outstanding -= 1; };
+                        advance(st.bank, st.row, st.col, st.run_pos, sp.run, sp.row_base);
+                    } else {
+                        StreamState *sp_state = &st;
+                        r.callback = [sp_state](Request &) { sp_state->wr_outstanding -= 1; };
+                        advance(st.wbank, st.wrow, st.wcol, st.wrun_pos, sp.run, sp.row_base + 4096);
+                    }
+                    st.req = r;
+                    st.pending = true;
+                }
+                if (m_controllers[ch]->send(st.req)) {
+                    if (st.req.type == Type::Read) st.outstanding += 1; else st.wr_outstanding += 1;
+                    st.pending = false;
+                    st.cols_left -= 1;
+                    s_stream_cols[k] += 0;    // per-channel column count is fixed; set below
+                    st.next_issue = m_clk + sp.gap;
+                }
+            }
+        }
+        if (all_done) {
+            m_streams_done = true;
+            for (size_t k = 0; k < m_streams.size(); k++) {
+                Clk_t mx = -1, mn = -1; double sum = 0;
+                for (auto &st : m_sstate[k]) {
+                    mx = std::max(mx, st.finish);
+                    mn = (mn < 0) ? st.finish : std::min(mn, st.finish);
+                    sum += st.finish;
+                }
+                s_stream_finish_max[k] = mx;
+                s_stream_finish_min[k] = mn;
+                s_stream_finish_mean[k] = sum / m_sstate[k].size();
+                s_stream_cols[k] = (m_streams[k].bytes + 31) / 32;
+            }
+        }
+    }
 
     bool send(Request req) override {
 
@@ -474,6 +653,8 @@ public:
             }
         }
 
+        tick_streams();
+
         if (m_clk % m_controllers[0]->get_clock_ratio() == 0) {
             m_dram->tick();
             for (auto controller : m_controllers) {
@@ -490,6 +671,9 @@ public:
             throw ConfigurationError("AiMDRAMSystem: received request id {} != head of the queue request id {}!", req.host_req_id, host_req.host_req_id);
 
         stalled_AiM_requests--;
+        if (stalled_AiM_requests == 0 && host_req.type == Type::AIM &&
+            host_req.opcode == Opcode::ISR_EOC && s_pim_done_clk < 0)
+            s_pim_done_clk = m_clk;   // every channel has acknowledged the PIM trace's EOC
 
         if (stalled_AiM_requests == 0) {
             if (host_req.callback)
