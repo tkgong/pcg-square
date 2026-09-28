@@ -1,0 +1,6 @@
+selftest logN=8 vs CPU schoolbook: BITEXACT
+selftest logN=9 vs CPU schoolbook: BITEXACT
+selftest logN=10 vs CPU schoolbook: BITEXACT
+selftest logN=11 vs CPU schoolbook: BITEXACT
+gpu,logN,batch,merge_ms_mul,f4_full_ms_mul,f4_sm_ms_mul,f4_dru_ms_mul,merge_over_f4sm,merge_over_f4full,check
+NVIDIA_B200,16,4,0.0117,0.0173,0.0129,0.0046,0.908,0.674,BITEXACT
