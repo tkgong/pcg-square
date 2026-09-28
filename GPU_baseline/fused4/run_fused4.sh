@@ -22,6 +22,21 @@ REPS="${REPS:-3}"
 grep -q "shift >= 64" "$GPUNTT_INC/gpuntt/common/modular_arith.cuh" || {
     echo "GPU-NTT headers at $GPUNTT_INC lack the 62-bit Barrett shift fix" >&2; exit 1; }
 
+# libntt-1.0 may sit in lib64 or next to a source build rather than in lib.
+if ! ls "$GPUNTT_LIB"/libntt-1.0.* >/dev/null 2>&1; then
+    found=""
+    for d in "$HOME/.local/lib64" "$(dirname "$GPUNTT_INC")/../lib" "$(dirname "$GPUNTT_INC")/../lib64"; do
+        if ls "$d"/libntt-1.0.* >/dev/null 2>&1; then found="$d"; break; fi
+    done
+    [ -z "$found" ] && found=$(dirname "$(find "$HOME" -maxdepth 6 -name 'libntt-1.0.*' 2>/dev/null | head -1)" 2>/dev/null)
+    if [ -z "$found" ] || [ "$found" = "." ]; then
+        echo "libntt-1.0 not found (looked in $GPUNTT_LIB, lib64 and under \$HOME); set GPUNTT_LIB" >&2
+        exit 1
+    fi
+    GPUNTT_LIB="$found"
+fi
+echo "GPU-NTT: include=$GPUNTT_INC lib=$GPUNTT_LIB"
+
 CAP=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader -i 0 | head -1 | tr -d ' .')
 ARCH="sm_${CAP}"
 GPU=$(nvidia-smi --query-gpu=name --format=csv,noheader -i 0 | head -1 | tr ' ' '_')
