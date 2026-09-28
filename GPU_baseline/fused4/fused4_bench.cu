@@ -9,6 +9,9 @@
 //           6 transposes run on the channel-level DRUs, fully overlapped)
 //   f4_dru  the 6 transposes alone, as a 32x33 shared-memory tile transpose on
 //           the GPU (the data volume the DRUs absorb)
+//   f4g_full / f4g_sm  the same fused four-step with every sub-transform on
+//           GPU-NTT's own merge kernels (fused4_gpuntt.cuh; logN 20..24 only):
+//           transposes on the SMs / SM lane only (transposes on the DRU)
 // and checks the fused result bit-exactly against merge on the same inputs.
 // --selftest additionally checks fused4 against a CPU schoolbook product.
 //
@@ -19,10 +22,12 @@
 //   ./fused4_bench --logN 20,21,22,23,24 --batch 4,16,64 --iters 5 [--selftest]
 
 #include "fused4/fused4_ntt.cuh"
+#include "fused4/fused4_gpuntt.cuh"
 
 #include "gpuntt/common/nttparameters.cuh"
 
 #include <algorithm>
+#include <memory>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -201,10 +206,13 @@ int main(int argc, char** argv) {
     if (do_self && !selftest()) { fprintf(stderr, "SELFTEST FAILED\n"); return 2; }
 
     printf("gpu,logN,batch,merge_ms_mul,f4_full_ms_mul,f4_sm_ms_mul,f4_dru_ms_mul,"
-           "merge_over_f4sm,merge_over_f4full,check\n");
+           "merge_over_f4sm,merge_over_f4full,check,f4g_full_ms_mul,f4g_sm_ms_mul,"
+           "merge_over_f4gsm,merge_over_f4gfull,check_g\n");
     for (int lg : logNs) {
         fused4::Plan plan(lg, P);
         MergePlan merge(lg);
+        std::unique_ptr<fused4g::PlanG> plang;
+        if (lg >= 20 && lg <= 24) plang.reset(new fused4g::PlanG(lg, P));
         for (int batch : batches) {
             const size_t total = static_cast<size_t>(batch) << lg;
             size_t free_b = 0, tot_b = 0;
@@ -226,17 +234,35 @@ int main(int argc, char** argv) {
             merge.multiply(tx, ty, batch);
             fused4::check(cudaDeviceSynchronize(), "correctness run");
             const unsigned long long bad = count_diff(x, tx, total);
+            unsigned long long bad_g = ~0ULL;
+            if (plang) {    // GPU-NTT-kernel variant vs merge on the same inputs
+                fill(x, total, 1234 + lg); fill(y, total, 5678 + lg);
+                plang->multiply(x, y, tx, ty, batch, 3);
+                Data64* keep = x;
+                fill(tx, total, 1234 + lg); fill(ty, total, 5678 + lg);
+                merge.multiply(tx, ty, batch);
+                fused4::check(cudaDeviceSynchronize(), "correctness run g");
+                bad_g = count_diff(keep, tx, total);
+            }
 
             // timing (values are irrelevant to the op count; buffers are reused)
             const double t_merge = time_ms([&] { merge.multiply(x, y, batch); }, iters);
             const double t_full = time_ms([&] { plan.multiply(x, y, tx, ty, batch, 3); }, iters);
             const double t_sm = time_ms([&] { plan.multiply(x, y, tx, ty, batch, 1); }, iters);
             const double t_dru = time_ms([&] { plan.multiply(x, y, tx, ty, batch, 2); }, iters);
+            double t_gfull = 0, t_gsm = 0;
+            if (plang) {
+                t_gfull = time_ms([&] { plang->multiply(x, y, tx, ty, batch, 3); }, iters);
+                t_gsm = time_ms([&] { plang->multiply(x, y, tx, ty, batch, 1); }, iters);
+            }
 
-            printf("%s,%d,%d,%.4f,%.4f,%.4f,%.4f,%.3f,%.3f,%s\n", gpu.c_str(), lg, batch,
+            const std::string chk = bad == 0 ? "BITEXACT" : "MISMATCH_" + std::to_string(bad);
+            const std::string chk_g = !plang ? "NA" : (bad_g == 0 ? "BITEXACT" : "MISMATCH_" + std::to_string(bad_g));
+            printf("%s,%d,%d,%.4f,%.4f,%.4f,%.4f,%.3f,%.3f,%s,%.4f,%.4f,%.3f,%.3f,%s\n", gpu.c_str(), lg, batch,
                    t_merge / batch, t_full / batch, t_sm / batch, t_dru / batch,
-                   t_merge / t_sm, t_merge / t_full,
-                   bad == 0 ? "BITEXACT" : ("MISMATCH_" + std::to_string(bad)).c_str());
+                   t_merge / t_sm, t_merge / t_full, chk.c_str(),
+                   t_gfull / batch, t_gsm / batch,
+                   plang ? t_merge / t_gsm : 0.0, plang ? t_merge / t_gfull : 0.0, chk_g.c_str());
             fflush(stdout);
             cudaFree(x); cudaFree(y); cudaFree(tx); cudaFree(ty);
         }
