@@ -29,6 +29,8 @@ ORGS = {
     "b200": dict(yaml=os.path.join(PIM, "sim/test/hbm3e_dpf_b200d.yaml"), C=16, tck=0.500),
 }
 SM_RD, FULL_RD, DRU_RD = 88 / 144, 136 / 240, 0.5
+# GPU-NTT merge poly-mul: 3 fwd + inv transforms x 3 kernels x (8N rd + 8N wr) + pointwise (16N rd + 8N wr)
+MERGE_B, MERGE_RD = 168, 88 / 168
 GPU_ROW, DRU_ROW = 16384, 32768
 PEAK_B_PER_CK = 16.0          # 32 B column per nBL = 2 CK, per channel
 
@@ -73,6 +75,8 @@ def main():
     ap.add_argument("--policies", default="pim,fair,gpu")
     ap.add_argument("--dru-window", type=int, default=4,
                     help="DRU blocks in flight x 4 beats; 4 = the paper's single 1024-bit register file")
+    ap.add_argument("--merge", action="store_true", help="add config (m): GPU-NTT merge poly-muls (no DRU) with the SPU")
+    ap.add_argument("--merge-gap", type=int, default=-1, help="think time for the merge stream (-1 = --gap)")
     ap.add_argument("--min-run", type=int, default=64, help="fair policy: cycles a class keeps the channel while it has ready requests")
     ap.add_argument("--spu-cl", type=int, default=155, help="EXTEND compute latency (DRAM CK); 155 = PU at the DRAM clock")
     ap.add_argument("--spu-convert-cl", type=int, default=465, help="CONVERT compute latency (DRAM CK)")
@@ -148,6 +152,12 @@ def main():
         for pol in a.policies.split(","):
             jobs += [(f"{rt}_b_{pol}", spu_trace, s_full, pol),
                      (f"{rt}_c_{pol}", spu_trace, s_sm + s_dru, pol)]
+        if a.merge:
+            mg = a.gap if a.merge_gap < 0 else a.merge_gap
+            s_m = chunks(1, gpu_sm * MERGE_B / 144, MERGE_RD, a.window, mg, a.run, GPU_ROW, T)
+            jobs += [(f"{rt}_ref_merge", eoc, s_m, "pim")]
+            for pol in a.policies.split(","):
+                jobs += [(f"{rt}_m_{pol}", spu_trace, s_m, pol)]
     with cf.ThreadPoolExecutor(a.jobs) as ex:
         for tag, d in ex.map(lambda j: run(*j), jobs):
             res[tag] = d
