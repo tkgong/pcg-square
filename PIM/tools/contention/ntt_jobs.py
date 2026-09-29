@@ -47,7 +47,11 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
     ck = lambda ms: int(round(ms * 1e6 / d["tck"] * scale))
     by = lambda b: int(round(b * N / d["ch"] * scale))
     if design == "merge":
-        return [(0, 1, by(168), 88 / 168, window, gap, run, 16384, ck(tm))]
+        # GPU-NTT merge at 2^20..2^24: 3 kernels per transform (8N rd + 8N wr each);
+        # poly-mul = fwd a, fwd b, pointwise (16N rd + 8N wr), inverse -> 10 kernels, 168N B
+        MK = lambda: (0, 1, by(16), 0.5, window, gap, run, 16384, ck(tm * 16 / 168))
+        MPW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tm * 24 / 168))
+        return [MK(), MK(), MK(), MK(), MK(), MK(), MPW, MK(), MK(), MK()]
     K = lambda: (0, 1, by(20), 0.6, window, gap, run, 16384, ck(ts * 20 / 144))
     T = lambda: (1, 2, by(16), 0.5, dru_window, 0, 4, 32768, 0)
     PW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(ts * 24 / 144))

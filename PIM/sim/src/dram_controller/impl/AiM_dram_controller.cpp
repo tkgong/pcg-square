@@ -373,7 +373,7 @@ public:
 
         // 1. Serve completed reads
         serve_completed_reqs();
-        serve_mau_stream();
+        serve_mau_stream(false);     // completions only; the DRU issues after the scheduler
 
         m_refresh->tick();
 
@@ -381,6 +381,7 @@ public:
         ReqBuffer::iterator req_it;
         ReqBuffer *buffer = nullptr;
         bool request_found = schedule_request(req_it, buffer);
+        struct DruAfter { AiMDRAMController *c; ~DruAfter() { c->serve_mau_stream(true); } } dru_after{this};
 
         // // 3. Update all plugins
         // for (auto plugin : m_plugins) {
@@ -541,20 +542,17 @@ private:
     // manages bank rows, so it cannot thrash EXTEND's ping-pong rows -- which
     // is exactly the hardware two-tier split (bank PU owns rows, base-die DRU
     // taps the row buffer). Reads return at m_dru_col_latency.
-    void serve_mau_stream() {
+    void serve_mau_stream(bool issue) {
         // completion
         while (!m_dru_pending.empty() && m_dru_pending.front().depart <= m_clk) {
             Request r = m_dru_pending.front();
             m_dru_pending.pop_front();
             if (r.callback) r.callback(r);
         }
-        // issue one column if the data bus is free; alternate with host column
-        // traffic when both are waiting (the data bus is shared)
+        if (!issue) return;
+        // lowest priority: the DRU takes the shared data bus only in a slot that no
+        // host or PIM column command used (it fills the idle cycles)
         if (m_dru_buffer.size() != 0 && m_clk >= m_dru_databus_free) {
-            if (m_last_bus_dru && (m_read_buffer.size() + m_write_buffer.size()) != 0) {
-                m_last_bus_dru = false;
-                return;
-            }
             Request r = *m_dru_buffer.begin();
             m_dru_buffer.remove(m_dru_buffer.begin());
             r.depart = m_clk + m_dru_col_latency;
