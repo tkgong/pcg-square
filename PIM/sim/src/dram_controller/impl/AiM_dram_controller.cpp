@@ -97,6 +97,11 @@ private:
     double m_wqsum[4] = {};     // keep serving the last-served class this many cycles
     int m_last_class = -1;
     Clk_t m_last_class_until = 0;
+    // PIM row-change protection: once a PIM request (FPU-ready) has waited this
+    // many cycles for a row change (PRE/ACT), host classes may only issue column
+    // commands to rows already open, so the all-bank precharge can go out.
+    int64_t m_pim_row_wait = -1;
+    Clk_t m_pim_row_wait_since = -1;
     int64_t m_watchdog_cycles = 5000000;
     Clk_t m_last_issue_clk = 0;
     // per-class statistics
@@ -139,6 +144,9 @@ public:
         m_pim_strict = param<bool>("pim_strict")
             .desc("While any PIM request is queued or active, only PIM may use the channel.")
             .default_val(false);
+        m_pim_row_wait = param<int64_t>("pim_row_wait")
+            .desc("Cycles a PIM row change may wait before host classes stop opening rows (-1 = off).")
+            .default_val(-1);
         m_class_min_run = param<int>("class_min_run")
             .desc("Cycles to keep serving the last-served class while it has ready requests.")
             .default_val(0);
@@ -632,11 +640,13 @@ private:
         if (buffer.size() == 0) return buffer.end();
         for (auto &req : buffer)
             req.command = m_dram->get_preq_command(req.final_command, req.addr_vec);
+        bool host_cols_only = false;
         auto best_of = [&](int cls) {
             auto cand = buffer.end();
             bool cand_ready = false;
             for (auto it = buffer.begin(); it != buffer.end(); ++it) {
                 if (it->req_class != cls) continue;
+                if (host_cols_only && cls != 0 && !m_dram->m_command_meta(it->command).is_accessing) continue;
                 const bool rdy = m_dram->check_ready(it->command, it->addr_vec);
                 if (cand == buffer.end() || (rdy && !cand_ready) ||
                     (rdy == cand_ready && it->arrive < cand->arrive)) {
@@ -651,6 +661,27 @@ private:
             if (it != buffer.end())
                 found = m_dram->check_ready(it->command, it->addr_vec) && ggm_fpu_ready(*it);
             return it;
+        }
+        if (m_pim_row_wait >= 0) {
+            bool pim_row_change = false;
+            for (auto &r : m_read_buffer)
+                if (r.req_class == 0) {
+                    const auto c = m_dram->get_preq_command(r.final_command, r.addr_vec);
+                    const auto &m = m_dram->m_command_meta(c);
+                    pim_row_change = (m.is_opening || m.is_closing) && ggm_fpu_ready(r);
+                    break;
+                }
+            if (!pim_row_change)
+                for (auto &r : m_write_buffer)
+                    if (r.req_class == 0) {
+                        const auto c = m_dram->get_preq_command(r.final_command, r.addr_vec);
+                        const auto &m = m_dram->m_command_meta(c);
+                        pim_row_change = (m.is_opening || m.is_closing) && ggm_fpu_ready(r);
+                        break;
+                    }
+            if (!pim_row_change) m_pim_row_wait_since = -1;
+            else if (m_pim_row_wait_since < 0) m_pim_row_wait_since = m_clk;
+            host_cols_only = pim_row_change && m_clk - m_pim_row_wait_since >= m_pim_row_wait;
         }
         std::vector<int> order;
         if (m_class_min_run > 0 && m_last_class >= 0 && m_clk < m_last_class_until)
