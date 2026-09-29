@@ -73,6 +73,8 @@ def main():
     ap.add_argument("--policies", default="pim,fair,gpu")
     ap.add_argument("--dru-window", type=int, default=4,
                     help="DRU blocks in flight x 4 beats; 4 = the paper's single 1024-bit register file")
+    ap.add_argument("--spu-cl", type=int, default=155, help="EXTEND compute latency (DRAM CK); 155 = PU at the DRAM clock")
+    ap.add_argument("--spu-convert-cl", type=int, default=465, help="CONVERT compute latency (DRAM CK)")
     ap.add_argument("--channels", type=int, default=0,
                     help="channels simulated (0 = org default); channels are symmetric")
     ap.add_argument("--row-wait", type=int, default=-1,
@@ -90,7 +92,7 @@ def main():
     if not os.path.exists(spu_trace):
         subprocess.run([sys.executable, GEN, "-n", "12", "-C", str(C), "-P", "8", "-I", str(C * 8 * 4),
                         "--mode", "instances", "--seed-bits", "128", "--reread", "--broadcast",
-                        "--cl", "155", "--reduce", "chacha", "--convert-cl", "465", "-o", spu_trace],
+                        "--cl", str(a.spu_cl), "--reduce", "chacha", "--convert-cl", str(a.spu_convert_cl), "-o", spu_trace],
                        check=True, stderr=subprocess.DEVNULL)
     eoc = os.path.join(a.out, "eoc.trace")
     open(eoc, "w").write("AiM EOC\n")
