@@ -71,6 +71,32 @@ protected:
     };
     std::vector<StreamSpec> m_streams;
     std::vector<std::vector<StreamState>> m_sstate;   // [stream][channel]
+
+    // Host job pipelines (GPU/DRU kernels with compute time and dependencies).
+    // Spec file (host_jobs), '#' comments:
+    //   jobs <count> <start_ck>                       -- starts a pipeline
+    //   phase <res> <class> <bytes_per_ch> <rd_frac> <window> <gap_ck> <run_cols> <row_base> <min_ck>
+    // Every job runs the pipeline's phases in order. Each resource (res = 0, 1, ...;
+    // e.g. 0 = SMs, 1 = DRU) executes one phase at a time, lowest job first, so
+    // jobs pipeline across resources. A phase ends when its bytes are transferred
+    // (reads returned, writes accepted) and at least min_ck has elapsed since it
+    // started (the kernel's compute time). Replicated per channel.
+    struct PhaseSpec {
+        int res; int cls; uint64_t bytes; double rd_frac; int window; int gap; int run; int row_base; Clk_t min_ck;
+    };
+    struct PipeSpec { int jobs; Clk_t start; std::vector<PhaseSpec> phases; int nres = 0; };
+    struct ResState { bool busy = false; int job = -1; int phase = -1; Clk_t t0 = 0; StreamState st; Clk_t busy_ck = 0; };
+    struct PipeChState {
+        std::vector<int> next;          // next phase per job
+        std::vector<bool> running;
+        std::vector<ResState> res;
+        int done = 0; Clk_t finish = -1;
+    };
+    std::vector<PipeSpec> m_pipes;
+    std::vector<std::vector<PipeChState>> m_pstate;   // [pipe][channel]
+    std::vector<Clk_t> s_pipe_finish_max; std::vector<double> s_pipe_finish_mean;
+    std::vector<std::vector<double>> s_pipe_res_busy;  // [pipe][res] mean busy CK per channel
+    bool m_pipes_done = true;
     int m_nbanks_total = 16, m_ncols = 64, m_nrows = 65536;
     Clk_t s_pim_done_clk = -1;
     std::vector<Clk_t> s_stream_finish_max, s_stream_finish_min;
@@ -212,6 +238,9 @@ public:
                          .desc("Host traffic stream spec file (GPU/DRU/AGG co-simulation); empty = none.")
                          .default_val(""));
         m_max_cycles = param<int64_t>("max_cycles").desc("Hard stop (0 = none).").default_val(0);
+        load_pipes(param<std::string>("host_jobs")
+                       .desc("Host job pipeline spec file (GPU kernels + DRU with compute floors); empty = none.")
+                       .default_val(""));
 
         register_stat(s_net_busy_cycles)
             .name("net_busy_cycles")
@@ -244,9 +273,161 @@ public:
             register_stat(s_stream_cols[k]).name(fmt::format("stream{}_class{}_cols_per_ch", k, sp.cls));
         }
         m_streams_done = m_streams.empty();
+        m_pstate.assign(m_pipes.size(), std::vector<PipeChState>(nch));
+        s_pipe_finish_max.assign(m_pipes.size(), -1);
+        s_pipe_finish_mean.assign(m_pipes.size(), 0.0);
+        s_pipe_res_busy.assign(m_pipes.size(), {});
+        for (size_t k = 0; k < m_pipes.size(); k++) {
+            const auto &pp = m_pipes[k];
+            s_pipe_res_busy[k].assign(pp.nres, 0.0);
+            for (int ch = 0; ch < nch; ch++) {
+                auto &ps = m_pstate[k][ch];
+                ps.next.assign(pp.jobs, 0);
+                ps.running.assign(pp.jobs, false);
+                ps.res.assign(pp.nres, ResState{});
+            }
+            register_stat(s_pipe_finish_max[k]).name(fmt::format("pipe{}_finish_max", k));
+            register_stat(s_pipe_finish_mean[k]).name(fmt::format("pipe{}_finish_mean", k));
+            for (int r = 0; r < pp.nres; r++)
+                register_stat(s_pipe_res_busy[k][r]).name(fmt::format("pipe{}_res{}_busy_mean", k, r));
+        }
+        m_pipes_done = m_pipes.empty();
     }
 
-    bool aux_done() override { return m_streams_done; }
+    void load_pipes(const std::string &path) {
+        if (path.empty()) return;
+        std::ifstream f(path);
+        if (!f.is_open()) throw ConfigurationError("AiMDRAMSystem: cannot open host_jobs file {}", path);
+        std::string line;
+        while (std::getline(f, line)) {
+            auto h = line.find('#');
+            if (h != std::string::npos) line = line.substr(0, h);
+            std::istringstream is(line);
+            std::string kw;
+            if (!(is >> kw)) continue;
+            if (kw == "jobs") {
+                PipeSpec pp{}; long long st = 0;
+                is >> pp.jobs >> st; pp.start = st;
+                m_pipes.push_back(pp);
+            } else if (kw == "phase") {
+                if (m_pipes.empty()) throw ConfigurationError("host_jobs: phase before jobs");
+                PhaseSpec ph{}; long long mck = 0;
+                if (!(is >> ph.res >> ph.cls >> ph.bytes >> ph.rd_frac >> ph.window >> ph.gap >> ph.run >> ph.row_base >> mck))
+                    throw ConfigurationError("host_jobs: bad phase line");
+                ph.min_ck = mck;
+                if (ph.window < 1) ph.window = 1;
+                if (ph.run < 1) ph.run = 1;
+                m_pipes.back().phases.push_back(ph);
+                m_pipes.back().nres = std::max(m_pipes.back().nres, ph.res + 1);
+            }
+        }
+        m_logger->info("AiMDRAMSystem: {} host job pipeline(s) from {}", m_pipes.size(), path);
+    }
+
+    // One issue attempt for a phase's column stream on channel ch.
+    void issue_phase(StreamState &st, const PhaseSpec &ph, int ch) {
+        if (!st.pending) {
+            if (st.cols_left == 0 || m_clk < st.next_issue) return;
+            st.rd_acc += ph.rd_frac;
+            const bool is_read = st.rd_acc >= 1.0 - 1e-9;
+            if (is_read) {
+                if (st.outstanding >= ph.window) { st.rd_acc -= ph.rd_frac; return; }
+                st.rd_acc -= 1.0;
+            }
+            Request r(Addr_t(-1), -1);
+            r.type = is_read ? Type::Read : Type::Write;
+            r.mem_access_region = MemAccessRegion::MEM;
+            r.opcode = Opcode::MAX;
+            r.req_class = (int8_t)ph.cls;
+            r.nbanks = 1;
+            r.bank_index = (int16_t)(is_read ? st.bank : st.wbank);
+            r.row_addr = is_read ? st.row : st.wrow;
+            r.col_addr = is_read ? st.col : st.wcol;
+            apply_addr_mapp(r, ch);
+            r.addr = ((int64_t)ph.cls << 58) | ((int64_t)ch << 46) | ((int64_t)r.bank_index << 38) |
+                     ((int64_t)r.row_addr << 8) | r.col_addr;
+            StreamState *sps = &st;
+            if (is_read) {
+                r.callback = [sps](Request &) { sps->outstanding -= 1; };
+                advance(st.bank, st.row, st.col, st.run_pos, ph.run, ph.row_base);
+            } else {
+                r.callback = [sps](Request &) { sps->wr_outstanding -= 1; };
+                advance(st.wbank, st.wrow, st.wcol, st.wrun_pos, ph.run, ph.row_base + 4096);
+            }
+            st.req = r;
+            st.pending = true;
+        }
+        if (m_controllers[ch]->send(st.req)) {
+            if (st.req.type == Type::Read) st.outstanding += 1; else st.wr_outstanding += 1;
+            st.pending = false;
+            st.cols_left -= 1;
+            st.next_issue = m_clk + ph.gap;
+        }
+    }
+
+    void tick_pipes() {
+        if (m_pipes_done) return;
+        bool all_done = true;
+        const int nch = (int)m_controllers.size();
+        for (size_t k = 0; k < m_pipes.size(); k++) {
+            const auto &pp = m_pipes[k];
+            const int P = (int)pp.phases.size();
+            for (int ch = 0; ch < nch; ch++) {
+                auto &ps = m_pstate[k][ch];
+                if (ps.finish >= 0) continue;
+                all_done = false;
+                if (m_clk < pp.start) continue;
+                for (int r = 0; r < pp.nres; r++) {
+                    auto &rs = ps.res[r];
+                    if (rs.busy) {
+                        const auto &ph = pp.phases[rs.phase];
+                        auto &st = rs.st;
+                        if (st.cols_left == 0 && !st.pending && st.outstanding == 0 && m_clk >= rs.t0 + ph.min_ck) {
+                            rs.busy_ck += m_clk - rs.t0;
+                            ps.running[rs.job] = false;
+                            if (++ps.next[rs.job] == P) ps.done += 1;
+                            rs.busy = false;
+                        } else {
+                            issue_phase(st, ph, ch);
+                            continue;
+                        }
+                    }
+                    // start the lowest-index ready job whose next phase runs on r
+                    for (int j = 0; j < pp.jobs; j++) {
+                        if (ps.running[j] || ps.next[j] >= P) continue;
+                        const auto &ph = pp.phases[ps.next[j]];
+                        if (ph.res != r) continue;
+                        rs.busy = true; rs.job = j; rs.phase = ps.next[j]; rs.t0 = m_clk;
+                        ps.running[j] = true;
+                        StreamState fresh;
+                        fresh.cols_left = (ph.bytes + 31) / 32;
+                        fresh.next_issue = m_clk;
+                        fresh.row = ph.row_base; fresh.wrow = ph.row_base + 4096;
+                        fresh.bank = fresh.wbank = ch % m_nbanks_total;
+                        rs.st = fresh;
+                        issue_phase(rs.st, ph, ch);
+                        break;
+                    }
+                }
+                if (ps.done == pp.jobs && ps.finish < 0) ps.finish = m_clk;
+            }
+        }
+        if (all_done) {
+            m_pipes_done = true;
+            for (size_t k = 0; k < m_pipes.size(); k++) {
+                Clk_t mx = -1; double sum = 0;
+                for (auto &ps : m_pstate[k]) { mx = std::max(mx, ps.finish); sum += ps.finish; }
+                s_pipe_finish_max[k] = mx;
+                s_pipe_finish_mean[k] = sum / m_pstate[k].size();
+                for (int r = 0; r < m_pipes[k].nres; r++) {
+                    double b = 0; for (auto &ps : m_pstate[k]) b += ps.res[r].busy_ck;
+                    s_pipe_res_busy[k][r] = b / m_pstate[k].size();
+                }
+            }
+        }
+    }
+
+    bool aux_done() override { return m_streams_done && m_pipes_done; }
     bool hard_stop() override { return m_max_cycles > 0 && m_clk >= m_max_cycles; }
 
     void load_streams(const std::string &path) {
@@ -654,6 +835,7 @@ public:
         }
 
         tick_streams();
+        tick_pipes();
 
         if (m_clk % m_controllers[0]->get_clock_ratio() == 0) {
             m_dram->tick();
