@@ -102,6 +102,7 @@ protected:
     std::vector<Clk_t> s_stream_finish_max, s_stream_finish_min;
     std::vector<uint64_t> s_stream_cols;
     std::vector<double> s_stream_finish_mean;
+    std::vector<double> s_stream_cols_at_s0;   // mean cols issued per channel when stream 0 finished
     bool m_streams_done = true;
     Clk_t m_max_cycles = 0;
 
@@ -257,6 +258,7 @@ public:
         s_stream_finish_min.assign(m_streams.size(), -1);
         s_stream_finish_mean.assign(m_streams.size(), 0.0);
         s_stream_cols.assign(m_streams.size(), 0);
+        s_stream_cols_at_s0.assign(m_streams.size(), 0.0);
         for (size_t k = 0; k < m_streams.size(); k++) {
             const auto &sp = m_streams[k];
             for (int ch = 0; ch < nch; ch++) {
@@ -271,6 +273,7 @@ public:
             register_stat(s_stream_finish_min[k]).name(fmt::format("stream{}_class{}_finish_min", k, sp.cls));
             register_stat(s_stream_finish_mean[k]).name(fmt::format("stream{}_class{}_finish_mean", k, sp.cls));
             register_stat(s_stream_cols[k]).name(fmt::format("stream{}_class{}_cols_per_ch", k, sp.cls));
+            register_stat(s_stream_cols_at_s0[k]).name(fmt::format("stream{}_cols_at_s0_done", k));
         }
         m_streams_done = m_streams.empty();
         m_pstate.assign(m_pipes.size(), std::vector<PipeChState>(nch));
@@ -339,6 +342,7 @@ public:
             r.mem_access_region = MemAccessRegion::MEM;
             r.opcode = Opcode::MAX;
             r.req_class = (int8_t)ph.cls;
+            r.is_dru = (ph.cls == 2);    // class 2 = the DRU: the controller's DRU tap (bus-slot model)
             r.nbanks = 1;
             r.bank_index = (int16_t)(is_read ? st.bank : st.wbank);
             r.row_addr = is_read ? st.row : st.wrow;
@@ -476,6 +480,9 @@ public:
                 if (st.finish >= 0) continue;
                 if (st.cols_left == 0 && !st.pending && st.outstanding == 0 && st.wr_outstanding == 0) {
                     st.finish = m_clk;
+                    if (k == 0)
+                        for (size_t o = 0; o < m_streams.size(); o++)
+                            s_stream_cols_at_s0[o] += (double)((m_streams[o].bytes + 31) / 32 - m_sstate[o][ch].cols_left) / nch;
                     continue;
                 }
                 all_done = false;

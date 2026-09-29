@@ -33,6 +33,8 @@ private:
     Clk_t m_dru_databus_free = 0;
     int   m_dru_col_latency = 22;  // ~nCL+nBL column read latency (approx; DRU is throughput-bound)
     int   m_dru_bus_slot    = 2;   // nBL: one 32B column occupies the data bus 2 cycles
+    Clk_t m_dru_bus_until   = 0;   // data bus held by a DRU column (host column commands wait)
+    bool  m_last_bus_dru    = false;
     std::deque<Request> m_dru_pending;   // DRU columns in flight (own depart queue)
 
     int m_row_addr_idx = -1;
@@ -419,8 +421,10 @@ public:
                 record_issue(*req_it, first_cmd);
                 // shared channel data bus: column commands (RD/WR/ABRD/ABWR)
                 // occupy it m_dru_bus_slot cycles, delaying the DRU tap.
-                if (m_dram->m_command_meta(req_it->command).is_accessing)
+                if (m_dram->m_command_meta(req_it->command).is_accessing) {
                     m_dru_databus_free = std::max(m_dru_databus_free, (Clk_t)m_clk + m_dru_bus_slot);
+                    m_last_bus_dru = false;
+                }
 
                 // If we are issuing the last command, set depart clock cycle and move the request to the pending_reads queue
                 if (req_it->command == req_it->final_command) {
@@ -544,14 +548,21 @@ private:
             m_dru_pending.pop_front();
             if (r.callback) r.callback(r);
         }
-        // issue one column if the data bus is free
+        // issue one column if the data bus is free; alternate with host column
+        // traffic when both are waiting (the data bus is shared)
         if (m_dru_buffer.size() != 0 && m_clk >= m_dru_databus_free) {
+            if (m_last_bus_dru && (m_read_buffer.size() + m_write_buffer.size()) != 0) {
+                m_last_bus_dru = false;
+                return;
+            }
             Request r = *m_dru_buffer.begin();
             m_dru_buffer.remove(m_dru_buffer.begin());
             r.depart = m_clk + m_dru_col_latency;
             s_num_commands[m_dram->m_commands(r.is_reader() ? "RD" : "WR")] += 1;
             m_dru_pending.push_back(r);
             m_dru_databus_free = m_clk + m_dru_bus_slot;
+            m_dru_bus_until = m_clk + m_dru_bus_slot;
+            m_last_bus_dru = true;
         }
     }
 
@@ -854,7 +865,9 @@ private:
                         // exposed each round, an upper bound); the physical
                         // DRU-overlaps-next-round benefit is argued separately.
                         // Keeps the sim fast (bounded FIFO, no O(n) pileup).
-                        if (m_dru_buffer.size() != 0) { request_found = false; }
+                        bool pim_dru = false;   // only the PIM trace's own DRU columns
+                        for (auto &r : m_dru_buffer) if (r.req_class == 0) { pim_dru = true; break; }
+                        if (pim_dru) { request_found = false; }
                         else { req_buffer = &m_aim_buffer; return true; }
                     } else {
                         req_it->command = m_dram->get_preq_command(req_it->final_command, req_it->addr_vec);
@@ -895,6 +908,11 @@ private:
 
             }
         }
+
+        // a DRU column holds the shared data bus: no host/PIM column command this slot
+        if (request_found && m_clk < m_dru_bus_until &&
+            m_dram->m_command_meta(req_it->command).is_accessing)
+            request_found = false;
 
         // 2.3 If we find a request to schedule, we need to check if it will close an opened row in the active buffer.
         if (request_found) {

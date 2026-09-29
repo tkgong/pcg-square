@@ -6,7 +6,7 @@ from ntt_jobs import DEV, ntt_table, phases, write_jobs
 PIM = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 YAML = {"l40s": os.path.join(PIM, "sim/test/gddr6_dpf_24ch.yaml"), "b200": os.path.join(PIM, "sim/test/hbm3e_dpf_b200d.yaml")}
 ap = argparse.ArgumentParser(); ap.add_argument("--sim", required=True); ap.add_argument("--out", required=True)
-ap.add_argument("--dru-window", type=int, default=4); ap.add_argument("--muls", type=int, default=4)
+ap.add_argument("--dru-window", type=int, default=64); ap.add_argument("--muls", type=int, default=4)
 ap.add_argument("--jobs", type=int, default=32)
 ap.add_argument("--target-ck", type=float, default=1.5e6, help="scale each run to about this many CK")
 a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)

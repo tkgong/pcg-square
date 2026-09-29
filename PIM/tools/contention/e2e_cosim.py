@@ -39,7 +39,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sim", required=True); ap.add_argument("--out", required=True)
     ap.add_argument("--clock", default="nom", help="SPU clock in GHz or 'nom' (= DRAM clock)")
-    ap.add_argument("--dru-window", type=int, default=4)
+    ap.add_argument("--dru-window", type=int, default=64)
     ap.add_argument("--orgs", default="l40s,b200"); ap.add_argument("--designs", default="merge,f4dru")
     ap.add_argument("--jobs", type=int, default=60)
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)

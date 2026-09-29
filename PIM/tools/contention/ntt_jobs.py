@@ -7,7 +7,8 @@ Designs
   f4dru : fused four-step on GPU-NTT kernels, transposes on the DRU:
           per mul  T K1 T K2 (a) | T K1 T K2 (b) | PW | K3 T K4 T
           SM kernels 6 x 20N B + PW 24N B = 144N B (61% reads); 6 transposes x 16N B
-          on the DRU (50% reads). SM compute floor = measured f4g_sm time split by bytes.
+          on the DRU (50% reads), issued through the controller's DRU tap (one column per
+          nBL on the shared data bus, no ACT/PRE). SM compute floor = measured f4g_sm time split by bytes.
 Bytes and floors are per real channel (device bytes / channels) times `scale`.
 """
 import csv, os
@@ -34,7 +35,14 @@ def ntt_table(dev):
     return t
 
 
-def phases(dev, design, logN, batch, scale=1.0, window=128, run=32, gap=0, dru_window=4):
+# DRAM access pattern per design, fitted to the L40S silicon interference curves
+# (calib_ntt_patterns.py vs GPU_baseline/fused4 interfere_ntt): reads in flight per
+# channel and columns per row visit.
+PATTERN = {"merge": (32, 16), "f4dru": (32, 32)}
+
+
+def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dru_window=64):
+    window = window or PATTERN[design][0]; run = run or PATTERN[design][1]
     d = DEV[dev]; N = 1 << logN; tm, ts = ntt_table(dev)[(logN, batch)]
     ck = lambda ms: int(round(ms * 1e6 / d["tck"] * scale))
     by = lambda b: int(round(b * N / d["ch"] * scale))
