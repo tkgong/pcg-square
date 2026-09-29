@@ -30,7 +30,13 @@ __global__ void fill_kernel(Data64* x, size_t total, uint64_t seed) {
     if (i < total) x[i] = (seed + 0x9e3779b97f4a7c15ULL * (i + 1)) % P;
 }
 
-// mode 0: stream (read 16 B, write 16 B per step); mode 1: sleep only (control)
+// mode 0: stream (read 16 B, write 16 B per step); mode 1: sleep only (control);
+// mode 2: random rows -- same 16 B read+write but at hashed addresses, so nearly
+// every access opens a new DRAM row (row-conflict pressure, like the SPU's
+// all-bank activates closing the GPU's rows) rather than streaming row hits;
+// mode 3: random rows, bursty -- each block jumps to a random 8 KB chunk and
+// reads+writes it contiguously (the SPU's pattern: ~43 columns per activate),
+// so row switches are frequent but L2/TLB pollution per byte is low
 __global__ void aggressor(const uint4* __restrict__ src, uint4* __restrict__ dst, size_t n16,
                           volatile int* stop, unsigned sleep_ns, int mode,
                           unsigned long long* bytes) {
@@ -50,6 +56,27 @@ __global__ void aggressor(const uint4* __restrict__ src, uint4* __restrict__ dst
                 __stcs(dst + i, v);
                 i += stride;
                 if (i >= n16) i -= n16;
+            }
+            local += 16 * 32;
+        } else if (mode == 2) {
+#pragma unroll 4
+            for (int k = 0; k < 16; ++k) {
+                const size_t h = (i * 0x9E3779B97F4A7C15ULL + k * 0xBF58476D1CE4E5B9ULL) % n16;
+                uint4 v = __ldcs(src + h);
+                __stcs(dst + h, v);
+                i += stride;
+                if (i >= n16) i -= n16;
+            }
+            local += 16 * 32;
+        }
+        else if (mode == 3) {
+            const size_t nchunk = n16 / blockDim.x;
+            for (int k = 0; k < 16; ++k) {
+                const size_t c = ((static_cast<size_t>(blockIdx.x) + 1) * 0x9E3779B97F4A7C15ULL +
+                                  (local + k) * 0xBF58476D1CE4E5B9ULL) % nchunk;
+                const size_t h = c * blockDim.x + threadIdx.x;
+                uint4 v = __ldcs(src + h);
+                __stcs(dst + h, v);
             }
             local += 16 * 32;
         }
@@ -97,13 +124,14 @@ struct Agg {
 };
 
 int main(int argc, char** argv) {
-    int lg = 22, batch = 16, blocks = 16, iters = 10;
+    int lg = 22, batch = 16, blocks = 16, iters = 10, agg_mb = 2048;
     std::vector<unsigned> sleeps = {0, 100, 300, 1000, 3000, 10000, 30000};
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--logN")) lg = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--batch")) batch = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--blocks")) blocks = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--iters")) iters = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--agg-mb")) agg_mb = atoi(argv[++i]);
     }
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
@@ -124,7 +152,7 @@ int main(int argc, char** argv) {
     fill_kernel<<<(total + 255) / 256, 256>>>(x, total, 1);
     fill_kernel<<<(total + 255) / 256, 256>>>(y, total, 2);
     cudaDeviceSynchronize();
-    Agg agg(static_cast<size_t>(1) << 31);   // 2 GiB each side, >> L2
+    Agg agg(static_cast<size_t>(agg_mb) << 20);   // per side; default 2 GiB >> L2
 
     auto victim_ms = [&](int lanes) {
         cudaEvent_t s, e;
@@ -148,7 +176,7 @@ int main(int argc, char** argv) {
         const char* vname = lanes == 3 ? "f4_full" : "f4_sm";
         const double base = victim_ms(lanes);
         printf("%s,%s,%d,%d,0,-,none,0,0,%.4f,1.000\n", gpu.c_str(), vname, lg, batch, base);
-        for (int mode : {1, 0}) {
+        for (int mode : {1, 0, 2, 3}) {
             for (unsigned sl : sleeps) {
                 if (mode == 1 && sl != 0) continue;       // one control point
                 agg.start(blocks, sl, mode);
@@ -156,17 +184,19 @@ int main(int argc, char** argv) {
                 const double v = victim_ms(lanes);
                 const double bw = agg.stop_GBps();
                 printf("%s,%s,%d,%d,%d,%u,%s,%.1f,%.3f,%.4f,%.3f\n", gpu.c_str(), vname, lg, batch, blocks,
-                       sl, mode == 0 ? "stream" : "sleep_only", bw, bw / peak_GBps, v, v / base);
+                       sl, mode == 0 ? "stream" : mode == 2 ? "random" : mode == 3 ? "rowburst" : "sleep_only", bw, bw / peak_GBps, v, v / base);
                 fflush(stdout);
             }
         }
     }
     // aggressor alone (no victim): its uncontended bandwidth per setting
-    for (unsigned sl : sleeps) {
-        agg.start(blocks, sl, 0);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        const double bw = agg.stop_GBps();
-        printf("%s,none,%d,%d,%d,%u,stream_alone,%.1f,%.3f,0,0\n", gpu.c_str(), lg, batch, blocks, sl, bw, bw / peak_GBps);
-    }
+    for (int mode : {0, 2, 3})
+        for (unsigned sl : sleeps) {
+            agg.start(blocks, sl, mode);
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            const double bw = agg.stop_GBps();
+            printf("%s,none,%d,%d,%d,%u,%s_alone,%.1f,%.3f,0,0\n", gpu.c_str(), lg, batch, blocks, sl,
+                   mode == 0 ? "stream" : mode == 2 ? "random" : "rowburst", bw, bw / peak_GBps);
+        }
     return 0;
 }

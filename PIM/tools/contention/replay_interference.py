@@ -42,24 +42,26 @@ def main():
     ap.add_argument("--org", default="l40s")
     ap.add_argument("--targets", default="0.15,0.30,0.61")
     ap.add_argument("--wr-age", type=int, default=1000)
+    ap.add_argument("--window", type=int, default=32, help="victim/aggressor reads in flight per channel")
+    ap.add_argument("--run", type=int, default=8, help="columns per row visit")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     AGG_BYTES = 4_000_000
     # calibrate the aggressor gap to each standalone bandwidth target
     cal = {}
     for g in (0, 1, 2, 3, 4, 6, 8, 10, 12, 16, 20):
-        d = run(a, f"agg_alone_g{g}", [(3, 1_000_000, 0.5, 32, g, 8, 40000, 0)])
+        d = run(a, f"agg_alone_g{g}", [(3, 1_000_000, 0.5, a.window, g, a.run, 40000, 0)])
         cal[g] = 1_000_000 / d["stream0_class3_finish_mean"] / 16.0
     print("aggressor standalone BW fraction by gap:", {g: round(v, 3) for g, v in cal.items()})
     for vname, rd in VICTIM.items():
         vb = 1_000_000
-        base = run(a, f"{vname}_alone", [(1, vb, f"{rd:.4f}", 32, 0, 8, 16384, 0)])
+        base = run(a, f"{vname}_alone", [(1, vb, f"{rd:.4f}", a.window, 0, a.run, 16384, 0)])
         tb = base["stream0_class1_finish_mean"]
         print(f"{vname}: alone {tb:.0f} CK ({vb / tb / 16 * 100:.0f}% of peak)")
         for t in [float(x) for x in a.targets.split(",")]:
             g = min(cal, key=lambda k: abs(cal[k] - t))
-            d = run(a, f"{vname}_agg{t}", [(1, vb, f"{rd:.4f}", 32, 0, 8, 16384, 0),
-                                           (3, AGG_BYTES, 0.5, 32, g, 8, 40000, 0)])
+            d = run(a, f"{vname}_agg{t}", [(1, vb, f"{rd:.4f}", a.window, 0, a.run, 16384, 0),
+                                           (3, AGG_BYTES, 0.5, a.window, g, a.run, 40000, 0)])
             tv = d["stream0_class1_finish_mean"]
             print(f"  aggressor standalone {cal[g] * 100:.0f}% (gap {g}): victim {tv / tb:.3f}x")
 

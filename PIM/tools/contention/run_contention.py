@@ -73,14 +73,19 @@ def main():
     ap.add_argument("--policies", default="pim,fair,gpu")
     ap.add_argument("--dru-window", type=int, default=4,
                     help="DRU blocks in flight x 4 beats; 4 = the paper's single 1024-bit register file")
+    ap.add_argument("--channels", type=int, default=0,
+                    help="channels simulated (0 = org default); channels are symmetric")
+    ap.add_argument("--row-wait", type=int, default=-1,
+                    help="PIM row-change protection (cycles; -1 = off): host classes stop opening rows")
     ap.add_argument("--wr-age", type=int, default=1000,
                     help="controller drains posted writes once the oldest is this many CK old (0 = watermarks only)")
     a = ap.parse_args()
-    O = ORGS[a.org]; C = O["C"]
+    O = ORGS[a.org]; C = a.channels or O["C"]
     os.makedirs(a.out, exist_ok=True)
     base = [a.sim, "-f", O["yaml"], "-p", "MemorySystem.Controller.fpu_gate_issue=true",
             "-p", f"Frontend.issue_width={C}", "-p", f"MemorySystem.DRAM.org.channel={C}",
-            "-p", f"MemorySystem.Controller.wr_max_age={a.wr_age}"]
+            "-p", f"MemorySystem.Controller.wr_max_age={a.wr_age}",
+            "-p", f"MemorySystem.Controller.pim_row_wait={a.row_wait}"]
     spu_trace = os.path.join(a.out, f"spu_{a.org}_C{C}.trace")
     if not os.path.exists(spu_trace):
         subprocess.run([sys.executable, GEN, "-n", "12", "-C", str(C), "-P", "8", "-I", str(C * 8 * 4),
