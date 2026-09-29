@@ -102,6 +102,13 @@ private:
     // commands to rows already open, so the all-bank precharge can go out.
     int64_t m_pim_row_wait = -1;
     Clk_t m_pim_row_wait_since = -1;
+    // Row hold: for this many cycles after a PIM column command, while the next
+    // PIM request hits the open rows, host classes may not open/close rows.
+    int64_t m_pim_row_hold = -1;
+    Clk_t m_last_pim_col = -1000000000;
+    // Compute-aware: host classes stop opening rows once the PIM FPU will be free
+    // (and the next PIM op will need its rows) within this many cycles.
+    int64_t m_pim_anticipate = -1;
     int64_t m_watchdog_cycles = 5000000;
     Clk_t m_last_issue_clk = 0;
     // per-class statistics
@@ -146,6 +153,12 @@ public:
             .default_val(false);
         m_pim_row_wait = param<int64_t>("pim_row_wait")
             .desc("Cycles a PIM row change may wait before host classes stop opening rows (-1 = off).")
+            .default_val(-1);
+        m_pim_row_hold = param<int64_t>("pim_row_hold")
+            .desc("Cycles after a PIM column access during which host classes may not change rows while PIM hits them (-1 = off).")
+            .default_val(-1);
+        m_pim_anticipate = param<int64_t>("pim_anticipate")
+            .desc("Host classes stop opening rows this many cycles before the PIM FPU frees up (-1 = off).")
             .default_val(-1);
         m_class_min_run = param<int>("class_min_run")
             .desc("Cycles to keep serving the last-served class while it has ready requests.")
@@ -662,26 +675,33 @@ private:
                 found = m_dram->check_ready(it->command, it->addr_vec) && ggm_fpu_ready(*it);
             return it;
         }
-        if (m_pim_row_wait >= 0) {
-            bool pim_row_change = false;
-            for (auto &r : m_read_buffer)
-                if (r.req_class == 0) {
-                    const auto c = m_dram->get_preq_command(r.final_command, r.addr_vec);
-                    const auto &m = m_dram->m_command_meta(c);
-                    pim_row_change = (m.is_opening || m.is_closing) && ggm_fpu_ready(r);
-                    break;
+        if (m_pim_row_wait >= 0 || m_pim_row_hold >= 0 || m_pim_anticipate >= 0) {
+            const Request *head = nullptr;
+            for (auto &r : m_read_buffer) if (r.req_class == 0) { head = &r; break; }
+            if (!head) for (auto &r : m_write_buffer) if (r.req_class == 0) { head = &r; break; }
+            bool row_change = false, row_hit = false, fpu_rdy = true;
+            Clk_t fpu_left = 0;
+            if (head) {
+                const auto c = m_dram->get_preq_command(head->final_command, head->addr_vec);
+                const auto &m = m_dram->m_command_meta(c);
+                row_change = m.is_opening || m.is_closing;
+                row_hit = m.is_accessing;
+                fpu_rdy = ggm_fpu_ready(*head);
+                if (!fpu_rdy) {
+                    const int unit = (head->nbanks > 1) ? (-1 - m_channel_id) : pim_unit_of(head->addr_vec);
+                    fpu_left = m_fpu_busy_until[unit] - m_clk;
                 }
-            if (!pim_row_change)
-                for (auto &r : m_write_buffer)
-                    if (r.req_class == 0) {
-                        const auto c = m_dram->get_preq_command(r.final_command, r.addr_vec);
-                        const auto &m = m_dram->m_command_meta(c);
-                        pim_row_change = (m.is_opening || m.is_closing) && ggm_fpu_ready(r);
-                        break;
-                    }
-            if (!pim_row_change) m_pim_row_wait_since = -1;
-            else if (m_pim_row_wait_since < 0) m_pim_row_wait_since = m_clk;
-            host_cols_only = pim_row_change && m_clk - m_pim_row_wait_since >= m_pim_row_wait;
+            }
+            if (m_pim_row_wait >= 0) {
+                const bool pim_row_change = row_change && fpu_rdy;
+                if (!pim_row_change) m_pim_row_wait_since = -1;
+                else if (m_pim_row_wait_since < 0) m_pim_row_wait_since = m_clk;
+                host_cols_only = pim_row_change && m_clk - m_pim_row_wait_since >= m_pim_row_wait;
+            }
+            if (m_pim_row_hold >= 0 && head && row_hit && m_clk - m_last_pim_col <= m_pim_row_hold)
+                host_cols_only = true;
+            if (m_pim_anticipate >= 0 && head && !fpu_rdy && fpu_left <= m_pim_anticipate)
+                host_cols_only = true;
         }
         std::vector<int> order;
         if (m_class_min_run > 0 && m_last_class >= 0 && m_clk < m_last_class_until)
@@ -704,6 +724,7 @@ private:
         if (r.opcode == Opcode::ISR_EOC || r.opcode == Opcode::ISR_SYNC) return;
         const int c = (r.req_class >= 0 && r.req_class < NCLS) ? r.req_class : 0;
         const auto &meta = m_dram->m_command_meta(r.command);
+        if (c == 0 && meta.is_accessing) m_last_pim_col = m_clk;
         if (first_cmd && r.arrive >= 0) {
             const Clk_t q = m_clk - r.arrive;
             if (r.type == Type::Write) {       // posted writes: queued, but never stall the issuer

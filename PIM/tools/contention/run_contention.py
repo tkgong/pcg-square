@@ -78,6 +78,8 @@ def main():
     ap.add_argument("--spu-convert-cl", type=int, default=465, help="CONVERT compute latency (DRAM CK)")
     ap.add_argument("--channels", type=int, default=0,
                     help="channels simulated (0 = org default); channels are symmetric")
+    ap.add_argument("--row-hold", type=int, default=-1, help="PIM row hold after a PIM column access (CK; -1 = off)")
+    ap.add_argument("--anticipate", type=int, default=-1, help="host stops opening rows this many CK before the PIM FPU frees (-1 = off)")
     ap.add_argument("--row-wait", type=int, default=-1,
                     help="PIM row-change protection (cycles; -1 = off): host classes stop opening rows")
     ap.add_argument("--wr-age", type=int, default=1000,
@@ -88,7 +90,9 @@ def main():
     base = [a.sim, "-f", O["yaml"], "-p", "MemorySystem.Controller.fpu_gate_issue=true",
             "-p", f"Frontend.issue_width={C}", "-p", f"MemorySystem.DRAM.org.channel={C}",
             "-p", f"MemorySystem.Controller.wr_max_age={a.wr_age}",
-            "-p", f"MemorySystem.Controller.pim_row_wait={a.row_wait}"]
+            "-p", f"MemorySystem.Controller.pim_row_wait={a.row_wait}",
+            "-p", f"MemorySystem.Controller.pim_row_hold={a.row_hold}",
+            "-p", f"MemorySystem.Controller.pim_anticipate={a.anticipate}"]
     spu_trace = os.path.join(a.out, f"spu_{a.org}_C{C}.trace")
     if not os.path.exists(spu_trace):
         subprocess.run([sys.executable, GEN, "-n", "12", "-C", str(C), "-P", "8", "-I", str(C * 8 * 4),
