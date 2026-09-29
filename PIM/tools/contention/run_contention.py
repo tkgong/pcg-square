@@ -73,6 +73,7 @@ def main():
     ap.add_argument("--policies", default="pim,fair,gpu")
     ap.add_argument("--dru-window", type=int, default=4,
                     help="DRU blocks in flight x 4 beats; 4 = the paper's single 1024-bit register file")
+    ap.add_argument("--min-run", type=int, default=64, help="fair policy: cycles a class keeps the channel while it has ready requests")
     ap.add_argument("--spu-cl", type=int, default=155, help="EXTEND compute latency (DRAM CK); 155 = PU at the DRAM clock")
     ap.add_argument("--spu-convert-cl", type=int, default=465, help="CONVERT compute latency (DRAM CK)")
     ap.add_argument("--channels", type=int, default=0,
@@ -102,7 +103,7 @@ def main():
                 "-p", "MemorySystem.Controller.pim_strict=true"],
         "gpu": ["-p", "MemorySystem.Controller.class_priority=1,3,0,2"],
         "fair": ["-p", "MemorySystem.Controller.class_priority=0,1,3,2",
-                 "-p", "MemorySystem.Controller.class_min_run=64"],
+                 "-p", f"MemorySystem.Controller.class_min_run={a.min_run}"],
     }
 
     def run(tag, trace, streams, policy="pim"):
