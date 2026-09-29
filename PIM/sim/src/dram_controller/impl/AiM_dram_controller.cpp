@@ -40,6 +40,10 @@ private:
     float m_wr_low_watermark;
     float m_wr_high_watermark;
     bool m_is_write_mode = false;
+    // Age-triggered write drain: a posted write older than this switches to write
+    // mode even below the high watermark (0 = watermarks only).
+    int64_t m_wr_max_age = 0;
+    bool m_age_drain = false;
 
     // ISR_GGM_EXTEND compute model: true → ChaCha compute overlaps memory (op finishes at
     // max(mem, compute)); false → serialized (mem + compute). Set via controller param.
@@ -111,6 +115,9 @@ public:
     void init() override {
         m_wr_low_watermark = param<float>("wr_low_watermark").desc("Threshold for switching back to read mode.").default_val(0.2f);
         m_wr_high_watermark = param<float>("wr_high_watermark").desc("Threshold for switching to write mode.").default_val(0.8f);
+        m_wr_max_age = param<int64_t>("wr_max_age")
+            .desc("Drain writes once the oldest has waited this many cycles (0 = watermarks only).")
+            .default_val(0);
         m_ggm_compute_overlap = param<bool>("ggm_compute_overlap").desc("ISR_GGM_EXTEND: overlap ChaCha compute with memory (max) vs serialize (sum).").default_val(true);
         m_banks_per_pim_unit = param<int>("banks_per_pim_unit").desc("Banks sharing one ChaCha FPU (HBM-PIM: 2).").default_val(2);
         m_fpu_init_interval = param<int>("fpu_init_interval").desc("FPU initiation interval (cycles to accept next op); -1 = non-pipelined (= compute_latency).").default_val(-1);
@@ -576,6 +583,18 @@ private:
      * 
      */
     void set_write_mode() {
+        if (m_wr_max_age > 0) {
+            // Aged writes: drain the whole write buffer, then go back to reads.
+            if (m_age_drain) {
+                if (m_write_buffer.size() == 0) { m_age_drain = false; m_is_write_mode = false; }
+                else { m_is_write_mode = true; return; }
+            } else if (m_write_buffer.size() != 0 &&
+                       m_clk - m_write_buffer.buffer.front().arrive > m_wr_max_age) {
+                m_age_drain = true;
+                m_is_write_mode = true;
+                return;
+            }
+        }
         if (!m_is_write_mode) {
             if ((m_write_buffer.size() > m_wr_high_watermark * m_write_buffer.max_size) || m_read_buffer.size() == 0) {
                 m_is_write_mode = true;
@@ -809,6 +828,13 @@ private:
                     req_it = pick_by_class(buffer, request_found);
                     if (req_it != buffer.end())
                         req_buffer = &buffer;
+                    if (!request_found && m_age_drain && m_read_buffer.size() != 0) {
+                        // no write ready this cycle (e.g. a PIM write waiting on its
+                        // compute): let a ready read go rather than idle the bus
+                        req_it = pick_by_class(m_read_buffer, request_found);
+                        if (req_it != m_read_buffer.end())
+                            req_buffer = &m_read_buffer;
+                    }
                 }
                 // DRU stream FIFO: strictly in-order head service, O(1). Fills
                 // the cycles the gated EXTEND stream leaves idle (which is

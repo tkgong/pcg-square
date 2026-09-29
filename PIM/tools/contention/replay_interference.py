@@ -26,7 +26,8 @@ def run(a, tag, streams):
     open(eoc, "w").write("AiM EOC\n")
     cmd = [a.sim, "-f", YAML[a.org], "-t", eoc, "-p", "MemorySystem.DRAM.org.channel=4",
            "-p", "Frontend.issue_width=4", "-p", f"MemorySystem.host_streams={sp}",
-           "-p", "MemorySystem.Controller.class_priority=1,3,0,2"]
+           "-p", "MemorySystem.Controller.class_priority=1,3,0,2",
+           "-p", f"MemorySystem.Controller.wr_max_age={a.wr_age}"]
     with open(out, "w") as f:
         subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT)
     d = {m.group(1): float(m.group(2)) for m in
@@ -40,6 +41,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--org", default="l40s")
     ap.add_argument("--targets", default="0.15,0.30,0.61")
+    ap.add_argument("--wr-age", type=int, default=1000)
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     AGG_BYTES = 4_000_000
