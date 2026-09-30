@@ -48,6 +48,10 @@ def main():
                     help="SPU datapath width multiplier (2 = two VADD/VXORL pairs, or 16 lanes): divides the per-op cycle counts")
     ap.add_argument("--occupancy", default="ceil", choices=["ceil", "fractional"],
                     help="instances per SPU: ceil(I/NSPU) (makespan of the static assignment) or I/NSPU (the paper's lane model)")
+    ap.add_argument("--dpf-split", action="store_true",
+                    help="scheduler also assigns DPF instances to the SMs while they are idle: the SM lane runs the NTTs "
+                         "plus a (1-x) share of the DPF (the measured GPU DPF kernel), the SPUs the x share, x chosen to "
+                         "balance the two lanes; both lanes' co-run slowdowns come from the window")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
@@ -82,7 +86,24 @@ def main():
             m = max(1, min(t, (c * c * t * t) // NSPU[org])) if a.spu_presum else 1
             gb = int(round(8 * (2 * (1 << lg) * t) / 2 / m / DEV[org]["ch"] * s))
             ph = [(0, 1, gb, 1.0, 48, 0, 16, 20000, 0)] + ph
-        jp = os.path.join(a.out, f"{org}_{c}_{t}_{lg}_{d}.jobs"); write_jobs(jp, [(n, 0, ph)])
+        jp = os.path.join(a.out, f"{org}_{c}_{t}_{lg}_{d}.jobs")
+        write_jobs(jp, [(n, 0, ph)])                                  # NTT-only pipeline (the NTT lane)
+        if a.dpf_split:
+            # SM lane = NTT kernels + a (1-x0) share of the DPF (measured GPU expand+convert kernel),
+            # sequential on the SMs: appended to every job as one phase. ~88 B/leaf of DRAM traffic
+            # (tree levels 48 B, two H' passes + scatter 40 B), 55% reads, issued at the kernel's own
+            # bandwidth (gap-throttled: L40S ~38%, B200 ~30% of peak); compute floor = its measured time.
+            L = L_(MACH[org])[(c, t, lg)]; spu_ms = SPU_MS[(org, c, t, lg)]
+            Tg, Tn0 = L["gpu_dpf_g"], tm * 2 * c * c
+            x0 = min(1.0, (Tn0 + Tg) / (spu_ms + Tg))
+            share_ms = (1 - x0) * Tg
+            dpf_ck = share_ms / spu_ms * TS[org]                       # window CK for the SM's DPF share
+            leaves = 2 * (1 << lg) * c * c * t
+            dpf_bytes = 88 * leaves * (1 - x0) / DEV[org]["ch"] * (dpf_ck / (share_ms * 1e6 / DEV[org]["tck"])) if share_ms > 0 else 0
+            gap = {"l40s": 5, "b200": 6}[org]
+            ph2 = ph + ([(0, 1, int(dpf_bytes / n), 0.55, 48, gap, 16, 24576, int(dpf_ck / n))] if dpf_bytes > 0 else [])
+            write_jobs(jp[:-5] + "_split.jobs", [(n, 0, ph2)])
+            X0[(org, c, t, lg, d)] = x0
         return jp, n, s
 
     def sim(tag, trace, jp, org):
@@ -93,6 +114,7 @@ def main():
         return parse(out)
 
     cells, work = {}, []
+    SPU_MS, X0 = {}, {}
     for org in orgs:
         LN = L_(MACH[org])
         for (c, t) in CFG:
@@ -105,12 +127,18 @@ def main():
                     spu_ms = TS[org] / 4 * DEV[org]["tck"] / 1e6 * per_spu * n_leaf / 4096   # sim: 4 instances of 4096 leaves per SPU
                 else:
                     spu_ms = L["spu"] * CLK[org]
+                SPU_MS[(org, c, t, lg)] = spu_ms
                 for d in a.designs.split(","):
                     tm = ntt_table(org)[(lg, c * c)][0 if d == "merge" else 1]
                     r = tm * 2 * c * c / spu_ms                                   # real lane ratio (pre-gather)
                     jp, n, s = build(org, d, lg, c, t, r)
                     cells[(org, c, t, lg, d)] = dict(L=L, spu_ms=spu_ms, n=n, s=s, tm=tm)
-                    work += [(f"{org}_{c}_{t}_{lg}_{d}", TR[org], jp, org), (f"{org}_{c}_{t}_{lg}_{d}_alone", eoc, jp, org)]
+                    work += [(f"{org}_{c}_{t}_{lg}_{d}_alone", eoc, jp, org)]
+                    if a.dpf_split:
+                        js = jp[:-5] + "_split.jobs"
+                        work += [(f"{org}_{c}_{t}_{lg}_{d}", TR[org], js, org), (f"{org}_{c}_{t}_{lg}_{d}_splitalone", eoc, js, org)]
+                    else:
+                        work += [(f"{org}_{c}_{t}_{lg}_{d}", TR[org], jp, org)]
     R = {}
     with cf.ThreadPoolExecutor(a.jobs) as ex:
         for (tag, *_), d in zip(work, ex.map(lambda w: sim(*w), work)): R[tag] = d
@@ -119,15 +147,27 @@ def main():
     for (org, c, t, lg, d), cd in cells.items():
         tck = DEV[org]["tck"]; x = R[f"{org}_{c}_{t}_{lg}_{d}"]; y = R[f"{org}_{c}_{t}_{lg}_{d}_alone"]
         ntt_lane = y["pipe0_finish_max"] / cd["s"] / cd["n"] * 2 * c * c * tck / 1e6   # real ms, incl. gather
-        spu_slow = x["pim_done_cycles"] / TS[org]; ntt_slow = x["pipe0_finish_max"] / y["pipe0_finish_max"]
+        spu_slow = x["pim_done_cycles"] / TS[org]
+        ntt_slow = x["pipe0_finish_max"] / (R[f"{org}_{c}_{t}_{lg}_{d}_splitalone"] if a.dpf_split else y)["pipe0_finish_max"]
         mm = ntt_table(org)[(lg, c * c)][0]
+        xs = 1.0; sm_slow = ntt_slow
         for tier in ("fast", "slow"):
             nic = (cd["L"]["n"] + 2) * alpha_bw(c, t, BETA[tier])
             gpu = cd["L"]["gpu_dpf_g"] + mm * 2 * c * c
-            pcg = max(cd["spu_ms"] * spu_slow, ntt_lane * ntt_slow, nic)
+            if a.dpf_split:
+                # window: SM lane = NTT + (1-x0) DPF share; its co-run slowdown applies to both parts
+                x0 = X0[(org, c, t, lg, d)]; Tg = cd["L"]["gpu_dpf_g"]; Ts = cd["spu_ms"]
+                ys = R[f"{org}_{c}_{t}_{lg}_{d}_splitalone"]
+                sm_slow = x["pipe0_finish_max"] / ys["pipe0_finish_max"]
+                # rebalance with the measured slowdowns: x Ts s_spu = (Tn + (1-x) Tg) s_sm
+                xs = min(1.0, (ntt_lane + Tg) * sm_slow / (Ts * spu_slow + Tg * sm_slow))
+                pcg = max(xs * Ts * spu_slow, (ntt_lane + (1 - xs) * Tg) * sm_slow, nic)
+            else:
+                pcg = max(cd["spu_ms"] * spu_slow, ntt_lane * ntt_slow, nic)
             rows.append(dict(org=org, c=c, t=t, logN=lg, tier=tier, design=d, spu_ms=cd["spu_ms"], ntt_ms=ntt_lane,
                              ntt_meas_ms=cd["tm"] * 2 * c * c, spu_slow=spu_slow, ntt_slow=ntt_slow, nic_ms=nic,
                              pcg_ms=pcg, pcg_nocont_ms=max(cd["spu_ms"], ntt_lane, nic), gpu_ms=gpu,
+                             spu_share=xs, sm_slow=sm_slow,
                              base_serial_ms=gpu + nic, base_overlap_ms=max(gpu, nic),
                              base_paper_ms=cd["L"]["gpu_dpf_g"] + cd["L"]["ntt_dev"] + nic))
     json.dump(rows, open(os.path.join(a.out, "e2e.json"), "w"), indent=1)
