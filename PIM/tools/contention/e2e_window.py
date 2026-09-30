@@ -38,9 +38,13 @@ def main():
     ap.add_argument("--clock", default="nom"); ap.add_argument("--orgs", default="l40s,b200")
     ap.add_argument("--designs", default="merge,f4dru"); ap.add_argument("--jobs", type=int, default=60)
     ap.add_argument("--gather", action="store_true"); ap.add_argument("--spu-presum", action="store_true")
+    ap.add_argument("--spu-lane", default="paper", choices=["paper", "sim"],
+                    help="paper: Fig. 8 anchor (718,660 CK, --reduce mau: no per-leaf H' on the SPU) scaled by T(clock)/T(nominal); "
+                         "sim: this run's SPU trace time (--reduce chacha: expand + H' + mod-p on the SPU) x ceil(I/NSPU) x leaves/instance")
+    ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
-    ctrl = ["-p", "MemorySystem.Controller.fpu_gate_issue=true", "-p", "MemorySystem.Controller.wr_max_age=1000",
+    ctrl = ["-p", f"MemorySystem.Controller.fpu_gate_issue={a.fpu_gate}", "-p", "MemorySystem.Controller.wr_max_age=1000",
             "-p", "MemorySystem.Controller.pim_row_wait=0", "-p", "MemorySystem.Controller.class_priority=0,1,3,2",
             "-p", "MemorySystem.Controller.class_min_run=64", "-p", "MemorySystem.DRAM.org.channel=2", "-p", "Frontend.issue_width=2"]
 
@@ -88,7 +92,11 @@ def main():
             for lg in LOGN:
                 L = LN.get((c, t, lg))
                 if not L or (lg, c * c) not in ntt_table(org): continue
-                spu_ms = L["spu"] * CLK[org]
+                if a.spu_lane == "sim":
+                    I = c * c * t * t; n_leaf = 2 * (1 << lg) // t
+                    spu_ms = TS[org] / 4 * DEV[org]["tck"] / 1e6 * math.ceil(I / NSPU[org]) * n_leaf / 4096   # sim: 4 instances of 4096 leaves per SPU
+                else:
+                    spu_ms = L["spu"] * CLK[org]
                 for d in a.designs.split(","):
                     tm = ntt_table(org)[(lg, c * c)][0 if d == "merge" else 1]
                     r = tm * 2 * c * c / spu_ms                                   # real lane ratio (pre-gather)
