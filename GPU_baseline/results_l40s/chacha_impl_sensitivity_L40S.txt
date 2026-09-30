@@ -1,0 +1,12 @@
+# REFERENCE ONLY (not a baseline): GPU ChaCha8 with the same work and identical outputs, but a
+# deliberately worse implementation -- a compiler barrier after every quarter-round pins the whole
+# 16-word state, so the 4 independent quarter-rounds cannot be interleaved (per-thread ILP 4 -> 1).
+# Applied to both the tree-PRG block (dpf_gpu.cu) and the leaf hash H' (leaf_convert_cuda.cu).
+# e2e_full_bench, L40S, CUDA 12.6, iters=2:            expand ms   convert ms   (std -> ILP-serialised)
+c=8 t=4  logN=22 : 313.99 -> 314.63   240.03 -> 234.05
+c=4 t=16 logN=22 : 304.10 -> 304.94   154.06 -> 152.71
+c=8 t=8  logN=20 : 156.47 -> 157.98    84.74 ->  84.35
+c=2 t=64 logN=20 :  77.58 ->  77.71    27.22 ->  27.16
+# nsys (c=8 t=4 logN=20): hash_kernel_chacha8 20.8 -> 21.1 ms, out_sum 15.3 -> 15.2 ms, expand_kernel 40.1 -> 40.1 ms.
+# The DPF baseline does not move (<1%): its kernels are DRAM-bound and warp-level parallelism hides
+# the per-thread ChaCha latency. The ChaCha implementation is not a lever on the GPU baseline.
