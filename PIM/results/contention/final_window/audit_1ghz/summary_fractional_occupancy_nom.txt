@@ -1,0 +1,5 @@
+clock=nom  (best (c,t) / geomean over all cells; SOTA baseline = GPU DPF + merge NTT)
+  L40S fast merge : serial-net base 3.31/2.58 | overlap-net base 3.31/2.57 | paper base 4.50/3.01 | no-cont geo 2.66 | SPU slow 1.01-1.07 NTT slow 1.38-4.73 | sim NTT lane/measured 1.08
+  L40S fast f4dru : serial-net base 3.20/2.56 | overlap-net base 3.20/2.55 | paper base 4.35/2.98 | no-cont geo 2.66 | SPU slow 1.01-1.08 NTT slow 1.29-2.93 | sim NTT lane/measured 1.51
+  L40S slow merge : serial-net base 3.41/2.66 | overlap-net base 3.31/2.20 | paper base 4.60/3.07 | no-cont geo 2.74 | SPU slow 1.01-1.07 NTT slow 1.38-4.73 | sim NTT lane/measured 1.08
+  L40S slow f4dru : serial-net base 3.29/2.64 | overlap-net base 3.20/2.18 | paper base 4.45/3.04 | no-cont geo 2.74 | SPU slow 1.01-1.08 NTT slow 1.29-2.93 | sim NTT lane/measured 1.51

@@ -46,6 +46,8 @@ def main():
                          "mau = the paper's Fig. 8 anchor mode (conversion as a channel-level column stream, H' not charged)")
     ap.add_argument("--alu-mult", type=float, default=1.0,
                     help="SPU datapath width multiplier (2 = two VADD/VXORL pairs, or 16 lanes): divides the per-op cycle counts")
+    ap.add_argument("--occupancy", default="ceil", choices=["ceil", "fractional"],
+                    help="instances per SPU: ceil(I/NSPU) (makespan of the static assignment) or I/NSPU (the paper's lane model)")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
@@ -99,7 +101,8 @@ def main():
                 if not L or (lg, c * c) not in ntt_table(org): continue
                 if a.spu_lane == "sim":
                     I = c * c * t * t; n_leaf = 2 * (1 << lg) // t
-                    spu_ms = TS[org] / 4 * DEV[org]["tck"] / 1e6 * math.ceil(I / NSPU[org]) * n_leaf / 4096   # sim: 4 instances of 4096 leaves per SPU
+                    per_spu = math.ceil(I / NSPU[org]) if a.occupancy == "ceil" else max(1.0, I / NSPU[org])
+                    spu_ms = TS[org] / 4 * DEV[org]["tck"] / 1e6 * per_spu * n_leaf / 4096   # sim: 4 instances of 4096 leaves per SPU
                 else:
                     spu_ms = L["spu"] * CLK[org]
                 for d in a.designs.split(","):
