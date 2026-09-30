@@ -1,4 +1,0 @@
-L40S SPU 2.25 GHz  40 Gbps : paper-arm baseline 3.01/2.49  ->  stronger baseline (best arm, single H') 2.86/2.33   per (c,t): 3.01->2.86 2.32->2.19 2.63->2.51 2.21->2.01 2.16->2.01
-L40S SPU 2.25 GHz  400 Mbps: paper-arm baseline 3.10/2.57  ->  stronger baseline (best arm, single H') 2.95/2.45   per (c,t): 3.10->2.95 2.67->2.54 2.81->2.70 2.37->2.23 1.68->1.63
-L40S SPU 1 GHz     40 Gbps : paper-arm baseline 1.44/1.17  ->  stronger baseline (best arm, single H') 1.37/1.10   per (c,t): 1.44->1.37 1.09->1.02 1.24->1.19 1.03->0.94 1.01->0.94
-L40S SPU 1 GHz     400 Mbps: paper-arm baseline 1.58/1.42  ->  stronger baseline (best arm, single H') 1.54/1.35   per (c,t): 1.49->1.41 1.25->1.19 1.33->1.28 1.55->1.46 1.58->1.54
