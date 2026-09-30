@@ -35,17 +35,28 @@ def ntt_table(dev):
     return t
 
 
-# DRAM access pattern per design, fitted to the L40S silicon interference curves
-# (calib_ntt_patterns.py vs GPU_baseline/fused4 interfere_ntt): reads in flight per
-# channel and columns per row visit.
-PATTERN = {"merge": (32, 16), "f4dru": (32, 32)}
+# DRAM access pattern per design (reads in flight per channel, columns per row visit),
+# fitted JOINTLY to L40S silicon (fit_ntt_pattern.py): standalone per-mul time and the
+# interference curve of GPU_baseline/fused4 interfere_ntt, both with this kernel model.
+#   merge : W=48 R=16 -> standalone +5.2% (logN 22) / +2.7% (24), interference rms 0.053
+#   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
+PATTERN = {"merge": (48, 16), "f4dru": (48, 16)}
 
 
-def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dru_window=64):
+# Effective DRAM-traffic fraction per config (L2 absorbs the rest), fitted so that the
+# simulated standalone per-mul time equals silicon (calibrate_ntt_bytes.py). Missing = 1.
+_BS_PATH = os.path.join(HERE, "ntt_dram_fraction.json")
+DRAM_FRACTION = __import__("json").load(open(_BS_PATH)) if os.path.exists(_BS_PATH) else {}
+
+
+def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dru_window=64, frac=None):
     window = window or PATTERN[design][0]; run = run or PATTERN[design][1]
+    if frac is None:
+        frac = DRAM_FRACTION.get(f"{dev}/{design}/{logN}/{batch}", 1.0)
     d = DEV[dev]; N = 1 << logN; tm, ts = ntt_table(dev)[(logN, batch)]
     ck = lambda ms: int(round(ms * 1e6 / d["tck"] * scale))
-    by = lambda b: int(round(b * N / d["ch"] * scale))
+    by = lambda b: int(round(b * N / d["ch"] * scale * frac))
+    byd = lambda b: int(round(b * N / d["ch"] * scale))      # DRU transposes: data not in L2
     if design == "merge":
         # GPU-NTT merge at 2^20..2^24: 3 kernels per transform (8N rd + 8N wr each);
         # poly-mul = fwd a, fwd b, pointwise (16N rd + 8N wr), inverse -> 10 kernels, 168N B
@@ -53,7 +64,7 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
         MPW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tm * 24 / 168))
         return [MK(), MK(), MK(), MK(), MK(), MK(), MPW, MK(), MK(), MK()]
     K = lambda: (0, 1, by(20), 0.6, window, gap, run, 16384, ck(ts * 20 / 144))
-    T = lambda: (1, 2, by(16), 0.5, dru_window, 0, 4, 32768, 0)
+    T = lambda: (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768, 0)
     PW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(ts * 24 / 144))
     return [T(), K(), T(), K(), T(), K(), T(), K(), PW, K(), T(), K(), T()]
 

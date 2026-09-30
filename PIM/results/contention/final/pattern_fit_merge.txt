@@ -1,0 +1,9 @@
+  W= 64 R=16  standalone err logN22 +0.7%  logN24 +0.2%   interference rms 0.098
+  W= 96 R=32  standalone err logN22 +0.2%  logN24 +0.1%   interference rms 0.117
+  W= 48 R= 4  standalone err logN22 -0.0%  logN24 -0.0%   interference rms 0.123
+  W= 64 R= 8  standalone err logN22 -0.0%  logN24 -0.0%   interference rms 0.138
+  W=128 R=64  standalone err logN22 +3.7%  logN24 +1.5%   interference rms 0.082
+  W= 64 R=24  standalone err logN22 +4.1%  logN24 +1.7%   interference rms 0.076
+  W= 48 R=16  standalone err logN22 +5.2%  logN24 +2.7%   interference rms 0.053
+  W= 32 R= 8  standalone err logN22 +5.3%  logN24 +2.9%   interference rms 0.055
+
