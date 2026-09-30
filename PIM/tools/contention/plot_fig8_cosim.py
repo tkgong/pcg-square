@@ -29,8 +29,12 @@ def data(run_dir, baseline):
             cells, allsp = [], []
             for (c, t) in P.CFG:
                 rr = [r for r in R if r["org"] == org and r["design"] == des and r["tier"] == tier and r["c"] == c and r["t"] == t]
-                pcg = [max(r["both_ms"], r["nic_ms"]) for r in rr]
-                if baseline == "paper":
+                # e2e_window.py rows carry pcg_ms / base_serial_ms; e2e_cosim.py rows both_ms / base_ms
+                pcg = [r["pcg_ms"] if "pcg_ms" in r else max(r["both_ms"], r["nic_ms"]) for r in rr]
+                if "pcg_ms" in rr[0]:
+                    base = [r["base_paper_ms"] if baseline == "paper" else
+                            (r["base_overlap_ms"] if baseline == "overlap" else r["base_serial_ms"]) for r in rr]
+                elif baseline == "paper":
                     base = [LN[M][(c, t, r["logN"])]["gpu_dpf_g"] + LN[M][(c, t, r["logN"])]["ntt_dev"] + r["nic_ms"] for r in rr]
                 else:
                     base = [r["base_ms"] for r in rr]
