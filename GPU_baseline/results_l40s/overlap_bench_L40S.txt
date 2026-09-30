@@ -1,0 +1,9 @@
+# overlap_bench: GPU-only DPF (default stream) and GPU-NTT merge (non-blocking stream) launched together, L40S, CUDA 12.6
+# nsys on (8,4) logN22 blocks=8: in the concurrent window (221.5 ms) NTT kernels busy 154.0 ms, DPF kernels busy 51.6 ms,
+# both running at the same time 0.1 ms -> the GPU time-slices the two at kernel granularity (both saturate the SMs).
+c=4 t=16 logN=20 blocks=8 | GPU DPF 55.1 ms, GPU merge NTT 4.3 ms | serial sum 59.4 | concurrent 59.3 | concurrent/sum 0.998  concurrent/max 1.076
+c=4 t=16 logN=22 blocks=4 | GPU DPF 112.6 ms, GPU merge NTT 19.2 ms | serial sum 131.8 | concurrent 131.7 | concurrent/sum 0.999  concurrent/max 1.169
+c=8 t=4 logN=20 blocks=16 | GPU DPF 34.7 ms, GPU merge NTT 17.3 ms | serial sum 52.0 | concurrent 51.9 | concurrent/sum 0.999  concurrent/max 1.498
+c=8 t=4 logN=22 blocks=8 | GPU DPF 67.7 ms, GPU merge NTT 76.2 ms | serial sum 143.9 | concurrent 143.9 | concurrent/sum 1.000  concurrent/max 1.889
+c=2 t=64 logN=20 blocks=4 | GPU DPF 103.2 ms, GPU merge NTT 1.0 ms | serial sum 104.2 | concurrent 103.9 | concurrent/sum 0.996  concurrent/max 1.006
+c=8 t=8 logN=20 blocks=8 | GPU DPF 29.9 ms, GPU merge NTT 17.2 ms | serial sum 47.2 | concurrent 47.1 | concurrent/sum 0.999  concurrent/max 1.574
