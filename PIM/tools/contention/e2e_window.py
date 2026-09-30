@@ -44,6 +44,8 @@ def main():
     ap.add_argument("--reduce", default="chacha", choices=["chacha", "mau", "fused"],
                     help="SPU trace leaf conversion: chacha = expand + per-leaf ChaCha8 hash H' + mod-p on the SPU (Sec. IV); "
                          "mau = the paper's Fig. 8 anchor mode (conversion as a channel-level column stream, H' not charged)")
+    ap.add_argument("--alu-mult", type=float, default=1.0,
+                    help="SPU datapath width multiplier (2 = two VADD/VXORL pairs, or 16 lanes): divides the per-op cycle counts")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
@@ -52,11 +54,11 @@ def main():
             "-p", "MemorySystem.Controller.class_min_run=64", "-p", "MemorySystem.DRAM.org.channel=2", "-p", "Frontend.issue_width=2"]
 
     def spu_trace(org, f, tag):
-        tr = os.path.join(a.out, f"spu_{org}_{a.reduce}_{tag}.trace"); o = tr[:-6] + ".out"
+        tr = os.path.join(a.out, f"spu_{org}_{a.reduce}_x{a.alu_mult:g}_{tag}.trace"); o = tr[:-6] + ".out"
         if not os.path.exists(tr):
             subprocess.run([sys.executable, GEN, "-n", "12", "-C", "2", "-P", "8", "-I", "64", "--mode", "instances", "--seed-bits", "128",
-                            "--reread", "--broadcast", "--cl", str(round(155 * FNOM[org] / f)), "--reduce", a.reduce,
-                            "--convert-cl", str(round(465 * FNOM[org] / f)), "-o", tr], check=True, stderr=subprocess.DEVNULL)
+                            "--reread", "--broadcast", "--cl", str(round(155 * FNOM[org] / f / a.alu_mult)), "--reduce", a.reduce,
+                            "--convert-cl", str(round(465 * FNOM[org] / f / a.alu_mult)), "-o", tr], check=True, stderr=subprocess.DEVNULL)
         if not (os.path.exists(o) and "pim_done_cycles" in open(o).read()):
             with open(o, "w") as fo: subprocess.run([a.sim, "-f", YAML[org], "-t", tr] + ctrl, stdout=fo, stderr=subprocess.STDOUT)
         return tr, parse(o)["pim_done_cycles"]
