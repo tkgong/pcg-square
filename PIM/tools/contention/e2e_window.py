@@ -52,21 +52,27 @@ def main():
                     help="scheduler also assigns DPF instances to the SMs while they are idle: the SM lane runs the NTTs "
                          "plus a (1-x) share of the DPF (the measured GPU DPF kernel), the SPUs the x share, x chosen to "
                          "balance the two lanes; both lanes' co-run slowdowns come from the window")
+    ap.add_argument("--dru-clock", default="nom", help="DRU clock in GHz or 'nom' (= DRAM clock): the DRU tap takes 2*f_DRAM/f_DRU bus cycles per column")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
     ctrl = ["-p", f"MemorySystem.Controller.fpu_gate_issue={a.fpu_gate}", "-p", "MemorySystem.Controller.wr_max_age=1000",
             "-p", "MemorySystem.Controller.pim_row_wait=0", "-p", "MemorySystem.Controller.class_priority=0,1,3,2",
             "-p", "MemorySystem.Controller.class_min_run=64", "-p", "MemorySystem.DRAM.org.channel=2", "-p", "Frontend.issue_width=2"]
+    def ctrl_for(org):
+        fd = FNOM[org] if a.dru_clock == "nom" else float(a.dru_clock)
+        slot = max(2, int(round(2 * FNOM[org] / fd)))
+        return ctrl + ["-p", f"MemorySystem.Controller.dru_bus_slot={slot}"]
 
     def spu_trace(org, f, tag):
         tr = os.path.join(a.out, f"spu_{org}_{a.reduce}_x{a.alu_mult:g}_{tag}.trace"); o = tr[:-6] + ".out"
         if not os.path.exists(tr):
             subprocess.run([sys.executable, GEN, "-n", "12", "-C", "2", "-P", "8", "-I", "64", "--mode", "instances", "--seed-bits", "128",
                             "--reread", "--broadcast", "--cl", str(round(155 * FNOM[org] / f / a.alu_mult)), "--reduce", a.reduce,
-                            "--convert-cl", str(round(465 * FNOM[org] / f / a.alu_mult)), "-o", tr], check=True, stderr=subprocess.DEVNULL)
+                            "--convert-cl", str(round(465 * FNOM[org] / f / a.alu_mult)),
+                            "--modmul-cl", str(round(32 * FNOM[org] / f / a.alu_mult)), "-o", tr], check=True, stderr=subprocess.DEVNULL)
         if not (os.path.exists(o) and "pim_done_cycles" in open(o).read()):
-            with open(o, "w") as fo: subprocess.run([a.sim, "-f", YAML[org], "-t", tr] + ctrl, stdout=fo, stderr=subprocess.STDOUT)
+            with open(o, "w") as fo: subprocess.run([a.sim, "-f", YAML[org], "-t", tr] + ctrl_for(org), stdout=fo, stderr=subprocess.STDOUT)
         return tr, parse(o)["pim_done_cycles"]
 
     orgs = a.orgs.split(","); TR, TS, CLK = {}, {}, {}
@@ -110,7 +116,7 @@ def main():
         out = os.path.join(a.out, tag + ".out")
         if not (os.path.exists(out) and "memory_system_cycles" in open(out).read()):
             with open(out, "w") as fo:
-                subprocess.run([a.sim, "-f", YAML[org], "-t", trace, "-p", f"MemorySystem.host_jobs={jp}"] + ctrl, stdout=fo, stderr=subprocess.STDOUT)
+                subprocess.run([a.sim, "-f", YAML[org], "-t", trace, "-p", f"MemorySystem.host_jobs={jp}"] + ctrl_for(org), stdout=fo, stderr=subprocess.STDOUT)
         return parse(out)
 
     cells, work = {}, []

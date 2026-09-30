@@ -156,6 +156,12 @@ public:
         m_pim_row_wait = param<int64_t>("pim_row_wait")
             .desc("Cycles a PIM row change may wait before host classes stop opening rows (-1 = off).")
             .default_val(-1);
+        m_dru_bus_slot = param<int>("dru_bus_slot")
+            .desc("Data-bus cycles one DRU column occupies (2 = one column per nBL at the DRAM clock; 2*f_DRAM/f_DRU for a slower DRU).")
+            .default_val(2);
+        m_dru_col_latency = param<int>("dru_col_latency")
+            .desc("DRU column read latency in DRAM cycles.")
+            .default_val(22);
         m_pim_row_hold = param<int64_t>("pim_row_hold")
             .desc("Cycles after a PIM column access during which host classes may not change rows while PIM hits them (-1 = off).")
             .default_val(-1);
