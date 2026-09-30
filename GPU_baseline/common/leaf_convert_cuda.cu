@@ -233,57 +233,6 @@ __global__ void out_scatter_kernel(const DpfBlk* __restrict__ leaves,
     }
 }
 
-
-// (1') Single-hash conversion: one pass computes H'(leaf) ONCE, accumulates the
-// per-instance sums AND scatters +-C into g (negacyclic fold) while storing tau
-// (1 byte/leaf). After the Beaver opens, (3') adds +-tau*CW[b] from the tau bytes.
-// g = sum +-(C + tau*CW) = sum +-C + sum +-tau*CW (mod P): bit-exact with the two-pass version.
-__global__ void out_sum_scatter_kernel(const DpfBlk* __restrict__ leaves,
-                                       uint64_t* __restrict__ partials,
-                                       uint8_t* __restrict__ tau,
-                                       uint64_t* __restrict__ g,
-                                       size_t D, int t, int party, uint64_t P, int N, int nparts) {
-    extern __shared__ uint64_t s_red[];
-    uint64_t* s_c = s_red; uint64_t* s_t = s_red + blockDim.x;
-    const int b = blockIdx.y; const size_t base = static_cast<size_t>(b) * D;
-    const size_t stride = static_cast<size_t>(gridDim.x) * blockDim.x;
-    const int kk = b / t, ll = b % t; const size_t pos_base = static_cast<size_t>(kk + ll) * (D >> 1);
-    uint64_t accC = 0, accT = 0;
-    for (size_t d = static_cast<size_t>(blockIdx.x) * blockDim.x + threadIdx.x; d < D; d += stride) {
-        const DpfBlk leaf = leaves[base + d];
-        const uint64_t C = out_C(leaf, P); const uint8_t tb = leaf.lo & 1;
-        accC = modadd(accC, C, P); accT += tb; tau[base + d] = tb;
-        uint64_t y = C;
-        if (party != 0 && y != 0) y = P - y;
-        size_t pos = pos_base + d;
-        if (pos >= static_cast<size_t>(N)) { pos -= N; if (y != 0) y = P - y; }
-        if (y != 0) atomic_modadd(&g[pos], y, P);
-    }
-    s_c[threadIdx.x] = accC; s_t[threadIdx.x] = accT; __syncthreads();
-    for (unsigned off = blockDim.x >> 1; off > 0; off >>= 1) {
-        if (threadIdx.x < off) { s_c[threadIdx.x] = modadd(s_c[threadIdx.x], s_c[threadIdx.x + off], P); s_t[threadIdx.x] += s_t[threadIdx.x + off]; }
-        __syncthreads();
-    }
-    if (threadIdx.x == 0) {
-        const size_t slot = static_cast<size_t>(b) * gridDim.x + blockIdx.x;
-        partials[slot] = s_c[0]; partials[static_cast<size_t>(nparts) * gridDim.y + slot] = s_t[0];
-    }
-}
-__global__ void out_tau_scatter_kernel(const uint8_t* __restrict__ tau, const uint64_t* __restrict__ cws,
-                                       uint64_t* __restrict__ g, size_t D, int t, int party, uint64_t P, int N) {
-    const int b = blockIdx.y; const size_t base = static_cast<size_t>(b) * D;
-    const size_t stride = static_cast<size_t>(gridDim.x) * blockDim.x;
-    const int kk = b / t, ll = b % t; const size_t pos_base = static_cast<size_t>(kk + ll) * (D >> 1);
-    uint64_t cw = cws[b]; if (party != 0 && cw != 0) cw = P - cw;
-    if (cw == 0) return;
-    for (size_t d = static_cast<size_t>(blockIdx.x) * blockDim.x + threadIdx.x; d < D; d += stride) {
-        if (!tau[base + d]) continue;
-        uint64_t y = cw; size_t pos = pos_base + d;
-        if (pos >= static_cast<size_t>(N)) { pos -= N; y = P - y; }
-        atomic_modadd(&g[pos], y, P);
-    }
-}
-
 int blocks_per_instance(size_t D, int tpb) {
     // Cap the per-instance grid so partials stay tiny; each thread strides.
     size_t blocks = (D + tpb - 1) / tpb;
@@ -356,46 +305,6 @@ void dpf_out_scatter_g(const DpfBlk* d_leaves, int B, size_t D, int t,
     check(cudaMemcpy(g_out_host, bufs.g,
                      static_cast<size_t>(N) * sizeof(uint64_t),
                      cudaMemcpyDeviceToHost), "D2H out g");
-}
-
-
-static uint8_t* g_tau = nullptr; static size_t g_tau_cap = 0;
-void dpf_out_sums_v2(const DpfBlk* d_leaves, int B, size_t D, int t, int party, uint64_t prime, int N,
-                     uint64_t* sumC_host, uint64_t* sumT_host) {
-    if (B <= 0) return;
-    std::lock_guard<std::mutex> lock(leaf_gpu_mutex());
-    LeafGpuBuffers& bufs = leaf_gpu_buffers();
-    const int TPB = 256; const int nparts = blocks_per_instance(D, TPB);
-    LeafGpuBuffers::ensure(bufs.partials, bufs.cap_partials, 2 * static_cast<size_t>(B) * nparts, "cudaMalloc out partials");
-    if (static_cast<size_t>(B) > bufs.cap_b) {
-        if (bufs.sums) cudaFree(bufs.sums); if (bufs.cws) cudaFree(bufs.cws);
-        bufs.sums = bufs.cws = nullptr; bufs.cap_b = 0;
-        check(cudaMalloc(&bufs.sums, 2 * B * sizeof(uint64_t)), "cudaMalloc out sums");
-        check(cudaMalloc(&bufs.cws, B * sizeof(uint64_t)), "cudaMalloc out cws"); bufs.cap_b = B;
-    }
-    LeafGpuBuffers::ensure(bufs.g, bufs.cap_g, static_cast<size_t>(N), "cudaMalloc out g");
-    const size_t need = static_cast<size_t>(B) * D;
-    if (need > g_tau_cap) { if (g_tau) cudaFree(g_tau); check(cudaMalloc(&g_tau, need), "cudaMalloc tau"); g_tau_cap = need; }
-    check(cudaMemset(bufs.g, 0, static_cast<size_t>(N) * sizeof(uint64_t)), "memset out g");
-    dim3 grid(nparts, B);
-    out_sum_scatter_kernel<<<grid, TPB, 2 * TPB * sizeof(uint64_t)>>>(d_leaves, bufs.partials, g_tau, bufs.g, D, t, party, prime, N, nparts);
-    check(cudaGetLastError(), "launch out_sum_scatter_kernel");
-    out_fold_kernel<<<B, TPB, 2 * TPB * sizeof(uint64_t)>>>(bufs.partials, bufs.sums, nparts, B, prime);
-    check(cudaGetLastError(), "launch out_fold_kernel");
-    std::vector<uint64_t> both(2 * static_cast<size_t>(B));
-    check(cudaMemcpy(both.data(), bufs.sums, 2 * B * sizeof(uint64_t), cudaMemcpyDeviceToHost), "D2H out sums");
-    for (int b = 0; b < B; ++b) { sumC_host[b] = both[b]; sumT_host[b] = both[B + b]; }
-}
-void dpf_out_scatter_g_v2(int B, size_t D, int t, int party, uint64_t prime, const uint64_t* CW_host,
-                          uint64_t* g_out_host, int N) {
-    if (B <= 0) return;
-    std::lock_guard<std::mutex> lock(leaf_gpu_mutex());
-    LeafGpuBuffers& bufs = leaf_gpu_buffers();
-    check(cudaMemcpy(bufs.cws, CW_host, B * sizeof(uint64_t), cudaMemcpyHostToDevice), "H2D out cws");
-    const int TPB = 256; dim3 grid(blocks_per_instance(D, TPB), B);
-    out_tau_scatter_kernel<<<grid, TPB>>>(g_tau, bufs.cws, bufs.g, D, t, party, prime, N);
-    check(cudaGetLastError(), "launch out_tau_scatter_kernel");
-    check(cudaMemcpy(g_out_host, bufs.g, static_cast<size_t>(N) * sizeof(uint64_t), cudaMemcpyDeviceToHost), "D2H out g");
 }
 
 }  // namespace pcg_cuda

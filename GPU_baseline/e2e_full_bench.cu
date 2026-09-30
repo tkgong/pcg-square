@@ -138,12 +138,12 @@ int main(int argc, char** argv) {
             for (int blk = 0; blk < nblk; ++blk) {
                 const DpfBlk* dl = all + (size_t)blk * B * D;   // this block's slice
                 auto q0 = std::chrono::steady_clock::now();
-                if (getenv("CONV_V2")) pcg_cuda::dpf_out_sums_v2(dl, B, D, t, 0, P, gN, sumC.data(), sumT.data()); else pcg_cuda::dpf_out_sums(dl, B, D, P, sumC.data(), sumT.data());
+                pcg_cuda::dpf_out_sums(dl, B, D, P, sumC.data(), sumT.data());
                 CK(cudaDeviceSynchronize());
                 auto q1 = std::chrono::steady_clock::now();
                 spin(rtt_us); spin(rtt_us);
                 auto q2 = std::chrono::steady_clock::now();
-                if (getenv("CONV_V2")) pcg_cuda::dpf_out_scatter_g_v2(B, D, t, 0, P, CW.data(), g.data(), gN); else pcg_cuda::dpf_out_scatter_g(dl, B, D, t, 0, P, CW.data(), g.data(), gN);
+                pcg_cuda::dpf_out_scatter_g(dl, B, D, t, 0, P, CW.data(), g.data(), gN);
                 CK(cudaDeviceSynchronize());
                 auto q3 = std::chrono::steady_clock::now();
                 s_ms += d(q0,q1); n_ms += d(q1,q2); c_ms += d(q2,q3);
@@ -158,12 +158,13 @@ int main(int argc, char** argv) {
                 exchange, pcg_cuda::DpfGpuPrg::CHACHA8);
             CK(cudaDeviceSynchronize());
             auto b1 = std::chrono::steady_clock::now();
-            if (getenv("CONV_V2")) pcg_cuda::dpf_out_sums_v2(d_leaves, B, D, t, 0, P, gN, sumC.data(), sumT.data()); else pcg_cuda::dpf_out_sums(d_leaves, B, D, P, sumC.data(), sumT.data());
+            pcg_cuda::dpf_out_sums(d_leaves, B, D, P, sumC.data(), sumT.data());
             CK(cudaDeviceSynchronize());
             auto b2 = std::chrono::steady_clock::now();
             spin(rtt_us); spin(rtt_us);          // the block's two Beaver opens
             auto b3 = std::chrono::steady_clock::now();
-            if (getenv("CONV_V2")) pcg_cuda::dpf_out_scatter_g_v2(B, D, t, 0, P, CW.data(), g.data(), gN); else pcg_cuda::dpf_out_scatter_g(d_leaves, B, D, t, 0, P, CW.data(), g.data(), gN);
+            pcg_cuda::dpf_out_scatter_g(d_leaves, B, D, t, 0, P, CW.data(),
+                                        g.data(), gN);
             CK(cudaDeviceSynchronize());
             auto b4 = std::chrono::steady_clock::now();
             auto d=[&](auto x, auto y){ return std::chrono::duration<double,std::milli>(y-x).count(); };
@@ -185,7 +186,6 @@ int main(int argc, char** argv) {
         ntt_ms += ms(a4,a5); wall_ms += ms(W0,a5);
         cks ^= pc[0] ^ pc[N/2];
     }
-    { uint64_t fp = 0; for (int i = 0; i < gN; ++i) fp = fp * 0x9E3779B97F4A7C15ULL + g[i]; std::printf("G_FINGERPRINT=%016llx\n", (unsigned long long)fp); }
     dpf_ms/=iters; sums_ms/=iters; sca_ms/=iters; ntt_ms/=iters;
     net_ms/=iters; wall_ms/=iters;
     const double conv = sums_ms + sca_ms;

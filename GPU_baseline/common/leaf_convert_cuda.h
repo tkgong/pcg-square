@@ -51,8 +51,6 @@ void dpf_out_scatter_g(const DpfBlk* d_leaves, int B, size_t D, int t,
                        int party, uint64_t prime, const uint64_t* CW_host,
                        uint64_t* g_out_host, int N);
 
-void dpf_out_sums_v2(const DpfBlk* d_leaves, int B, size_t D, int t, int party, uint64_t prime, int N, uint64_t* sumC_host, uint64_t* sumT_host);
-void dpf_out_scatter_g_v2(int B, size_t D, int t, int party, uint64_t prime, const uint64_t* CW_host, uint64_t* g_out_host, int N);
 }  // namespace pcg_cuda
 
 #endif  // COMMON_LEAF_CONVERT_CUDA_H__
