@@ -1,0 +1,9 @@
+clock=1.5  (best (c,t) / geomean over all cells; SOTA baseline = GPU DPF + merge NTT)
+  L40S fast merge : serial-net base 2.11/1.72 | overlap-net base 2.11/1.72 | paper base 2.86/2.01 | no-cont geo 1.75 | SPU slow 1.00-1.03 NTT slow 1.26-3.44 | sim NTT lane/measured 1.08
+  L40S fast f4dru : serial-net base 2.10/1.72 | overlap-net base 2.10/1.71 | paper base 2.85/2.01 | no-cont geo 1.75 | SPU slow 1.00-1.04 NTT slow 1.21-2.06 | sim NTT lane/measured 1.52
+  L40S slow merge : serial-net base 2.17/1.94 | overlap-net base 2.11/1.60 | paper base 2.93/2.23 | no-cont geo 1.96 | SPU slow 1.00-1.03 NTT slow 1.26-3.44 | sim NTT lane/measured 1.08
+  L40S slow f4dru : serial-net base 2.16/1.93 | overlap-net base 2.10/1.60 | paper base 2.91/2.23 | no-cont geo 1.96 | SPU slow 1.00-1.04 NTT slow 1.21-2.06 | sim NTT lane/measured 1.52
+  B200 fast merge : serial-net base 7.46/6.38 | overlap-net base 7.43/6.31 | paper base 7.84/6.71 | no-cont geo 6.53 | SPU slow 1.01-1.02 NTT slow 1.03-1.35 | sim NTT lane/measured 1.05
+  B200 fast f4dru : serial-net base 7.46/6.41 | overlap-net base 7.44/6.35 | paper base 7.85/6.75 | no-cont geo 6.55 | SPU slow 1.01-1.03 NTT slow 1.03-1.31 | sim NTT lane/measured 1.10
+  B200 slow merge : serial-net base 5.83/3.41 | overlap-net base 5.09/2.65 | paper base 6.24/3.56 | no-cont geo 3.46 | SPU slow 1.01-1.02 NTT slow 1.03-1.35 | sim NTT lane/measured 1.05
+  B200 slow f4dru : serial-net base 5.93/3.43 | overlap-net base 5.17/2.67 | paper base 6.33/3.58 | no-cont geo 3.47 | SPU slow 1.01-1.03 NTT slow 1.03-1.31 | sim NTT lane/measured 1.10

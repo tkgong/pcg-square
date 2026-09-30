@@ -1,0 +1,2690 @@
+[AiMTrace] [info] Opening trace file anchor/mau24.trace with delimiter " "...
+[AiMDRAMSystem] [info] AiMDRAMSystem: One intermediate level (rank/pseudochannel) between channel and bankgroup.
+Frontend:
+  impl: AiMTrace
+
+MemorySystem:
+  impl: AiMDRAM
+  net_busy_cycles: 0  # total NIC-lane occupancy advanced by ISR_NET_DELAY (for U_NET)
+  pim_done_cycles: 707218  # cycle at which the PIM ISR trace reached EOC (-1 if never)
+  total_num_AiM_ISR_NET_DELAY_requests: 0  # total number of AiM ISR_NET_DELAY requests
+  total_num_AiM_ISR_SYNC_requests: 53  # total number of AiM ISR_SYNC requests
+  total_num_AiM_ISR_EOC_requests: 1  # total number of AiM ISR_EOC requests
+  total_num_AiM_ISR_NET_WAIT_requests: 0  # total number of AiM ISR_NET_WAIT requests
+  total_num_W_MEM_requests: 0  # total number of W MEM requests
+  total_num_AiM_ISR_GGM_REDUCE_requests: 73920  # total number of AiM ISR_GGM_REDUCE requests
+  total_num_ISR_full: 0  # total number of cycles that AiM DMA does not receive ISR because of lack of enough ISR space
+  total_num_AiM_ISR_GGM_EXTEND_requests: 0  # total number of AiM ISR_GGM_EXTEND requests
+  total_num_wait_read_stalls: 0  # total number of cycles that AiM DMA is stalled because of waiting for read operations from channels
+  total_num_R_MEM_requests: 0  # total number of R MEM requests
+  memory_system_cycles: 707219
+  DRAM:
+    impl: HBM2
+  AddrMapper:
+    impl: RoBaRaCoCh
+
+
+  Controller:
+    impl: AiM
+    id: Channel 0
+    CH0_agg_rdlat_p95: 0
+    CH0_agg_rdlat_p50: 0
+    CH0_agg_rdlat_mean: 0
+    CH0_agg_rdlat_count: 0
+    CH0_agg_q_mean: 0
+    CH0_agg_row_hit: 0
+    CH0_agg_wr_cols: 0
+    CH0_dru_rdlat_p99: 0
+    CH0_dru_rdlat_p50: 0
+    CH0_dru_rdlat_mean: 0
+    CH0_agg_q_p95: 0
+    CH0_dru_rdlat_count: 0
+    CH0_dru_wq_mean: 0
+    CH0_dru_q_p99: 0
+    CH0_agg_rd_cols: 0
+    CH0_dru_q_p95: 0
+    CH0_agg_row_conflict: 0
+    CH0_agg_row_miss: 0
+    CH0_dru_q_p50: 0
+    CH0_agg_q_p99: 0
+    CH0_dru_q_mean: 0
+    CH0_dru_q_count: 0
+    CH0_dru_row_conflict: 0
+    CH0_dru_row_miss: 0
+    CH0_dru_row_hit: 0
+    CH0_dru_bus_cycles: 0
+    CH0_dru_wr_cols: 0
+    CH0_dru_rd_cols: 0
+    CH0_dru_rdlat_p95: 0
+    CH0_gpu_rdlat_p99: 0
+    CH0_pim_allbank_cols: 32896
+    CH0_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH0_pim_q_mean: 21731.70561770428
+    CH0_gpu_q_p50: 0
+    CH0_agg_bus_cycles: 0
+    CH0_num_TMOD_commands: 0  # total number of TMOD commands
+    CH0_num_REFsb_commands: 0  # total number of REFsb commands
+    CH0_gpu_q_count: 0
+    CH0_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH0_pim_row_miss: 121
+    CH0_gpu_rdlat_p95: 0
+    CH0_gpu_wq_mean: 0
+    CH0_pim_row_hit: 32284
+    CH0_idle_cycles: 54  # total number of idle cycles
+    CH0_gpu_bus_cycles: 0
+    CH0_pim_allbank_slot_cycles: 98688
+    CH0_num_PREA_commands: 612  # total number of PREA commands
+    CH0_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH0_pim_rd_cols: 0
+    CH0_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH0_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH0_num_SYNC_commands: 0  # total number of SYNC commands
+    CH0_num_RDA_commands: 0  # total number of RDA commands
+    CH0_agg_wq_mean: 0
+    CH0_num_WRA_commands: 0  # total number of WRA commands
+    CH0_R_cycles: 0
+    CH0_pim_wq_count: 16448
+    CH0_num_REFab_commands: 165  # total number of REFab commands
+    CH0_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH0_W_cycles: 0
+    CH0_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH0_agg_q_count: 0
+    CH0_dru_wq_count: 0
+    CH0_num_ACT_commands: 0  # total number of ACT commands
+    CH0_agg_rdlat_p99: 0
+    CH0_gpu_row_conflict: 0
+    CH0_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH0_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH0_num_PRE_commands: 0  # total number of PRE commands
+    CH0_num_EOC_commands: 0  # total number of EOC commands
+    CH0_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH0_gpu_row_miss: 0
+    CH0_num_WR_commands: 33280  # total number of WR commands
+    CH0_pim_row_conflict: 491
+    CH0_pim_q_count: 16448
+    CH0_pim_q_p99: 16386
+    CH0_pim_q_p50: 16386
+    CH0_pim_q_p95: 16386
+    CH0_pim_rdlat_p50: 0
+    CH0_gpu_wq_count: 0
+    CH0_gpu_rdlat_p50: 0
+    CH0_pim_wq_mean: 17721.322045233464
+    CH0_active_cycles: 380244  # total number of active cycles
+    CH0_pim_rdlat_p95: 0
+    CH0_pim_wr_cols: 0
+    CH0_pim_rdlat_count: 0
+    CH0_pim_rdlat_mean: 0
+    CH0_agg_wq_count: 0
+    CH0_pim_rdlat_p99: 0
+    CH0_gpu_rd_cols: 0
+    CH0_gpu_wr_cols: 0
+    CH0_num_RD_commands: 65536  # total number of RD commands
+    CH0_gpu_row_hit: 0
+    CH0_gpu_q_mean: 0
+    CH0_gpu_q_p95: 0
+    CH0_precharged_cycles: 326975  # total number of precharged cycles
+    CH0_pim_bus_cycles: 0
+    CH0_gpu_q_p99: 0
+    CH0_agg_q_p50: 0
+    CH0_gpu_rdlat_count: 0
+    CH0_gpu_rdlat_mean: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 1
+    CH1_idle_cycles: 54  # total number of idle cycles
+    CH1_agg_rdlat_p95: 0
+    CH1_agg_rdlat_p50: 0
+    CH1_agg_rdlat_count: 0
+    CH1_agg_wq_count: 0
+    CH1_agg_q_p99: 0
+    CH1_pim_allbank_cols: 32896
+    CH1_agg_q_p95: 0
+    CH1_agg_q_p50: 0
+    CH1_agg_q_mean: 0
+    CH1_agg_row_hit: 0
+    CH1_agg_rd_cols: 0
+    CH1_dru_rdlat_p99: 0
+    CH1_dru_rdlat_p50: 0
+    CH1_dru_rdlat_mean: 0
+    CH1_dru_rdlat_count: 0
+    CH1_dru_wq_mean: 0
+    CH1_dru_wq_count: 0
+    CH1_dru_q_p99: 0
+    CH1_dru_q_mean: 0
+    CH1_dru_row_conflict: 0
+    CH1_dru_bus_cycles: 0
+    CH1_agg_wq_mean: 0
+    CH1_dru_wr_cols: 0
+    CH1_pim_row_hit: 32284
+    CH1_dru_q_p50: 0
+    CH1_num_PREA_commands: 612  # total number of PREA commands
+    CH1_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH1_gpu_rd_cols: 0
+    CH1_num_REFsb_commands: 0  # total number of REFsb commands
+    CH1_agg_rdlat_p99: 0
+    CH1_num_REFab_commands: 165  # total number of REFab commands
+    CH1_num_ACT_commands: 0  # total number of ACT commands
+    CH1_dru_row_hit: 0
+    CH1_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH1_gpu_rdlat_count: 0
+    CH1_dru_q_count: 0
+    CH1_pim_rd_cols: 0
+    CH1_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH1_num_SYNC_commands: 0  # total number of SYNC commands
+    CH1_agg_rdlat_mean: 0
+    CH1_gpu_wr_cols: 0
+    CH1_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH1_dru_rdlat_p95: 0
+    CH1_num_TMOD_commands: 0  # total number of TMOD commands
+    CH1_pim_q_p95: 16386
+    CH1_agg_wr_cols: 0
+    CH1_pim_wq_mean: 17721.322045233464
+    CH1_num_RDA_commands: 0  # total number of RDA commands
+    CH1_precharged_cycles: 326975  # total number of precharged cycles
+    CH1_pim_wr_cols: 0
+    CH1_dru_row_miss: 0
+    CH1_pim_wq_count: 16448
+    CH1_R_cycles: 0
+    CH1_W_cycles: 0
+    CH1_pim_row_miss: 121
+    CH1_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH1_pim_allbank_slot_cycles: 98688
+    CH1_num_WRA_commands: 0  # total number of WRA commands
+    CH1_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH1_gpu_wq_count: 0
+    CH1_gpu_rdlat_p95: 0
+    CH1_gpu_bus_cycles: 0
+    CH1_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH1_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH1_agg_q_count: 0
+    CH1_gpu_q_count: 0
+    CH1_num_EOC_commands: 0  # total number of EOC commands
+    CH1_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH1_pim_q_count: 16448
+    CH1_num_RD_commands: 65536  # total number of RD commands
+    CH1_num_WR_commands: 33280  # total number of WR commands
+    CH1_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH1_num_PRE_commands: 0  # total number of PRE commands
+    CH1_pim_row_conflict: 491
+    CH1_gpu_rdlat_p99: 0
+    CH1_pim_rdlat_p95: 0
+    CH1_dru_q_p95: 0
+    CH1_pim_rdlat_mean: 0
+    CH1_pim_q_mean: 21731.70561770428
+    CH1_pim_rdlat_count: 0
+    CH1_agg_row_conflict: 0
+    CH1_pim_q_p50: 16386
+    CH1_active_cycles: 380244  # total number of active cycles
+    CH1_pim_q_p99: 16386
+    CH1_gpu_row_miss: 0
+    CH1_pim_rdlat_p50: 0
+    CH1_agg_bus_cycles: 0
+    CH1_pim_rdlat_p99: 0
+    CH1_gpu_row_conflict: 0
+    CH1_gpu_row_hit: 0
+    CH1_gpu_rdlat_mean: 0
+    CH1_agg_row_miss: 0
+    CH1_gpu_q_mean: 0
+    CH1_pim_bus_cycles: 0
+    CH1_gpu_q_p50: 0
+    CH1_gpu_q_p95: 0
+    CH1_gpu_q_p99: 0
+    CH1_dru_rd_cols: 0
+    CH1_gpu_wq_mean: 0
+    CH1_gpu_rdlat_p50: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 2
+    CH2_precharged_cycles: 326975  # total number of precharged cycles
+    CH2_active_cycles: 380244  # total number of active cycles
+    CH2_pim_allbank_slot_cycles: 98688
+    CH2_agg_rdlat_p95: 0
+    CH2_agg_rdlat_p50: 0
+    CH2_agg_q_mean: 0
+    CH2_pim_allbank_cols: 32896
+    CH2_agg_row_conflict: 0
+    CH2_agg_row_miss: 0
+    CH2_agg_row_hit: 0
+    CH2_agg_wr_cols: 0
+    CH2_agg_rd_cols: 0
+    CH2_dru_rdlat_p99: 0
+    CH2_dru_rdlat_p95: 0
+    CH2_dru_rdlat_p50: 0
+    CH2_dru_rdlat_count: 0
+    CH2_dru_wq_count: 0
+    CH2_dru_q_p99: 0
+    CH2_dru_q_p50: 0
+    CH2_agg_bus_cycles: 0
+    CH2_dru_q_mean: 0
+    CH2_dru_row_conflict: 0
+    CH2_dru_row_hit: 0
+    CH2_dru_wr_cols: 0
+    CH2_dru_rd_cols: 0
+    CH2_pim_bus_cycles: 0
+    CH2_pim_wr_cols: 0
+    CH2_num_EOC_commands: 0  # total number of EOC commands
+    CH2_gpu_q_p99: 0
+    CH2_pim_q_count: 16448
+    CH2_agg_q_p50: 0
+    CH2_gpu_bus_cycles: 0
+    CH2_agg_rdlat_count: 0
+    CH2_agg_q_p95: 0
+    CH2_dru_bus_cycles: 0
+    CH2_num_PREA_commands: 612  # total number of PREA commands
+    CH2_num_TMOD_commands: 0  # total number of TMOD commands
+    CH2_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH2_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH2_R_cycles: 0
+    CH2_pim_row_hit: 32284
+    CH2_gpu_q_p50: 0
+    CH2_num_WRA_commands: 0  # total number of WRA commands
+    CH2_num_RDA_commands: 0  # total number of RDA commands
+    CH2_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH2_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH2_pim_row_conflict: 491
+    CH2_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH2_agg_rdlat_p99: 0
+    CH2_dru_row_miss: 0
+    CH2_num_REFab_commands: 165  # total number of REFab commands
+    CH2_agg_rdlat_mean: 0
+    CH2_num_SYNC_commands: 0  # total number of SYNC commands
+    CH2_agg_wq_count: 0
+    CH2_dru_rdlat_mean: 0
+    CH2_gpu_q_count: 0
+    CH2_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH2_W_cycles: 0
+    CH2_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH2_num_ACT_commands: 0  # total number of ACT commands
+    CH2_pim_q_p50: 16386
+    CH2_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH2_num_PRE_commands: 0  # total number of PRE commands
+    CH2_dru_q_p95: 0
+    CH2_pim_q_p95: 16386
+    CH2_pim_wq_mean: 17721.322045233464
+    CH2_pim_q_mean: 21731.70561770428
+    CH2_pim_rdlat_p99: 0
+    CH2_pim_rd_cols: 0
+    CH2_gpu_rdlat_count: 0
+    CH2_agg_q_p99: 0
+    CH2_pim_q_p99: 16386
+    CH2_agg_q_count: 0
+    CH2_pim_wq_count: 16448
+    CH2_pim_rdlat_count: 0
+    CH2_gpu_wq_mean: 0
+    CH2_idle_cycles: 54  # total number of idle cycles
+    CH2_pim_rdlat_mean: 0
+    CH2_gpu_rdlat_p50: 0
+    CH2_pim_rdlat_p50: 0
+    CH2_dru_q_count: 0
+    CH2_pim_rdlat_p95: 0
+    CH2_num_RD_commands: 65536  # total number of RD commands
+    CH2_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH2_gpu_rd_cols: 0
+    CH2_agg_wq_mean: 0
+    CH2_gpu_wr_cols: 0
+    CH2_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH2_gpu_row_hit: 0
+    CH2_gpu_row_miss: 0
+    CH2_pim_row_miss: 121
+    CH2_gpu_row_conflict: 0
+    CH2_gpu_rdlat_p99: 0
+    CH2_gpu_q_mean: 0
+    CH2_gpu_q_p95: 0
+    CH2_gpu_wq_count: 0
+    CH2_num_REFsb_commands: 0  # total number of REFsb commands
+    CH2_gpu_rdlat_mean: 0
+    CH2_dru_wq_mean: 0
+    CH2_num_WR_commands: 33280  # total number of WR commands
+    CH2_gpu_rdlat_p95: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 3
+    CH3_pim_allbank_cols: 32896
+    CH3_agg_rdlat_p99: 0
+    CH3_active_cycles: 380244  # total number of active cycles
+    CH3_agg_rdlat_p95: 0
+    CH3_agg_rdlat_p50: 0
+    CH3_agg_rdlat_mean: 0
+    CH3_agg_q_p99: 0
+    CH3_agg_q_p50: 0
+    CH3_agg_q_mean: 0
+    CH3_agg_row_conflict: 0
+    CH3_agg_row_miss: 0
+    CH3_agg_wr_cols: 0
+    CH3_agg_rd_cols: 0
+    CH3_dru_rdlat_p50: 0
+    CH3_dru_rdlat_mean: 0
+    CH3_dru_wq_mean: 0
+    CH3_pim_allbank_slot_cycles: 98688
+    CH3_dru_wq_count: 0
+    CH3_dru_q_p99: 0
+    CH3_idle_cycles: 54  # total number of idle cycles
+    CH3_dru_q_p50: 0
+    CH3_precharged_cycles: 326975  # total number of precharged cycles
+    CH3_dru_q_mean: 0
+    CH3_dru_row_conflict: 0
+    CH3_dru_row_hit: 0
+    CH3_dru_bus_cycles: 0
+    CH3_dru_wr_cols: 0
+    CH3_gpu_rdlat_p99: 0
+    CH3_pim_q_p95: 16386
+    CH3_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH3_pim_q_count: 16448
+    CH3_num_ACT_commands: 0  # total number of ACT commands
+    CH3_num_TMOD_commands: 0  # total number of TMOD commands
+    CH3_num_SYNC_commands: 0  # total number of SYNC commands
+    CH3_agg_rdlat_count: 0
+    CH3_pim_q_mean: 21731.70561770428
+    CH3_dru_q_p95: 0
+    CH3_pim_row_hit: 32284
+    CH3_num_REFsb_commands: 0  # total number of REFsb commands
+    CH3_agg_q_count: 0
+    CH3_pim_wr_cols: 0
+    CH3_num_RDA_commands: 0  # total number of RDA commands
+    CH3_R_cycles: 0
+    CH3_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH3_dru_q_count: 0
+    CH3_num_WRA_commands: 0  # total number of WRA commands
+    CH3_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH3_gpu_rd_cols: 0
+    CH3_agg_wq_mean: 0
+    CH3_num_PREA_commands: 612  # total number of PREA commands
+    CH3_gpu_q_p50: 0
+    CH3_gpu_row_miss: 0
+    CH3_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH3_dru_row_miss: 0
+    CH3_W_cycles: 0
+    CH3_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH3_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH3_pim_rdlat_count: 0
+    CH3_dru_rdlat_count: 0
+    CH3_pim_bus_cycles: 0
+    CH3_gpu_wq_mean: 0
+    CH3_pim_rd_cols: 0
+    CH3_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH3_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH3_gpu_rdlat_mean: 0
+    CH3_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH3_num_PRE_commands: 0  # total number of PRE commands
+    CH3_gpu_rdlat_p50: 0
+    CH3_num_EOC_commands: 0  # total number of EOC commands
+    CH3_gpu_q_p95: 0
+    CH3_pim_wq_mean: 17721.322045233464
+    CH3_pim_row_conflict: 491
+    CH3_agg_row_hit: 0
+    CH3_pim_rdlat_p99: 0
+    CH3_dru_rdlat_p95: 0
+    CH3_num_RD_commands: 65536  # total number of RD commands
+    CH3_pim_q_p50: 16386
+    CH3_pim_q_p99: 16386
+    CH3_agg_bus_cycles: 0
+    CH3_pim_wq_count: 16448
+    CH3_gpu_q_mean: 0
+    CH3_pim_rdlat_mean: 0
+    CH3_dru_rdlat_p99: 0
+    CH3_pim_rdlat_p95: 0
+    CH3_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH3_gpu_wr_cols: 0
+    CH3_dru_rd_cols: 0
+    CH3_gpu_bus_cycles: 0
+    CH3_num_WR_commands: 33280  # total number of WR commands
+    CH3_gpu_row_conflict: 0
+    CH3_agg_q_p95: 0
+    CH3_pim_rdlat_p50: 0
+    CH3_gpu_q_count: 0
+    CH3_pim_row_miss: 121
+    CH3_gpu_rdlat_count: 0
+    CH3_gpu_row_hit: 0
+    CH3_gpu_q_p99: 0
+    CH3_agg_wq_count: 0
+    CH3_gpu_wq_count: 0
+    CH3_num_REFab_commands: 165  # total number of REFab commands
+    CH3_gpu_rdlat_p95: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 4
+    CH4_idle_cycles: 54  # total number of idle cycles
+    CH4_agg_rdlat_mean: 0
+    CH4_agg_wq_mean: 0
+    CH4_agg_wq_count: 0
+    CH4_agg_q_p50: 0
+    CH4_agg_q_mean: 0
+    CH4_agg_q_count: 0
+    CH4_agg_row_miss: 0
+    CH4_agg_row_conflict: 0
+    CH4_agg_rd_cols: 0
+    CH4_dru_rdlat_p99: 0
+    CH4_dru_rdlat_p95: 0
+    CH4_dru_rdlat_mean: 0
+    CH4_dru_wq_mean: 0
+    CH4_dru_wq_count: 0
+    CH4_agg_rdlat_p95: 0
+    CH4_dru_q_p99: 0
+    CH4_dru_q_p95: 0
+    CH4_pim_allbank_slot_cycles: 98688
+    CH4_dru_q_mean: 0
+    CH4_dru_rdlat_p50: 0
+    CH4_dru_q_count: 0
+    CH4_dru_row_conflict: 0
+    CH4_dru_row_miss: 0
+    CH4_agg_row_hit: 0
+    CH4_dru_bus_cycles: 0
+    CH4_dru_rd_cols: 0
+    CH4_agg_rdlat_p50: 0
+    CH4_gpu_rdlat_p99: 0
+    CH4_pim_row_hit: 32284
+    CH4_agg_rdlat_count: 0
+    CH4_agg_q_p95: 0
+    CH4_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH4_dru_row_hit: 0
+    CH4_gpu_rdlat_p50: 0
+    CH4_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH4_dru_q_p50: 0
+    CH4_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH4_pim_q_p95: 16386
+    CH4_num_SYNC_commands: 0  # total number of SYNC commands
+    CH4_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH4_agg_bus_cycles: 0
+    CH4_num_REFab_commands: 165  # total number of REFab commands
+    CH4_num_RD_commands: 65536  # total number of RD commands
+    CH4_pim_row_miss: 121
+    CH4_pim_q_p50: 16386
+    CH4_pim_bus_cycles: 0
+    CH4_gpu_wq_mean: 0
+    CH4_pim_rdlat_p50: 0
+    CH4_R_cycles: 0
+    CH4_gpu_wr_cols: 0
+    CH4_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH4_num_WRA_commands: 0  # total number of WRA commands
+    CH4_precharged_cycles: 326975  # total number of precharged cycles
+    CH4_W_cycles: 0
+    CH4_gpu_row_miss: 0
+    CH4_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH4_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH4_pim_wq_count: 16448
+    CH4_pim_rdlat_p99: 0
+    CH4_gpu_bus_cycles: 0
+    CH4_agg_wr_cols: 0
+    CH4_dru_wr_cols: 0
+    CH4_num_EOC_commands: 0  # total number of EOC commands
+    CH4_pim_wq_mean: 17721.322045233464
+    CH4_num_ACT_commands: 0  # total number of ACT commands
+    CH4_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH4_agg_rdlat_p99: 0
+    CH4_num_PRE_commands: 0  # total number of PRE commands
+    CH4_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH4_dru_rdlat_count: 0
+    CH4_gpu_q_p95: 0
+    CH4_num_WR_commands: 33280  # total number of WR commands
+    CH4_pim_row_conflict: 491
+    CH4_pim_q_p99: 16386
+    CH4_pim_wr_cols: 0
+    CH4_pim_q_count: 16448
+    CH4_agg_q_p99: 0
+    CH4_pim_q_mean: 21731.70561770428
+    CH4_num_REFsb_commands: 0  # total number of REFsb commands
+    CH4_pim_rdlat_count: 0
+    CH4_num_RDA_commands: 0  # total number of RDA commands
+    CH4_gpu_q_p50: 0
+    CH4_gpu_row_hit: 0
+    CH4_gpu_q_p99: 0
+    CH4_pim_rd_cols: 0
+    CH4_pim_rdlat_mean: 0
+    CH4_pim_rdlat_p95: 0
+    CH4_gpu_rdlat_p95: 0
+    CH4_num_PREA_commands: 612  # total number of PREA commands
+    CH4_gpu_row_conflict: 0
+    CH4_pim_allbank_cols: 32896
+    CH4_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH4_gpu_rdlat_count: 0
+    CH4_active_cycles: 380244  # total number of active cycles
+    CH4_gpu_q_count: 0
+    CH4_num_TMOD_commands: 0  # total number of TMOD commands
+    CH4_gpu_q_mean: 0
+    CH4_gpu_wq_count: 0
+    CH4_gpu_rd_cols: 0
+    CH4_gpu_rdlat_mean: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 5
+    CH5_precharged_cycles: 326975  # total number of precharged cycles
+    CH5_active_cycles: 380244  # total number of active cycles
+    CH5_idle_cycles: 54  # total number of idle cycles
+    CH5_pim_allbank_cols: 32896
+    CH5_agg_rdlat_p99: 0
+    CH5_agg_rdlat_p50: 0
+    CH5_agg_wq_count: 0
+    CH5_agg_q_p99: 0
+    CH5_agg_q_p95: 0
+    CH5_agg_q_mean: 0
+    CH5_agg_q_count: 0
+    CH5_agg_rdlat_p95: 0
+    CH5_agg_wr_cols: 0
+    CH5_agg_rd_cols: 0
+    CH5_dru_rdlat_count: 0
+    CH5_dru_wq_mean: 0
+    CH5_dru_q_p99: 0
+    CH5_dru_q_p95: 0
+    CH5_dru_q_p50: 0
+    CH5_dru_q_mean: 0
+    CH5_dru_q_count: 0
+    CH5_dru_row_conflict: 0
+    CH5_dru_row_miss: 0
+    CH5_dru_row_hit: 0
+    CH5_agg_row_hit: 0
+    CH5_dru_bus_cycles: 0
+    CH5_dru_wr_cols: 0
+    CH5_agg_row_conflict: 0
+    CH5_dru_rdlat_mean: 0
+    CH5_dru_rd_cols: 0
+    CH5_pim_row_miss: 121
+    CH5_pim_rdlat_count: 0
+    CH5_pim_bus_cycles: 0
+    CH5_num_SYNC_commands: 0  # total number of SYNC commands
+    CH5_pim_wr_cols: 0
+    CH5_gpu_q_count: 0
+    CH5_num_REFab_commands: 165  # total number of REFab commands
+    CH5_agg_row_miss: 0
+    CH5_num_REFsb_commands: 0  # total number of REFsb commands
+    CH5_gpu_rdlat_p99: 0
+    CH5_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH5_pim_q_count: 16448
+    CH5_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH5_num_RDA_commands: 0  # total number of RDA commands
+    CH5_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH5_num_ACT_commands: 0  # total number of ACT commands
+    CH5_gpu_q_p50: 0
+    CH5_W_cycles: 0
+    CH5_pim_wq_count: 16448
+    CH5_pim_rdlat_p95: 0
+    CH5_dru_rdlat_p99: 0
+    CH5_num_PREA_commands: 612  # total number of PREA commands
+    CH5_pim_row_hit: 32284
+    CH5_num_EOC_commands: 0  # total number of EOC commands
+    CH5_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH5_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH5_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH5_num_PRE_commands: 0  # total number of PRE commands
+    CH5_agg_wq_mean: 0
+    CH5_gpu_rdlat_mean: 0
+    CH5_agg_rdlat_count: 0
+    CH5_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH5_R_cycles: 0
+    CH5_gpu_q_mean: 0
+    CH5_dru_rdlat_p95: 0
+    CH5_dru_rdlat_p50: 0
+    CH5_pim_rd_cols: 0
+    CH5_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH5_agg_rdlat_mean: 0
+    CH5_pim_rdlat_p50: 0
+    CH5_pim_allbank_slot_cycles: 98688
+    CH5_pim_row_conflict: 491
+    CH5_gpu_row_miss: 0
+    CH5_agg_q_p50: 0
+    CH5_pim_q_mean: 21731.70561770428
+    CH5_pim_q_p50: 16386
+    CH5_pim_q_p95: 16386
+    CH5_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH5_pim_q_p99: 16386
+    CH5_pim_rdlat_p99: 0
+    CH5_pim_wq_mean: 17721.322045233464
+    CH5_num_WR_commands: 33280  # total number of WR commands
+    CH5_pim_rdlat_mean: 0
+    CH5_gpu_rd_cols: 0
+    CH5_dru_wq_count: 0
+    CH5_gpu_wr_cols: 0
+    CH5_gpu_bus_cycles: 0
+    CH5_agg_bus_cycles: 0
+    CH5_gpu_row_hit: 0
+    CH5_num_WRA_commands: 0  # total number of WRA commands
+    CH5_gpu_rdlat_count: 0
+    CH5_gpu_row_conflict: 0
+    CH5_gpu_q_p95: 0
+    CH5_gpu_rdlat_p95: 0
+    CH5_num_RD_commands: 65536  # total number of RD commands
+    CH5_gpu_q_p99: 0
+    CH5_num_TMOD_commands: 0  # total number of TMOD commands
+    CH5_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH5_gpu_wq_count: 0
+    CH5_gpu_wq_mean: 0
+    CH5_gpu_rdlat_p50: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 6
+    CH6_precharged_cycles: 326975  # total number of precharged cycles
+    CH6_pim_allbank_cols: 32896
+    CH6_agg_rdlat_p99: 0
+    CH6_agg_rdlat_p95: 0
+    CH6_active_cycles: 380244  # total number of active cycles
+    CH6_agg_rdlat_p50: 0
+    CH6_agg_rdlat_mean: 0
+    CH6_agg_rdlat_count: 0
+    CH6_agg_wq_mean: 0
+    CH6_agg_q_p99: 0
+    CH6_agg_q_p50: 0
+    CH6_idle_cycles: 54  # total number of idle cycles
+    CH6_agg_q_mean: 0
+    CH6_agg_q_count: 0
+    CH6_agg_row_conflict: 0
+    CH6_agg_wr_cols: 0
+    CH6_agg_rd_cols: 0
+    CH6_dru_rdlat_p99: 0
+    CH6_dru_rdlat_p95: 0
+    CH6_dru_rdlat_mean: 0
+    CH6_dru_q_p99: 0
+    CH6_dru_q_p95: 0
+    CH6_dru_q_p50: 0
+    CH6_dru_rdlat_p50: 0
+    CH6_dru_q_count: 0
+    CH6_dru_row_conflict: 0
+    CH6_dru_row_miss: 0
+    CH6_dru_wq_count: 0
+    CH6_dru_row_hit: 0
+    CH6_dru_bus_cycles: 0
+    CH6_dru_rd_cols: 0
+    CH6_dru_q_mean: 0
+    CH6_pim_row_hit: 32284
+    CH6_pim_bus_cycles: 0
+    CH6_gpu_q_count: 0
+    CH6_pim_rd_cols: 0
+    CH6_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH6_num_EOC_commands: 0  # total number of EOC commands
+    CH6_pim_wr_cols: 0
+    CH6_pim_q_p50: 16386
+    CH6_pim_allbank_slot_cycles: 98688
+    CH6_agg_bus_cycles: 0
+    CH6_gpu_rdlat_p50: 0
+    CH6_num_REFsb_commands: 0  # total number of REFsb commands
+    CH6_num_TMOD_commands: 0  # total number of TMOD commands
+    CH6_gpu_row_miss: 0
+    CH6_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH6_num_ACT_commands: 0  # total number of ACT commands
+    CH6_pim_wq_count: 16448
+    CH6_num_REFab_commands: 165  # total number of REFab commands
+    CH6_pim_wq_mean: 17721.322045233464
+    CH6_gpu_rdlat_mean: 0
+    CH6_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH6_R_cycles: 0
+    CH6_num_RD_commands: 65536  # total number of RD commands
+    CH6_dru_wq_mean: 0
+    CH6_gpu_q_mean: 0
+    CH6_gpu_wr_cols: 0
+    CH6_dru_wr_cols: 0
+    CH6_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH6_num_PRE_commands: 0  # total number of PRE commands
+    CH6_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH6_pim_q_p95: 16386
+    CH6_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH6_gpu_bus_cycles: 0
+    CH6_agg_q_p95: 0
+    CH6_agg_row_hit: 0
+    CH6_gpu_row_hit: 0
+    CH6_num_PREA_commands: 612  # total number of PREA commands
+    CH6_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH6_pim_rdlat_p99: 0
+    CH6_pim_q_count: 16448
+    CH6_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH6_pim_q_mean: 21731.70561770428
+    CH6_gpu_rdlat_p95: 0
+    CH6_pim_row_miss: 121
+    CH6_pim_q_p99: 16386
+    CH6_agg_wq_count: 0
+    CH6_pim_rdlat_count: 0
+    CH6_num_SYNC_commands: 0  # total number of SYNC commands
+    CH6_pim_rdlat_mean: 0
+    CH6_agg_row_miss: 0
+    CH6_pim_rdlat_p50: 0
+    CH6_pim_rdlat_p95: 0
+    CH6_dru_rdlat_count: 0
+    CH6_num_WRA_commands: 0  # total number of WRA commands
+    CH6_gpu_rd_cols: 0
+    CH6_gpu_row_conflict: 0
+    CH6_num_RDA_commands: 0  # total number of RDA commands
+    CH6_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH6_W_cycles: 0
+    CH6_gpu_q_p50: 0
+    CH6_gpu_rdlat_count: 0
+    CH6_num_WR_commands: 33280  # total number of WR commands
+    CH6_gpu_q_p95: 0
+    CH6_gpu_q_p99: 0
+    CH6_gpu_wq_count: 0
+    CH6_gpu_rdlat_p99: 0
+    CH6_pim_row_conflict: 491
+    CH6_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH6_gpu_wq_mean: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 7
+    CH7_precharged_cycles: 326975  # total number of precharged cycles
+    CH7_agg_rdlat_p50: 0
+    CH7_agg_rdlat_count: 0
+    CH7_agg_wq_count: 0
+    CH7_agg_q_p50: 0
+    CH7_pim_allbank_cols: 32896
+    CH7_agg_wr_cols: 0
+    CH7_dru_rdlat_p99: 0
+    CH7_dru_rdlat_p95: 0
+    CH7_dru_rdlat_p50: 0
+    CH7_dru_rdlat_count: 0
+    CH7_dru_wq_mean: 0
+    CH7_agg_bus_cycles: 0
+    CH7_dru_wq_count: 0
+    CH7_active_cycles: 380244  # total number of active cycles
+    CH7_dru_q_p50: 0
+    CH7_dru_q_mean: 0
+    CH7_dru_q_count: 0
+    CH7_agg_row_miss: 0
+    CH7_dru_row_miss: 0
+    CH7_dru_q_p99: 0
+    CH7_dru_q_p95: 0
+    CH7_dru_row_hit: 0
+    CH7_dru_wr_cols: 0
+    CH7_dru_rd_cols: 0
+    CH7_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH7_dru_rdlat_mean: 0
+    CH7_num_EOC_commands: 0  # total number of EOC commands
+    CH7_dru_bus_cycles: 0
+    CH7_gpu_rdlat_p99: 0
+    CH7_num_TMOD_commands: 0  # total number of TMOD commands
+    CH7_gpu_row_miss: 0
+    CH7_num_REFsb_commands: 0  # total number of REFsb commands
+    CH7_pim_rd_cols: 0
+    CH7_pim_q_mean: 21731.70561770428
+    CH7_agg_q_p95: 0
+    CH7_pim_q_p95: 16386
+    CH7_num_PRE_commands: 0  # total number of PRE commands
+    CH7_agg_rdlat_p99: 0
+    CH7_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH7_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH7_agg_q_p99: 0
+    CH7_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH7_pim_row_miss: 121
+    CH7_num_SYNC_commands: 0  # total number of SYNC commands
+    CH7_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH7_idle_cycles: 54  # total number of idle cycles
+    CH7_pim_row_conflict: 491
+    CH7_agg_row_conflict: 0
+    CH7_pim_rdlat_p50: 0
+    CH7_num_WRA_commands: 0  # total number of WRA commands
+    CH7_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH7_W_cycles: 0
+    CH7_gpu_q_p99: 0
+    CH7_gpu_row_hit: 0
+    CH7_gpu_row_conflict: 0
+    CH7_pim_row_hit: 32284
+    CH7_agg_rdlat_mean: 0
+    CH7_agg_row_hit: 0
+    CH7_agg_rd_cols: 0
+    CH7_R_cycles: 0
+    CH7_pim_wr_cols: 0
+    CH7_agg_rdlat_p95: 0
+    CH7_num_RDA_commands: 0  # total number of RDA commands
+    CH7_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH7_num_WR_commands: 33280  # total number of WR commands
+    CH7_num_ACT_commands: 0  # total number of ACT commands
+    CH7_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH7_pim_allbank_slot_cycles: 98688
+    CH7_num_PREA_commands: 612  # total number of PREA commands
+    CH7_num_RD_commands: 65536  # total number of RD commands
+    CH7_pim_q_count: 16448
+    CH7_pim_q_p50: 16386
+    CH7_dru_row_conflict: 0
+    CH7_gpu_wq_count: 0
+    CH7_pim_wq_count: 16448
+    CH7_pim_q_p99: 16386
+    CH7_pim_wq_mean: 17721.322045233464
+    CH7_gpu_rdlat_count: 0
+    CH7_gpu_rd_cols: 0
+    CH7_pim_rdlat_count: 0
+    CH7_gpu_bus_cycles: 0
+    CH7_pim_rdlat_mean: 0
+    CH7_pim_rdlat_p99: 0
+    CH7_gpu_rdlat_mean: 0
+    CH7_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH7_pim_rdlat_p95: 0
+    CH7_agg_wq_mean: 0
+    CH7_gpu_wr_cols: 0
+    CH7_agg_q_count: 0
+    CH7_gpu_q_count: 0
+    CH7_gpu_q_mean: 0
+    CH7_agg_q_mean: 0
+    CH7_gpu_q_p50: 0
+    CH7_gpu_q_p95: 0
+    CH7_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH7_gpu_wq_mean: 0
+    CH7_num_REFab_commands: 165  # total number of REFab commands
+    CH7_gpu_rdlat_p50: 0
+    CH7_pim_bus_cycles: 0
+    CH7_gpu_rdlat_p95: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 8
+    CH8_active_cycles: 380244  # total number of active cycles
+    CH8_pim_allbank_slot_cycles: 98688
+    CH8_pim_allbank_cols: 32896
+    CH8_agg_rdlat_mean: 0
+    CH8_agg_wq_mean: 0
+    CH8_agg_wq_count: 0
+    CH8_agg_row_conflict: 0
+    CH8_agg_row_hit: 0
+    CH8_agg_wr_cols: 0
+    CH8_agg_rd_cols: 0
+    CH8_idle_cycles: 54  # total number of idle cycles
+    CH8_dru_rdlat_p99: 0
+    CH8_agg_rdlat_p50: 0
+    CH8_dru_q_p99: 0
+    CH8_dru_q_p50: 0
+    CH8_dru_rdlat_mean: 0
+    CH8_dru_q_mean: 0
+    CH8_dru_row_miss: 0
+    CH8_dru_row_hit: 0
+    CH8_dru_bus_cycles: 0
+    CH8_gpu_rdlat_p99: 0
+    CH8_dru_q_p95: 0
+    CH8_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH8_pim_rdlat_p95: 0
+    CH8_dru_rd_cols: 0
+    CH8_num_SYNC_commands: 0  # total number of SYNC commands
+    CH8_pim_wr_cols: 0
+    CH8_num_TMOD_commands: 0  # total number of TMOD commands
+    CH8_agg_rdlat_p95: 0
+    CH8_agg_bus_cycles: 0
+    CH8_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH8_dru_rdlat_count: 0
+    CH8_dru_row_conflict: 0
+    CH8_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH8_pim_q_p95: 16386
+    CH8_num_EOC_commands: 0  # total number of EOC commands
+    CH8_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH8_pim_bus_cycles: 0
+    CH8_num_REFsb_commands: 0  # total number of REFsb commands
+    CH8_agg_q_p50: 0
+    CH8_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH8_W_cycles: 0
+    CH8_agg_q_p95: 0
+    CH8_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH8_pim_row_hit: 32284
+    CH8_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH8_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH8_num_PREA_commands: 612  # total number of PREA commands
+    CH8_num_RDA_commands: 0  # total number of RDA commands
+    CH8_gpu_wq_count: 0
+    CH8_num_RD_commands: 65536  # total number of RD commands
+    CH8_R_cycles: 0
+    CH8_agg_q_count: 0
+    CH8_dru_wq_mean: 0
+    CH8_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH8_agg_rdlat_p99: 0
+    CH8_agg_q_p99: 0
+    CH8_dru_wr_cols: 0
+    CH8_pim_q_p99: 16386
+    CH8_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH8_pim_row_miss: 121
+    CH8_pim_rd_cols: 0
+    CH8_gpu_rd_cols: 0
+    CH8_gpu_rdlat_mean: 0
+    CH8_num_ACT_commands: 0  # total number of ACT commands
+    CH8_dru_wq_count: 0
+    CH8_pim_q_count: 16448
+    CH8_num_REFab_commands: 165  # total number of REFab commands
+    CH8_pim_rdlat_p99: 0
+    CH8_num_PRE_commands: 0  # total number of PRE commands
+    CH8_gpu_rdlat_p50: 0
+    CH8_pim_q_mean: 21731.70561770428
+    CH8_precharged_cycles: 326975  # total number of precharged cycles
+    CH8_agg_rdlat_count: 0
+    CH8_dru_q_count: 0
+    CH8_pim_row_conflict: 491
+    CH8_pim_q_p50: 16386
+    CH8_agg_q_mean: 0
+    CH8_num_WRA_commands: 0  # total number of WRA commands
+    CH8_pim_wq_count: 16448
+    CH8_pim_wq_mean: 17721.322045233464
+    CH8_gpu_bus_cycles: 0
+    CH8_pim_rdlat_count: 0
+    CH8_dru_rdlat_p50: 0
+    CH8_gpu_q_p99: 0
+    CH8_pim_rdlat_mean: 0
+    CH8_dru_rdlat_p95: 0
+    CH8_gpu_wq_mean: 0
+    CH8_gpu_q_p95: 0
+    CH8_gpu_wr_cols: 0
+    CH8_gpu_row_hit: 0
+    CH8_num_WR_commands: 33280  # total number of WR commands
+    CH8_gpu_row_miss: 0
+    CH8_gpu_rdlat_p95: 0
+    CH8_pim_rdlat_p50: 0
+    CH8_gpu_row_conflict: 0
+    CH8_gpu_q_count: 0
+    CH8_gpu_q_mean: 0
+    CH8_agg_row_miss: 0
+    CH8_gpu_q_p50: 0
+    CH8_gpu_rdlat_count: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 9
+    CH9_pim_allbank_cols: 32896
+    CH9_agg_rdlat_p95: 0
+    CH9_agg_rdlat_p50: 0
+    CH9_agg_wq_mean: 0
+    CH9_agg_wq_count: 0
+    CH9_active_cycles: 380244  # total number of active cycles
+    CH9_agg_q_p99: 0
+    CH9_agg_q_p95: 0
+    CH9_agg_row_conflict: 0
+    CH9_agg_row_hit: 0
+    CH9_agg_bus_cycles: 0
+    CH9_agg_rd_cols: 0
+    CH9_dru_rdlat_p99: 0
+    CH9_pim_allbank_slot_cycles: 98688
+    CH9_dru_rdlat_p95: 0
+    CH9_dru_rdlat_count: 0
+    CH9_dru_rdlat_mean: 0
+    CH9_dru_wq_mean: 0
+    CH9_dru_wq_count: 0
+    CH9_dru_q_p95: 0
+    CH9_dru_q_p50: 0
+    CH9_dru_q_mean: 0
+    CH9_dru_row_miss: 0
+    CH9_agg_q_p50: 0
+    CH9_dru_row_hit: 0
+    CH9_dru_bus_cycles: 0
+    CH9_dru_rd_cols: 0
+    CH9_gpu_rdlat_p99: 0
+    CH9_pim_bus_cycles: 0
+    CH9_W_cycles: 0
+    CH9_pim_rd_cols: 0
+    CH9_pim_rdlat_count: 0
+    CH9_num_WRA_commands: 0  # total number of WRA commands
+    CH9_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH9_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH9_agg_wr_cols: 0
+    CH9_pim_rdlat_mean: 0
+    CH9_num_RDA_commands: 0  # total number of RDA commands
+    CH9_num_PRE_commands: 0  # total number of PRE commands
+    CH9_pim_wq_count: 16448
+    CH9_num_TMOD_commands: 0  # total number of TMOD commands
+    CH9_num_SYNC_commands: 0  # total number of SYNC commands
+    CH9_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH9_num_RD_commands: 65536  # total number of RD commands
+    CH9_agg_q_mean: 0
+    CH9_gpu_rdlat_p95: 0
+    CH9_pim_row_miss: 121
+    CH9_dru_rdlat_p50: 0
+    CH9_gpu_rdlat_count: 0
+    CH9_pim_row_hit: 32284
+    CH9_pim_wq_mean: 17721.322045233464
+    CH9_dru_q_count: 0
+    CH9_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH9_dru_row_conflict: 0
+    CH9_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH9_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH9_precharged_cycles: 326975  # total number of precharged cycles
+    CH9_idle_cycles: 54  # total number of idle cycles
+    CH9_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH9_pim_q_count: 16448
+    CH9_agg_rdlat_mean: 0
+    CH9_dru_q_p99: 0
+    CH9_pim_wr_cols: 0
+    CH9_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH9_num_EOC_commands: 0  # total number of EOC commands
+    CH9_num_PREA_commands: 612  # total number of PREA commands
+    CH9_gpu_q_count: 0
+    CH9_num_REFsb_commands: 0  # total number of REFsb commands
+    CH9_gpu_wq_mean: 0
+    CH9_num_WR_commands: 33280  # total number of WR commands
+    CH9_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH9_gpu_q_p99: 0
+    CH9_pim_row_conflict: 491
+    CH9_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH9_pim_q_mean: 21731.70561770428
+    CH9_pim_q_p50: 16386
+    CH9_gpu_q_p50: 0
+    CH9_pim_q_p95: 16386
+    CH9_pim_q_p99: 16386
+    CH9_dru_wr_cols: 0
+    CH9_R_cycles: 0
+    CH9_pim_rdlat_p50: 0
+    CH9_gpu_rdlat_mean: 0
+    CH9_num_REFab_commands: 165  # total number of REFab commands
+    CH9_num_ACT_commands: 0  # total number of ACT commands
+    CH9_pim_rdlat_p95: 0
+    CH9_gpu_bus_cycles: 0
+    CH9_gpu_row_miss: 0
+    CH9_gpu_rd_cols: 0
+    CH9_agg_rdlat_p99: 0
+    CH9_gpu_wr_cols: 0
+    CH9_agg_q_count: 0
+    CH9_pim_rdlat_p99: 0
+    CH9_gpu_row_hit: 0
+    CH9_agg_rdlat_count: 0
+    CH9_agg_row_miss: 0
+    CH9_gpu_rdlat_p50: 0
+    CH9_gpu_row_conflict: 0
+    CH9_gpu_q_mean: 0
+    CH9_gpu_q_p95: 0
+    CH9_gpu_wq_count: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 10
+    CH10_active_cycles: 380244  # total number of active cycles
+    CH10_idle_cycles: 54  # total number of idle cycles
+    CH10_pim_allbank_cols: 32896
+    CH10_agg_rdlat_p95: 0
+    CH10_agg_rdlat_p50: 0
+    CH10_agg_rdlat_count: 0
+    CH10_agg_row_conflict: 0
+    CH10_agg_row_miss: 0
+    CH10_agg_wr_cols: 0
+    CH10_agg_rd_cols: 0
+    CH10_dru_rdlat_p99: 0
+    CH10_agg_q_p99: 0
+    CH10_dru_rdlat_count: 0
+    CH10_agg_wq_mean: 0
+    CH10_agg_q_count: 0
+    CH10_dru_q_p99: 0
+    CH10_dru_q_p95: 0
+    CH10_dru_q_p50: 0
+    CH10_dru_row_conflict: 0
+    CH10_dru_row_hit: 0
+    CH10_dru_bus_cycles: 0
+    CH10_dru_wr_cols: 0
+    CH10_pim_allbank_slot_cycles: 98688
+    CH10_pim_row_miss: 121
+    CH10_agg_q_p95: 0
+    CH10_pim_rdlat_p99: 0
+    CH10_pim_bus_cycles: 0
+    CH10_gpu_wq_mean: 0
+    CH10_dru_wq_count: 0
+    CH10_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH10_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH10_dru_rdlat_p50: 0
+    CH10_num_REFsb_commands: 0  # total number of REFsb commands
+    CH10_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH10_agg_rdlat_p99: 0
+    CH10_pim_q_p99: 16386
+    CH10_agg_q_mean: 0
+    CH10_agg_row_hit: 0
+    CH10_pim_rdlat_p50: 0
+    CH10_pim_rd_cols: 0
+    CH10_dru_q_count: 0
+    CH10_num_PREA_commands: 612  # total number of PREA commands
+    CH10_dru_wq_mean: 0
+    CH10_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH10_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH10_gpu_bus_cycles: 0
+    CH10_dru_row_miss: 0
+    CH10_gpu_row_hit: 0
+    CH10_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH10_num_PRE_commands: 0  # total number of PRE commands
+    CH10_pim_rdlat_count: 0
+    CH10_num_TMOD_commands: 0  # total number of TMOD commands
+    CH10_num_REFab_commands: 165  # total number of REFab commands
+    CH10_pim_row_hit: 32284
+    CH10_num_SYNC_commands: 0  # total number of SYNC commands
+    CH10_agg_q_p50: 0
+    CH10_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH10_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH10_num_RDA_commands: 0  # total number of RDA commands
+    CH10_W_cycles: 0
+    CH10_num_ACT_commands: 0  # total number of ACT commands
+    CH10_pim_wr_cols: 0
+    CH10_gpu_rdlat_p95: 0
+    CH10_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH10_pim_q_p50: 16386
+    CH10_num_RD_commands: 65536  # total number of RD commands
+    CH10_agg_rdlat_mean: 0
+    CH10_agg_bus_cycles: 0
+    CH10_pim_q_mean: 21731.70561770428
+    CH10_R_cycles: 0
+    CH10_num_WRA_commands: 0  # total number of WRA commands
+    CH10_num_WR_commands: 33280  # total number of WR commands
+    CH10_precharged_cycles: 326975  # total number of precharged cycles
+    CH10_dru_q_mean: 0
+    CH10_gpu_rdlat_p99: 0
+    CH10_pim_rdlat_p95: 0
+    CH10_pim_row_conflict: 491
+    CH10_agg_wq_count: 0
+    CH10_dru_rd_cols: 0
+    CH10_gpu_wq_count: 0
+    CH10_pim_q_count: 16448
+    CH10_pim_q_p95: 16386
+    CH10_gpu_row_conflict: 0
+    CH10_dru_rdlat_mean: 0
+    CH10_pim_wq_count: 16448
+    CH10_pim_wq_mean: 17721.322045233464
+    CH10_gpu_rdlat_mean: 0
+    CH10_gpu_rd_cols: 0
+    CH10_pim_rdlat_mean: 0
+    CH10_gpu_wr_cols: 0
+    CH10_num_EOC_commands: 0  # total number of EOC commands
+    CH10_gpu_row_miss: 0
+    CH10_gpu_q_count: 0
+    CH10_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH10_gpu_q_mean: 0
+    CH10_gpu_q_p50: 0
+    CH10_gpu_q_p95: 0
+    CH10_gpu_q_p99: 0
+    CH10_gpu_rdlat_count: 0
+    CH10_dru_rdlat_p95: 0
+    CH10_gpu_rdlat_p50: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 11
+    CH11_precharged_cycles: 326975  # total number of precharged cycles
+    CH11_agg_rdlat_p50: 0
+    CH11_agg_q_p95: 0
+    CH11_active_cycles: 380244  # total number of active cycles
+    CH11_agg_q_mean: 0
+    CH11_agg_q_count: 0
+    CH11_agg_row_conflict: 0
+    CH11_agg_row_miss: 0
+    CH11_agg_row_hit: 0
+    CH11_agg_bus_cycles: 0
+    CH11_agg_wr_cols: 0
+    CH11_agg_rd_cols: 0
+    CH11_dru_rdlat_p99: 0
+    CH11_dru_rdlat_p50: 0
+    CH11_dru_rdlat_mean: 0
+    CH11_dru_rdlat_count: 0
+    CH11_dru_wq_mean: 0
+    CH11_dru_wq_count: 0
+    CH11_dru_q_p99: 0
+    CH11_dru_q_p95: 0
+    CH11_dru_q_p50: 0
+    CH11_dru_q_mean: 0
+    CH11_dru_row_conflict: 0
+    CH11_dru_bus_cycles: 0
+    CH11_idle_cycles: 54  # total number of idle cycles
+    CH11_dru_wr_cols: 0
+    CH11_dru_rd_cols: 0
+    CH11_agg_wq_mean: 0
+    CH11_dru_rdlat_p95: 0
+    CH11_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH11_pim_row_miss: 121
+    CH11_pim_q_p99: 16386
+    CH11_agg_rdlat_mean: 0
+    CH11_gpu_row_miss: 0
+    CH11_agg_q_p50: 0
+    CH11_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH11_agg_rdlat_p95: 0
+    CH11_dru_row_miss: 0
+    CH11_num_TMOD_commands: 0  # total number of TMOD commands
+    CH11_pim_bus_cycles: 0
+    CH11_pim_wq_mean: 17721.322045233464
+    CH11_pim_rdlat_count: 0
+    CH11_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH11_num_WRA_commands: 0  # total number of WRA commands
+    CH11_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH11_num_RDA_commands: 0  # total number of RDA commands
+    CH11_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH11_gpu_row_hit: 0
+    CH11_pim_wr_cols: 0
+    CH11_pim_rd_cols: 0
+    CH11_pim_row_hit: 32284
+    CH11_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH11_pim_row_conflict: 491
+    CH11_pim_q_p95: 16386
+    CH11_agg_rdlat_count: 0
+    CH11_R_cycles: 0
+    CH11_num_PREA_commands: 612  # total number of PREA commands
+    CH11_gpu_q_count: 0
+    CH11_gpu_rdlat_p50: 0
+    CH11_num_ACT_commands: 0  # total number of ACT commands
+    CH11_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH11_num_SYNC_commands: 0  # total number of SYNC commands
+    CH11_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH11_pim_allbank_cols: 32896
+    CH11_num_PRE_commands: 0  # total number of PRE commands
+    CH11_pim_rdlat_p95: 0
+    CH11_agg_q_p99: 0
+    CH11_num_REFsb_commands: 0  # total number of REFsb commands
+    CH11_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH11_pim_q_count: 16448
+    CH11_gpu_q_mean: 0
+    CH11_pim_q_p50: 16386
+    CH11_pim_wq_count: 16448
+    CH11_pim_q_mean: 21731.70561770428
+    CH11_pim_rdlat_mean: 0
+    CH11_dru_q_count: 0
+    CH11_W_cycles: 0
+    CH11_gpu_rdlat_mean: 0
+    CH11_pim_rdlat_p50: 0
+    CH11_pim_rdlat_p99: 0
+    CH11_gpu_rdlat_p99: 0
+    CH11_gpu_q_p99: 0
+    CH11_gpu_rd_cols: 0
+    CH11_dru_row_hit: 0
+    CH11_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH11_num_RD_commands: 65536  # total number of RD commands
+    CH11_gpu_wr_cols: 0
+    CH11_agg_wq_count: 0
+    CH11_num_EOC_commands: 0  # total number of EOC commands
+    CH11_gpu_bus_cycles: 0
+    CH11_num_REFab_commands: 165  # total number of REFab commands
+    CH11_gpu_row_conflict: 0
+    CH11_gpu_q_p50: 0
+    CH11_gpu_q_p95: 0
+    CH11_pim_allbank_slot_cycles: 98688
+    CH11_agg_rdlat_p99: 0
+    CH11_gpu_rdlat_count: 0
+    CH11_gpu_wq_count: 0
+    CH11_gpu_wq_mean: 0
+    CH11_num_WR_commands: 33280  # total number of WR commands
+    CH11_gpu_rdlat_p95: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 12
+    CH12_agg_rdlat_p99: 0
+    CH12_agg_wq_count: 0
+    CH12_agg_q_p99: 0
+    CH12_agg_q_p50: 0
+    CH12_agg_q_mean: 0
+    CH12_agg_row_conflict: 0
+    CH12_agg_row_miss: 0
+    CH12_agg_row_hit: 0
+    CH12_agg_wr_cols: 0
+    CH12_agg_rd_cols: 0
+    CH12_dru_rdlat_p99: 0
+    CH12_agg_rdlat_mean: 0
+    CH12_dru_rdlat_p95: 0
+    CH12_dru_rdlat_p50: 0
+    CH12_dru_rdlat_count: 0
+    CH12_dru_wq_mean: 0
+    CH12_dru_q_p95: 0
+    CH12_dru_q_mean: 0
+    CH12_dru_row_hit: 0
+    CH12_dru_rdlat_mean: 0
+    CH12_dru_bus_cycles: 0
+    CH12_dru_rd_cols: 0
+    CH12_precharged_cycles: 326975  # total number of precharged cycles
+    CH12_gpu_rdlat_p99: 0
+    CH12_pim_row_hit: 32284
+    CH12_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH12_gpu_row_hit: 0
+    CH12_active_cycles: 380244  # total number of active cycles
+    CH12_agg_rdlat_p95: 0
+    CH12_pim_row_miss: 121
+    CH12_pim_bus_cycles: 0
+    CH12_gpu_rdlat_mean: 0
+    CH12_num_TMOD_commands: 0  # total number of TMOD commands
+    CH12_num_REFsb_commands: 0  # total number of REFsb commands
+    CH12_num_EOC_commands: 0  # total number of EOC commands
+    CH12_num_REFab_commands: 165  # total number of REFab commands
+    CH12_idle_cycles: 54  # total number of idle cycles
+    CH12_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH12_dru_q_p50: 0
+    CH12_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH12_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH12_dru_row_miss: 0
+    CH12_num_PRE_commands: 0  # total number of PRE commands
+    CH12_gpu_row_conflict: 0
+    CH12_R_cycles: 0
+    CH12_pim_wq_count: 16448
+    CH12_num_WRA_commands: 0  # total number of WRA commands
+    CH12_gpu_rdlat_p95: 0
+    CH12_gpu_rd_cols: 0
+    CH12_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH12_gpu_bus_cycles: 0
+    CH12_pim_rd_cols: 0
+    CH12_dru_q_count: 0
+    CH12_pim_rdlat_count: 0
+    CH12_pim_allbank_cols: 32896
+    CH12_agg_rdlat_p50: 0
+    CH12_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH12_agg_bus_cycles: 0
+    CH12_num_ACT_commands: 0  # total number of ACT commands
+    CH12_dru_q_p99: 0
+    CH12_num_RD_commands: 65536  # total number of RD commands
+    CH12_agg_rdlat_count: 0
+    CH12_gpu_q_p50: 0
+    CH12_gpu_rdlat_p50: 0
+    CH12_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH12_pim_wr_cols: 0
+    CH12_dru_row_conflict: 0
+    CH12_num_RDA_commands: 0  # total number of RDA commands
+    CH12_gpu_wr_cols: 0
+    CH12_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH12_gpu_q_p95: 0
+    CH12_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH12_num_PREA_commands: 612  # total number of PREA commands
+    CH12_pim_allbank_slot_cycles: 98688
+    CH12_num_WR_commands: 33280  # total number of WR commands
+    CH12_gpu_wq_count: 0
+    CH12_pim_q_count: 16448
+    CH12_dru_wq_count: 0
+    CH12_pim_row_conflict: 491
+    CH12_agg_q_count: 0
+    CH12_pim_q_mean: 21731.70561770428
+    CH12_pim_q_p50: 16386
+    CH12_pim_wq_mean: 17721.322045233464
+    CH12_dru_wr_cols: 0
+    CH12_pim_rdlat_mean: 0
+    CH12_pim_rdlat_p50: 0
+    CH12_pim_q_p99: 16386
+    CH12_pim_rdlat_p95: 0
+    CH12_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH12_pim_rdlat_p99: 0
+    CH12_gpu_q_count: 0
+    CH12_W_cycles: 0
+    CH12_gpu_row_miss: 0
+    CH12_agg_wq_mean: 0
+    CH12_num_SYNC_commands: 0  # total number of SYNC commands
+    CH12_gpu_rdlat_count: 0
+    CH12_pim_q_p95: 16386
+    CH12_gpu_q_mean: 0
+    CH12_agg_q_p95: 0
+    CH12_gpu_q_p99: 0
+    CH12_gpu_wq_mean: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 13
+    CH13_pim_allbank_cols: 32896
+    CH13_agg_rdlat_p50: 0
+    CH13_agg_rdlat_mean: 0
+    CH13_agg_wq_count: 0
+    CH13_agg_q_p99: 0
+    CH13_agg_q_p95: 0
+    CH13_agg_q_p50: 0
+    CH13_agg_q_mean: 0
+    CH13_agg_row_conflict: 0
+    CH13_agg_row_miss: 0
+    CH13_agg_rd_cols: 0
+    CH13_dru_rdlat_p99: 0
+    CH13_agg_q_count: 0
+    CH13_agg_bus_cycles: 0
+    CH13_dru_rdlat_mean: 0
+    CH13_dru_rdlat_count: 0
+    CH13_dru_wq_count: 0
+    CH13_dru_q_p99: 0
+    CH13_agg_rdlat_count: 0
+    CH13_dru_row_hit: 0
+    CH13_dru_bus_cycles: 0
+    CH13_dru_wr_cols: 0
+    CH13_num_EOC_commands: 0  # total number of EOC commands
+    CH13_agg_rdlat_p95: 0
+    CH13_dru_q_mean: 0
+    CH13_gpu_rdlat_p99: 0
+    CH13_pim_row_miss: 121
+    CH13_pim_row_hit: 32284
+    CH13_pim_bus_cycles: 0
+    CH13_agg_rdlat_p99: 0
+    CH13_pim_rd_cols: 0
+    CH13_pim_wr_cols: 0
+    CH13_num_WRA_commands: 0  # total number of WRA commands
+    CH13_num_REFsb_commands: 0  # total number of REFsb commands
+    CH13_pim_allbank_slot_cycles: 98688
+    CH13_num_SYNC_commands: 0  # total number of SYNC commands
+    CH13_precharged_cycles: 326975  # total number of precharged cycles
+    CH13_gpu_wr_cols: 0
+    CH13_agg_row_hit: 0
+    CH13_dru_row_conflict: 0
+    CH13_num_REFab_commands: 165  # total number of REFab commands
+    CH13_dru_rd_cols: 0
+    CH13_pim_rdlat_count: 0
+    CH13_pim_rdlat_mean: 0
+    CH13_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH13_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH13_idle_cycles: 54  # total number of idle cycles
+    CH13_R_cycles: 0
+    CH13_dru_q_p50: 0
+    CH13_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH13_active_cycles: 380244  # total number of active cycles
+    CH13_pim_row_conflict: 491
+    CH13_pim_wq_count: 16448
+    CH13_dru_row_miss: 0
+    CH13_num_RDA_commands: 0  # total number of RDA commands
+    CH13_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH13_agg_wr_cols: 0
+    CH13_dru_q_count: 0
+    CH13_num_RD_commands: 65536  # total number of RD commands
+    CH13_dru_wq_mean: 0
+    CH13_pim_q_p99: 16386
+    CH13_W_cycles: 0
+    CH13_pim_q_count: 16448
+    CH13_gpu_rdlat_p95: 0
+    CH13_agg_wq_mean: 0
+    CH13_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH13_gpu_row_hit: 0
+    CH13_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH13_dru_q_p95: 0
+    CH13_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH13_num_PRE_commands: 0  # total number of PRE commands
+    CH13_num_TMOD_commands: 0  # total number of TMOD commands
+    CH13_num_WR_commands: 33280  # total number of WR commands
+    CH13_num_ACT_commands: 0  # total number of ACT commands
+    CH13_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH13_gpu_wq_mean: 0
+    CH13_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH13_pim_q_mean: 21731.70561770428
+    CH13_num_PREA_commands: 612  # total number of PREA commands
+    CH13_pim_rdlat_p95: 0
+    CH13_gpu_q_p50: 0
+    CH13_pim_q_p50: 16386
+    CH13_pim_q_p95: 16386
+    CH13_gpu_wq_count: 0
+    CH13_gpu_bus_cycles: 0
+    CH13_pim_rdlat_p99: 0
+    CH13_gpu_rd_cols: 0
+    CH13_gpu_row_miss: 0
+    CH13_gpu_q_count: 0
+    CH13_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH13_gpu_row_conflict: 0
+    CH13_dru_rdlat_p50: 0
+    CH13_gpu_q_mean: 0
+    CH13_pim_wq_mean: 17721.322045233464
+    CH13_gpu_q_p95: 0
+    CH13_dru_rdlat_p95: 0
+    CH13_gpu_q_p99: 0
+    CH13_pim_rdlat_p50: 0
+    CH13_gpu_rdlat_count: 0
+    CH13_gpu_rdlat_mean: 0
+    CH13_gpu_rdlat_p50: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 14
+    CH14_pim_allbank_slot_cycles: 98688
+    CH14_agg_rdlat_p99: 0
+    CH14_agg_rdlat_p95: 0
+    CH14_agg_rdlat_p50: 0
+    CH14_agg_q_p99: 0
+    CH14_agg_q_p50: 0
+    CH14_agg_q_mean: 0
+    CH14_agg_row_conflict: 0
+    CH14_agg_row_hit: 0
+    CH14_agg_rd_cols: 0
+    CH14_dru_rdlat_p99: 0
+    CH14_agg_rdlat_mean: 0
+    CH14_agg_q_count: 0
+    CH14_dru_rdlat_p95: 0
+    CH14_dru_rdlat_count: 0
+    CH14_dru_wq_mean: 0
+    CH14_agg_wq_count: 0
+    CH14_dru_wq_count: 0
+    CH14_dru_q_p50: 0
+    CH14_dru_q_mean: 0
+    CH14_dru_row_hit: 0
+    CH14_dru_rdlat_p50: 0
+    CH14_dru_bus_cycles: 0
+    CH14_dru_rd_cols: 0
+    CH14_pim_row_hit: 32284
+    CH14_gpu_q_p99: 0
+    CH14_pim_wr_cols: 0
+    CH14_pim_rdlat_mean: 0
+    CH14_pim_rd_cols: 0
+    CH14_num_PREA_commands: 612  # total number of PREA commands
+    CH14_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH14_num_REFsb_commands: 0  # total number of REFsb commands
+    CH14_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH14_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH14_agg_wr_cols: 0
+    CH14_pim_bus_cycles: 0
+    CH14_agg_q_p95: 0
+    CH14_num_REFab_commands: 165  # total number of REFab commands
+    CH14_num_RDA_commands: 0  # total number of RDA commands
+    CH14_num_SYNC_commands: 0  # total number of SYNC commands
+    CH14_gpu_q_mean: 0
+    CH14_gpu_row_conflict: 0
+    CH14_dru_q_p99: 0
+    CH14_num_WRA_commands: 0  # total number of WRA commands
+    CH14_dru_rdlat_mean: 0
+    CH14_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH14_gpu_bus_cycles: 0
+    CH14_gpu_rdlat_p95: 0
+    CH14_num_WR_commands: 33280  # total number of WR commands
+    CH14_W_cycles: 0
+    CH14_dru_q_p95: 0
+    CH14_dru_wr_cols: 0
+    CH14_pim_row_conflict: 491
+    CH14_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH14_num_PRE_commands: 0  # total number of PRE commands
+    CH14_num_EOC_commands: 0  # total number of EOC commands
+    CH14_gpu_rd_cols: 0
+    CH14_R_cycles: 0
+    CH14_agg_bus_cycles: 0
+    CH14_dru_row_conflict: 0
+    CH14_dru_row_miss: 0
+    CH14_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH14_idle_cycles: 54  # total number of idle cycles
+    CH14_pim_q_count: 16448
+    CH14_agg_wq_mean: 0
+    CH14_pim_q_p99: 16386
+    CH14_gpu_q_p50: 0
+    CH14_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH14_dru_q_count: 0
+    CH14_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH14_num_RD_commands: 65536  # total number of RD commands
+    CH14_pim_q_p50: 16386
+    CH14_precharged_cycles: 326975  # total number of precharged cycles
+    CH14_gpu_rdlat_p99: 0
+    CH14_pim_q_p95: 16386
+    CH14_pim_rdlat_p99: 0
+    CH14_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH14_num_ACT_commands: 0  # total number of ACT commands
+    CH14_pim_wq_count: 16448
+    CH14_active_cycles: 380244  # total number of active cycles
+    CH14_pim_allbank_cols: 32896
+    CH14_pim_rdlat_p50: 0
+    CH14_agg_row_miss: 0
+    CH14_pim_rdlat_p95: 0
+    CH14_agg_rdlat_count: 0
+    CH14_gpu_wr_cols: 0
+    CH14_gpu_row_hit: 0
+    CH14_pim_rdlat_count: 0
+    CH14_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH14_gpu_q_p95: 0
+    CH14_num_TMOD_commands: 0  # total number of TMOD commands
+    CH14_gpu_row_miss: 0
+    CH14_gpu_q_count: 0
+    CH14_pim_q_mean: 21731.70561770428
+    CH14_pim_wq_mean: 17721.322045233464
+    CH14_gpu_wq_count: 0
+    CH14_pim_row_miss: 121
+    CH14_gpu_wq_mean: 0
+    CH14_gpu_rdlat_count: 0
+    CH14_gpu_rdlat_mean: 0
+    CH14_gpu_rdlat_p50: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 15
+    CH15_precharged_cycles: 326975  # total number of precharged cycles
+    CH15_pim_allbank_slot_cycles: 98688
+    CH15_pim_allbank_cols: 32896
+    CH15_agg_rdlat_p99: 0
+    CH15_agg_rdlat_p95: 0
+    CH15_agg_rdlat_mean: 0
+    CH15_agg_wq_count: 0
+    CH15_agg_q_p99: 0
+    CH15_agg_q_p95: 0
+    CH15_agg_q_p50: 0
+    CH15_agg_q_mean: 0
+    CH15_idle_cycles: 54  # total number of idle cycles
+    CH15_agg_q_count: 0
+    CH15_agg_bus_cycles: 0
+    CH15_agg_rd_cols: 0
+    CH15_dru_rdlat_p99: 0
+    CH15_dru_rdlat_p95: 0
+    CH15_dru_rdlat_p50: 0
+    CH15_dru_rdlat_count: 0
+    CH15_agg_row_miss: 0
+    CH15_dru_wq_mean: 0
+    CH15_dru_wq_count: 0
+    CH15_dru_q_p99: 0
+    CH15_dru_q_p95: 0
+    CH15_dru_q_p50: 0
+    CH15_dru_row_hit: 0
+    CH15_gpu_rdlat_p99: 0
+    CH15_pim_row_hit: 32284
+    CH15_num_RD_commands: 65536  # total number of RD commands
+    CH15_pim_rd_cols: 0
+    CH15_agg_wr_cols: 0
+    CH15_pim_rdlat_mean: 0
+    CH15_num_SYNC_commands: 0  # total number of SYNC commands
+    CH15_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH15_pim_row_miss: 121
+    CH15_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH15_active_cycles: 380244  # total number of active cycles
+    CH15_num_RDA_commands: 0  # total number of RDA commands
+    CH15_pim_bus_cycles: 0
+    CH15_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH15_dru_bus_cycles: 0
+    CH15_gpu_wq_mean: 0
+    CH15_gpu_q_p50: 0
+    CH15_num_ACT_commands: 0  # total number of ACT commands
+    CH15_num_PRE_commands: 0  # total number of PRE commands
+    CH15_dru_q_count: 0
+    CH15_pim_wr_cols: 0
+    CH15_dru_wr_cols: 0
+    CH15_gpu_q_count: 0
+    CH15_R_cycles: 0
+    CH15_dru_rd_cols: 0
+    CH15_gpu_rd_cols: 0
+    CH15_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH15_pim_rdlat_p99: 0
+    CH15_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH15_dru_rdlat_mean: 0
+    CH15_num_REFab_commands: 165  # total number of REFab commands
+    CH15_num_PREA_commands: 612  # total number of PREA commands
+    CH15_gpu_wq_count: 0
+    CH15_dru_q_mean: 0
+    CH15_num_WR_commands: 33280  # total number of WR commands
+    CH15_pim_q_count: 16448
+    CH15_pim_q_mean: 21731.70561770428
+    CH15_pim_q_p50: 16386
+    CH15_num_TMOD_commands: 0  # total number of TMOD commands
+    CH15_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH15_pim_wq_mean: 17721.322045233464
+    CH15_agg_row_hit: 0
+    CH15_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH15_gpu_q_p95: 0
+    CH15_pim_q_p95: 16386
+    CH15_num_EOC_commands: 0  # total number of EOC commands
+    CH15_gpu_rdlat_mean: 0
+    CH15_pim_q_p99: 16386
+    CH15_agg_rdlat_count: 0
+    CH15_dru_row_miss: 0
+    CH15_pim_rdlat_p95: 0
+    CH15_pim_wq_count: 16448
+    CH15_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH15_pim_rdlat_p50: 0
+    CH15_gpu_wr_cols: 0
+    CH15_gpu_rdlat_p95: 0
+    CH15_W_cycles: 0
+    CH15_gpu_bus_cycles: 0
+    CH15_agg_row_conflict: 0
+    CH15_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH15_num_REFsb_commands: 0  # total number of REFsb commands
+    CH15_gpu_row_hit: 0
+    CH15_pim_rdlat_count: 0
+    CH15_gpu_row_miss: 0
+    CH15_gpu_row_conflict: 0
+    CH15_agg_rdlat_p50: 0
+    CH15_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH15_pim_row_conflict: 491
+    CH15_gpu_q_mean: 0
+    CH15_num_WRA_commands: 0  # total number of WRA commands
+    CH15_gpu_q_p99: 0
+    CH15_agg_wq_mean: 0
+    CH15_dru_row_conflict: 0
+    CH15_gpu_rdlat_count: 0
+    CH15_gpu_rdlat_p50: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 16
+    CH16_precharged_cycles: 326975  # total number of precharged cycles
+    CH16_active_cycles: 380244  # total number of active cycles
+    CH16_pim_allbank_slot_cycles: 98688
+    CH16_pim_allbank_cols: 32896
+    CH16_agg_rdlat_count: 0
+    CH16_agg_wq_mean: 0
+    CH16_agg_q_p99: 0
+    CH16_agg_q_p95: 0
+    CH16_agg_row_miss: 0
+    CH16_agg_row_hit: 0
+    CH16_agg_wr_cols: 0
+    CH16_agg_rd_cols: 0
+    CH16_dru_rdlat_p99: 0
+    CH16_dru_rdlat_p95: 0
+    CH16_dru_rdlat_p50: 0
+    CH16_dru_wq_mean: 0
+    CH16_dru_q_p95: 0
+    CH16_dru_q_p50: 0
+    CH16_dru_q_mean: 0
+    CH16_idle_cycles: 54  # total number of idle cycles
+    CH16_agg_bus_cycles: 0
+    CH16_dru_q_count: 0
+    CH16_dru_row_miss: 0
+    CH16_dru_bus_cycles: 0
+    CH16_dru_wr_cols: 0
+    CH16_dru_rd_cols: 0
+    CH16_gpu_rdlat_p99: 0
+    CH16_agg_q_mean: 0
+    CH16_dru_q_p99: 0
+    CH16_pim_wr_cols: 0
+    CH16_agg_q_p50: 0
+    CH16_num_EOC_commands: 0  # total number of EOC commands
+    CH16_num_RDA_commands: 0  # total number of RDA commands
+    CH16_dru_wq_count: 0
+    CH16_num_REFab_commands: 165  # total number of REFab commands
+    CH16_pim_row_miss: 121
+    CH16_dru_rdlat_mean: 0
+    CH16_dru_row_hit: 0
+    CH16_pim_bus_cycles: 0
+    CH16_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH16_agg_wq_count: 0
+    CH16_num_REFsb_commands: 0  # total number of REFsb commands
+    CH16_dru_rdlat_count: 0
+    CH16_R_cycles: 0
+    CH16_agg_rdlat_p95: 0
+    CH16_gpu_q_p50: 0
+    CH16_num_TMOD_commands: 0  # total number of TMOD commands
+    CH16_pim_rdlat_p50: 0
+    CH16_pim_wq_count: 16448
+    CH16_agg_rdlat_p50: 0
+    CH16_pim_q_mean: 21731.70561770428
+    CH16_W_cycles: 0
+    CH16_gpu_wq_mean: 0
+    CH16_dru_row_conflict: 0
+    CH16_pim_q_p95: 16386
+    CH16_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH16_num_WR_commands: 33280  # total number of WR commands
+    CH16_pim_row_conflict: 491
+    CH16_pim_rdlat_p95: 0
+    CH16_agg_rdlat_p99: 0
+    CH16_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH16_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH16_gpu_q_count: 0
+    CH16_num_RD_commands: 65536  # total number of RD commands
+    CH16_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH16_agg_row_conflict: 0
+    CH16_gpu_rdlat_p50: 0
+    CH16_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH16_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH16_pim_q_p99: 16386
+    CH16_pim_rd_cols: 0
+    CH16_num_WRA_commands: 0  # total number of WRA commands
+    CH16_gpu_row_hit: 0
+    CH16_pim_wq_mean: 17721.322045233464
+    CH16_num_ACT_commands: 0  # total number of ACT commands
+    CH16_agg_q_count: 0
+    CH16_num_SYNC_commands: 0  # total number of SYNC commands
+    CH16_gpu_rdlat_p95: 0
+    CH16_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH16_num_PREA_commands: 612  # total number of PREA commands
+    CH16_pim_row_hit: 32284
+    CH16_num_PRE_commands: 0  # total number of PRE commands
+    CH16_pim_q_count: 16448
+    CH16_pim_rdlat_count: 0
+    CH16_pim_rdlat_mean: 0
+    CH16_gpu_rd_cols: 0
+    CH16_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH16_gpu_wr_cols: 0
+    CH16_gpu_bus_cycles: 0
+    CH16_agg_rdlat_mean: 0
+    CH16_gpu_rdlat_count: 0
+    CH16_gpu_wq_count: 0
+    CH16_gpu_row_miss: 0
+    CH16_pim_q_p50: 16386
+    CH16_pim_rdlat_p99: 0
+    CH16_gpu_q_mean: 0
+    CH16_gpu_row_conflict: 0
+    CH16_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH16_gpu_q_p95: 0
+    CH16_gpu_q_p99: 0
+    CH16_gpu_rdlat_mean: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 17
+    CH17_precharged_cycles: 326975  # total number of precharged cycles
+    CH17_pim_allbank_cols: 32896
+    CH17_agg_rdlat_p99: 0
+    CH17_agg_rdlat_mean: 0
+    CH17_agg_wq_mean: 0
+    CH17_agg_wq_count: 0
+    CH17_agg_q_p95: 0
+    CH17_agg_rdlat_count: 0
+    CH17_agg_q_p50: 0
+    CH17_agg_q_mean: 0
+    CH17_agg_row_conflict: 0
+    CH17_agg_row_miss: 0
+    CH17_agg_row_hit: 0
+    CH17_agg_wr_cols: 0
+    CH17_dru_rdlat_p99: 0
+    CH17_agg_rdlat_p95: 0
+    CH17_dru_rdlat_p95: 0
+    CH17_dru_rdlat_p50: 0
+    CH17_dru_wq_count: 0
+    CH17_dru_q_p95: 0
+    CH17_dru_q_mean: 0
+    CH17_agg_bus_cycles: 0
+    CH17_dru_q_count: 0
+    CH17_dru_row_miss: 0
+    CH17_dru_bus_cycles: 0
+    CH17_dru_wq_mean: 0
+    CH17_dru_wr_cols: 0
+    CH17_num_REFsb_commands: 0  # total number of REFsb commands
+    CH17_pim_wq_count: 16448
+    CH17_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH17_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH17_pim_row_miss: 121
+    CH17_num_SYNC_commands: 0  # total number of SYNC commands
+    CH17_gpu_rdlat_p99: 0
+    CH17_num_EOC_commands: 0  # total number of EOC commands
+    CH17_num_TMOD_commands: 0  # total number of TMOD commands
+    CH17_dru_rdlat_mean: 0
+    CH17_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH17_num_REFab_commands: 165  # total number of REFab commands
+    CH17_pim_allbank_slot_cycles: 98688
+    CH17_num_WR_commands: 33280  # total number of WR commands
+    CH17_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH17_pim_rd_cols: 0
+    CH17_num_RDA_commands: 0  # total number of RDA commands
+    CH17_active_cycles: 380244  # total number of active cycles
+    CH17_pim_q_count: 16448
+    CH17_W_cycles: 0
+    CH17_R_cycles: 0
+    CH17_gpu_rdlat_p50: 0
+    CH17_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH17_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH17_gpu_wq_count: 0
+    CH17_pim_wr_cols: 0
+    CH17_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH17_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH17_pim_q_p99: 16386
+    CH17_gpu_rdlat_p95: 0
+    CH17_num_PREA_commands: 612  # total number of PREA commands
+    CH17_num_ACT_commands: 0  # total number of ACT commands
+    CH17_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH17_pim_row_conflict: 491
+    CH17_num_WRA_commands: 0  # total number of WRA commands
+    CH17_pim_q_mean: 21731.70561770428
+    CH17_dru_q_p50: 0
+    CH17_pim_q_p50: 16386
+    CH17_gpu_row_conflict: 0
+    CH17_pim_q_p95: 16386
+    CH17_gpu_q_p50: 0
+    CH17_pim_row_hit: 32284
+    CH17_pim_wq_mean: 17721.322045233464
+    CH17_dru_rd_cols: 0
+    CH17_pim_rdlat_count: 0
+    CH17_dru_q_p99: 0
+    CH17_pim_rdlat_mean: 0
+    CH17_agg_q_p99: 0
+    CH17_agg_q_count: 0
+    CH17_num_PRE_commands: 0  # total number of PRE commands
+    CH17_pim_rdlat_p50: 0
+    CH17_pim_rdlat_p95: 0
+    CH17_idle_cycles: 54  # total number of idle cycles
+    CH17_pim_rdlat_p99: 0
+    CH17_agg_rd_cols: 0
+    CH17_pim_bus_cycles: 0
+    CH17_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH17_gpu_rd_cols: 0
+    CH17_num_RD_commands: 65536  # total number of RD commands
+    CH17_gpu_wr_cols: 0
+    CH17_agg_rdlat_p50: 0
+    CH17_dru_rdlat_count: 0
+    CH17_dru_row_hit: 0
+    CH17_gpu_row_hit: 0
+    CH17_gpu_bus_cycles: 0
+    CH17_gpu_row_miss: 0
+    CH17_gpu_q_count: 0
+    CH17_gpu_q_mean: 0
+    CH17_gpu_q_p95: 0
+    CH17_dru_row_conflict: 0
+    CH17_gpu_q_p99: 0
+    CH17_gpu_wq_mean: 0
+    CH17_gpu_rdlat_mean: 0
+    CH17_gpu_rdlat_count: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 18
+    CH18_idle_cycles: 54  # total number of idle cycles
+    CH18_pim_allbank_slot_cycles: 98688
+    CH18_agg_rdlat_p50: 0
+    CH18_agg_wq_mean: 0
+    CH18_agg_q_p50: 0
+    CH18_pim_allbank_cols: 32896
+    CH18_agg_q_mean: 0
+    CH18_agg_rdlat_count: 0
+    CH18_agg_q_count: 0
+    CH18_agg_rdlat_p99: 0
+    CH18_agg_row_conflict: 0
+    CH18_agg_bus_cycles: 0
+    CH18_agg_wr_cols: 0
+    CH18_agg_rd_cols: 0
+    CH18_dru_rdlat_p99: 0
+    CH18_dru_rdlat_mean: 0
+    CH18_active_cycles: 380244  # total number of active cycles
+    CH18_dru_rdlat_count: 0
+    CH18_dru_wq_count: 0
+    CH18_dru_q_p99: 0
+    CH18_dru_q_p95: 0
+    CH18_dru_q_p50: 0
+    CH18_dru_q_mean: 0
+    CH18_agg_row_miss: 0
+    CH18_dru_q_count: 0
+    CH18_dru_row_conflict: 0
+    CH18_dru_row_miss: 0
+    CH18_agg_q_p95: 0
+    CH18_dru_row_hit: 0
+    CH18_dru_bus_cycles: 0
+    CH18_dru_wr_cols: 0
+    CH18_dru_rd_cols: 0
+    CH18_gpu_rdlat_p99: 0
+    CH18_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH18_num_SYNC_commands: 0  # total number of SYNC commands
+    CH18_num_TMOD_commands: 0  # total number of TMOD commands
+    CH18_R_cycles: 0
+    CH18_pim_row_miss: 121
+    CH18_pim_wq_count: 16448
+    CH18_num_REFab_commands: 165  # total number of REFab commands
+    CH18_num_ACT_commands: 0  # total number of ACT commands
+    CH18_num_RDA_commands: 0  # total number of RDA commands
+    CH18_W_cycles: 0
+    CH18_agg_wq_count: 0
+    CH18_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH18_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH18_num_WR_commands: 33280  # total number of WR commands
+    CH18_pim_row_hit: 32284
+    CH18_num_REFsb_commands: 0  # total number of REFsb commands
+    CH18_precharged_cycles: 326975  # total number of precharged cycles
+    CH18_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH18_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH18_pim_q_p50: 16386
+    CH18_gpu_wq_count: 0
+    CH18_pim_wr_cols: 0
+    CH18_gpu_rdlat_p95: 0
+    CH18_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH18_pim_rdlat_p99: 0
+    CH18_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH18_num_EOC_commands: 0  # total number of EOC commands
+    CH18_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH18_num_PRE_commands: 0  # total number of PRE commands
+    CH18_agg_rdlat_mean: 0
+    CH18_num_PREA_commands: 612  # total number of PREA commands
+    CH18_num_RD_commands: 65536  # total number of RD commands
+    CH18_agg_row_hit: 0
+    CH18_pim_row_conflict: 491
+    CH18_pim_rd_cols: 0
+    CH18_pim_q_count: 16448
+    CH18_pim_q_mean: 21731.70561770428
+    CH18_pim_q_p99: 16386
+    CH18_pim_wq_mean: 17721.322045233464
+    CH18_pim_q_p95: 16386
+    CH18_pim_rdlat_count: 0
+    CH18_agg_q_p99: 0
+    CH18_gpu_rd_cols: 0
+    CH18_gpu_wr_cols: 0
+    CH18_pim_rdlat_mean: 0
+    CH18_pim_rdlat_p50: 0
+    CH18_dru_rdlat_p50: 0
+    CH18_pim_rdlat_p95: 0
+    CH18_gpu_row_conflict: 0
+    CH18_gpu_bus_cycles: 0
+    CH18_gpu_row_hit: 0
+    CH18_gpu_row_miss: 0
+    CH18_pim_bus_cycles: 0
+    CH18_gpu_rdlat_mean: 0
+    CH18_gpu_q_count: 0
+    CH18_gpu_q_mean: 0
+    CH18_gpu_q_p50: 0
+    CH18_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH18_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH18_gpu_q_p95: 0
+    CH18_agg_rdlat_p95: 0
+    CH18_gpu_q_p99: 0
+    CH18_num_WRA_commands: 0  # total number of WRA commands
+    CH18_gpu_wq_mean: 0
+    CH18_dru_rdlat_p95: 0
+    CH18_dru_wq_mean: 0
+    CH18_gpu_rdlat_count: 0
+    CH18_gpu_rdlat_p50: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 19
+    CH19_precharged_cycles: 326975  # total number of precharged cycles
+    CH19_agg_rdlat_p99: 0
+    CH19_agg_rdlat_p50: 0
+    CH19_agg_rdlat_mean: 0
+    CH19_agg_wq_count: 0
+    CH19_agg_q_p99: 0
+    CH19_agg_q_p95: 0
+    CH19_agg_row_conflict: 0
+    CH19_agg_row_miss: 0
+    CH19_agg_rdlat_count: 0
+    CH19_agg_wr_cols: 0
+    CH19_dru_wq_count: 0
+    CH19_dru_q_p95: 0
+    CH19_dru_q_mean: 0
+    CH19_dru_row_miss: 0
+    CH19_agg_rdlat_p95: 0
+    CH19_gpu_rdlat_p99: 0
+    CH19_pim_row_miss: 121
+    CH19_pim_bus_cycles: 0
+    CH19_agg_rd_cols: 0
+    CH19_pim_wr_cols: 0
+    CH19_agg_q_p50: 0
+    CH19_num_EOC_commands: 0  # total number of EOC commands
+    CH19_num_TMOD_commands: 0  # total number of TMOD commands
+    CH19_pim_row_hit: 32284
+    CH19_dru_wq_mean: 0
+    CH19_dru_q_count: 0
+    CH19_dru_row_hit: 0
+    CH19_num_WR_commands: 33280  # total number of WR commands
+    CH19_pim_q_count: 16448
+    CH19_num_REFab_commands: 165  # total number of REFab commands
+    CH19_dru_row_conflict: 0
+    CH19_num_RD_commands: 65536  # total number of RD commands
+    CH19_pim_rd_cols: 0
+    CH19_pim_row_conflict: 491
+    CH19_dru_q_p99: 0
+    CH19_num_REFsb_commands: 0  # total number of REFsb commands
+    CH19_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH19_num_RDA_commands: 0  # total number of RDA commands
+    CH19_dru_q_p50: 0
+    CH19_num_SYNC_commands: 0  # total number of SYNC commands
+    CH19_gpu_wq_count: 0
+    CH19_dru_rdlat_p50: 0
+    CH19_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH19_active_cycles: 380244  # total number of active cycles
+    CH19_num_ACT_commands: 0  # total number of ACT commands
+    CH19_pim_allbank_cols: 32896
+    CH19_dru_rdlat_mean: 0
+    CH19_pim_q_mean: 21731.70561770428
+    CH19_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH19_idle_cycles: 54  # total number of idle cycles
+    CH19_num_PREA_commands: 612  # total number of PREA commands
+    CH19_pim_wq_mean: 17721.322045233464
+    CH19_dru_rdlat_p99: 0
+    CH19_gpu_rdlat_mean: 0
+    CH19_W_cycles: 0
+    CH19_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH19_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH19_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH19_pim_q_p99: 16386
+    CH19_num_WRA_commands: 0  # total number of WRA commands
+    CH19_num_PRE_commands: 0  # total number of PRE commands
+    CH19_agg_bus_cycles: 0
+    CH19_gpu_row_miss: 0
+    CH19_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH19_agg_q_mean: 0
+    CH19_gpu_wr_cols: 0
+    CH19_pim_q_p50: 16386
+    CH19_gpu_q_p95: 0
+    CH19_pim_rdlat_count: 0
+    CH19_pim_rdlat_mean: 0
+    CH19_pim_allbank_slot_cycles: 98688
+    CH19_agg_wq_mean: 0
+    CH19_dru_bus_cycles: 0
+    CH19_pim_rdlat_p50: 0
+    CH19_pim_rdlat_p95: 0
+    CH19_agg_row_hit: 0
+    CH19_gpu_rd_cols: 0
+    CH19_dru_wr_cols: 0
+    CH19_gpu_rdlat_count: 0
+    CH19_R_cycles: 0
+    CH19_gpu_bus_cycles: 0
+    CH19_dru_rdlat_p95: 0
+    CH19_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH19_gpu_q_p50: 0
+    CH19_pim_wq_count: 16448
+    CH19_gpu_row_hit: 0
+    CH19_agg_q_count: 0
+    CH19_gpu_row_conflict: 0
+    CH19_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH19_gpu_q_count: 0
+    CH19_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH19_gpu_q_mean: 0
+    CH19_dru_rd_cols: 0
+    CH19_pim_q_p95: 16386
+    CH19_gpu_q_p99: 0
+    CH19_dru_rdlat_count: 0
+    CH19_gpu_wq_mean: 0
+    CH19_gpu_rdlat_p50: 0
+    CH19_pim_rdlat_p99: 0
+    CH19_gpu_rdlat_p95: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 20
+    CH20_idle_cycles: 54  # total number of idle cycles
+    CH20_pim_allbank_cols: 32896
+    CH20_agg_rdlat_p50: 0
+    CH20_agg_rdlat_mean: 0
+    CH20_agg_q_p99: 0
+    CH20_agg_q_mean: 0
+    CH20_agg_q_count: 0
+    CH20_agg_row_conflict: 0
+    CH20_agg_row_miss: 0
+    CH20_agg_row_hit: 0
+    CH20_agg_wr_cols: 0
+    CH20_dru_rdlat_p50: 0
+    CH20_dru_rdlat_count: 0
+    CH20_dru_wq_mean: 0
+    CH20_dru_wq_count: 0
+    CH20_dru_q_p95: 0
+    CH20_dru_q_count: 0
+    CH20_dru_row_conflict: 0
+    CH20_dru_rd_cols: 0
+    CH20_dru_row_hit: 0
+    CH20_dru_bus_cycles: 0
+    CH20_pim_bus_cycles: 0
+    CH20_pim_row_hit: 32284
+    CH20_gpu_rdlat_p95: 0
+    CH20_precharged_cycles: 326975  # total number of precharged cycles
+    CH20_pim_wr_cols: 0
+    CH20_pim_q_p50: 16386
+    CH20_agg_wq_count: 0
+    CH20_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH20_num_EOC_commands: 0  # total number of EOC commands
+    CH20_dru_q_p50: 0
+    CH20_gpu_q_mean: 0
+    CH20_agg_rdlat_p99: 0
+    CH20_agg_q_p50: 0
+    CH20_dru_q_p99: 0
+    CH20_num_TMOD_commands: 0  # total number of TMOD commands
+    CH20_pim_rdlat_count: 0
+    CH20_dru_rdlat_mean: 0
+    CH20_gpu_rdlat_p99: 0
+    CH20_gpu_row_miss: 0
+    CH20_agg_q_p95: 0
+    CH20_pim_rdlat_p99: 0
+    CH20_gpu_rdlat_p50: 0
+    CH20_num_REFab_commands: 165  # total number of REFab commands
+    CH20_pim_wq_mean: 17721.322045233464
+    CH20_dru_rdlat_p99: 0
+    CH20_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH20_dru_wr_cols: 0
+    CH20_num_WRA_commands: 0  # total number of WRA commands
+    CH20_dru_q_mean: 0
+    CH20_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH20_R_cycles: 0
+    CH20_dru_row_miss: 0
+    CH20_pim_q_p99: 16386
+    CH20_gpu_rdlat_count: 0
+    CH20_agg_rdlat_p95: 0
+    CH20_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH20_num_SYNC_commands: 0  # total number of SYNC commands
+    CH20_W_cycles: 0
+    CH20_agg_rdlat_count: 0
+    CH20_num_RD_commands: 65536  # total number of RD commands
+    CH20_pim_rdlat_mean: 0
+    CH20_pim_q_p95: 16386
+    CH20_num_WR_commands: 33280  # total number of WR commands
+    CH20_agg_rd_cols: 0
+    CH20_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH20_num_REFsb_commands: 0  # total number of REFsb commands
+    CH20_pim_rd_cols: 0
+    CH20_active_cycles: 380244  # total number of active cycles
+    CH20_gpu_q_count: 0
+    CH20_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH20_gpu_rdlat_mean: 0
+    CH20_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH20_dru_rdlat_p95: 0
+    CH20_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH20_num_PRE_commands: 0  # total number of PRE commands
+    CH20_pim_row_conflict: 491
+    CH20_pim_q_mean: 21731.70561770428
+    CH20_num_PREA_commands: 612  # total number of PREA commands
+    CH20_pim_rdlat_p95: 0
+    CH20_gpu_wq_mean: 0
+    CH20_num_ACT_commands: 0  # total number of ACT commands
+    CH20_pim_q_count: 16448
+    CH20_pim_allbank_slot_cycles: 98688
+    CH20_pim_wq_count: 16448
+    CH20_gpu_q_p50: 0
+    CH20_pim_rdlat_p50: 0
+    CH20_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH20_gpu_rd_cols: 0
+    CH20_pim_row_miss: 121
+    CH20_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH20_gpu_wr_cols: 0
+    CH20_num_RDA_commands: 0  # total number of RDA commands
+    CH20_gpu_bus_cycles: 0
+    CH20_gpu_row_hit: 0
+    CH20_agg_wq_mean: 0
+    CH20_gpu_row_conflict: 0
+    CH20_gpu_q_p95: 0
+    CH20_agg_bus_cycles: 0
+    CH20_gpu_q_p99: 0
+    CH20_gpu_wq_count: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 21
+    CH21_precharged_cycles: 326975  # total number of precharged cycles
+    CH21_pim_allbank_slot_cycles: 98688
+    CH21_agg_rdlat_p99: 0
+    CH21_agg_rdlat_p50: 0
+    CH21_agg_rdlat_mean: 0
+    CH21_agg_rdlat_count: 0
+    CH21_agg_wq_mean: 0
+    CH21_agg_wq_count: 0
+    CH21_agg_q_p99: 0
+    CH21_agg_q_p95: 0
+    CH21_agg_q_p50: 0
+    CH21_idle_cycles: 54  # total number of idle cycles
+    CH21_agg_q_mean: 0
+    CH21_agg_q_count: 0
+    CH21_agg_row_hit: 0
+    CH21_agg_bus_cycles: 0
+    CH21_agg_rd_cols: 0
+    CH21_agg_row_conflict: 0
+    CH21_dru_rdlat_p95: 0
+    CH21_dru_wq_mean: 0
+    CH21_dru_q_p99: 0
+    CH21_dru_q_p50: 0
+    CH21_dru_q_count: 0
+    CH21_dru_row_conflict: 0
+    CH21_dru_row_hit: 0
+    CH21_dru_bus_cycles: 0
+    CH21_dru_wr_cols: 0
+    CH21_dru_rdlat_p99: 0
+    CH21_dru_row_miss: 0
+    CH21_gpu_rdlat_p99: 0
+    CH21_pim_row_miss: 121
+    CH21_pim_rdlat_p99: 0
+    CH21_pim_row_hit: 32284
+    CH21_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH21_active_cycles: 380244  # total number of active cycles
+    CH21_pim_wr_cols: 0
+    CH21_agg_rdlat_p95: 0
+    CH21_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH21_gpu_q_p50: 0
+    CH21_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH21_agg_wr_cols: 0
+    CH21_num_RDA_commands: 0  # total number of RDA commands
+    CH21_dru_rdlat_count: 0
+    CH21_pim_q_mean: 21731.70561770428
+    CH21_dru_wq_count: 0
+    CH21_dru_rd_cols: 0
+    CH21_gpu_rdlat_count: 0
+    CH21_R_cycles: 0
+    CH21_dru_rdlat_mean: 0
+    CH21_pim_rd_cols: 0
+    CH21_num_ACT_commands: 0  # total number of ACT commands
+    CH21_num_TMOD_commands: 0  # total number of TMOD commands
+    CH21_agg_row_miss: 0
+    CH21_pim_bus_cycles: 0
+    CH21_W_cycles: 0
+    CH21_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH21_gpu_wq_mean: 0
+    CH21_gpu_row_miss: 0
+    CH21_gpu_q_mean: 0
+    CH21_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH21_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH21_pim_wq_count: 16448
+    CH21_pim_allbank_cols: 32896
+    CH21_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH21_num_WRA_commands: 0  # total number of WRA commands
+    CH21_gpu_wr_cols: 0
+    CH21_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH21_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH21_pim_q_count: 16448
+    CH21_num_PREA_commands: 612  # total number of PREA commands
+    CH21_num_SYNC_commands: 0  # total number of SYNC commands
+    CH21_dru_rdlat_p50: 0
+    CH21_dru_q_p95: 0
+    CH21_gpu_rd_cols: 0
+    CH21_num_PRE_commands: 0  # total number of PRE commands
+    CH21_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH21_num_RD_commands: 65536  # total number of RD commands
+    CH21_dru_q_mean: 0
+    CH21_pim_rdlat_count: 0
+    CH21_pim_q_p50: 16386
+    CH21_pim_rdlat_mean: 0
+    CH21_num_WR_commands: 33280  # total number of WR commands
+    CH21_pim_q_p95: 16386
+    CH21_gpu_q_p95: 0
+    CH21_pim_q_p99: 16386
+    CH21_num_REFab_commands: 165  # total number of REFab commands
+    CH21_pim_wq_mean: 17721.322045233464
+    CH21_gpu_rdlat_p95: 0
+    CH21_pim_rdlat_p95: 0
+    CH21_num_REFsb_commands: 0  # total number of REFsb commands
+    CH21_pim_rdlat_p50: 0
+    CH21_gpu_bus_cycles: 0
+    CH21_gpu_row_hit: 0
+    CH21_gpu_rdlat_p50: 0
+    CH21_gpu_row_conflict: 0
+    CH21_pim_row_conflict: 491
+    CH21_gpu_q_p99: 0
+    CH21_gpu_q_count: 0
+    CH21_gpu_wq_count: 0
+    CH21_num_EOC_commands: 0  # total number of EOC commands
+    CH21_gpu_rdlat_mean: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 22
+    CH22_precharged_cycles: 326975  # total number of precharged cycles
+    CH22_idle_cycles: 54  # total number of idle cycles
+    CH22_pim_allbank_slot_cycles: 98688
+    CH22_agg_rdlat_p99: 0
+    CH22_agg_rdlat_p95: 0
+    CH22_agg_rdlat_mean: 0
+    CH22_agg_q_p50: 0
+    CH22_agg_q_count: 0
+    CH22_agg_row_hit: 0
+    CH22_agg_bus_cycles: 0
+    CH22_agg_wr_cols: 0
+    CH22_agg_rd_cols: 0
+    CH22_dru_rdlat_p95: 0
+    CH22_dru_rdlat_mean: 0
+    CH22_dru_rdlat_count: 0
+    CH22_dru_wq_count: 0
+    CH22_dru_q_p99: 0
+    CH22_dru_q_p95: 0
+    CH22_dru_q_mean: 0
+    CH22_dru_q_count: 0
+    CH22_dru_row_hit: 0
+    CH22_dru_bus_cycles: 0
+    CH22_dru_wr_cols: 0
+    CH22_dru_rd_cols: 0
+    CH22_gpu_rdlat_p99: 0
+    CH22_pim_bus_cycles: 0
+    CH22_pim_allbank_cols: 32896
+    CH22_num_SYNC_commands: 0  # total number of SYNC commands
+    CH22_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH22_num_REFab_commands: 165  # total number of REFab commands
+    CH22_pim_wq_count: 16448
+    CH22_agg_q_p99: 0
+    CH22_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH22_pim_wr_cols: 0
+    CH22_num_WRA_commands: 0  # total number of WRA commands
+    CH22_num_RDA_commands: 0  # total number of RDA commands
+    CH22_active_cycles: 380244  # total number of active cycles
+    CH22_W_cycles: 0
+    CH22_num_EOC_commands: 0  # total number of EOC commands
+    CH22_num_ACT_commands: 0  # total number of ACT commands
+    CH22_pim_rdlat_p99: 0
+    CH22_dru_wq_mean: 0
+    CH22_R_cycles: 0
+    CH22_pim_rd_cols: 0
+    CH22_num_TMOD_commands: 0  # total number of TMOD commands
+    CH22_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH22_dru_row_miss: 0
+    CH22_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH22_num_REFsb_commands: 0  # total number of REFsb commands
+    CH22_num_RD_commands: 65536  # total number of RD commands
+    CH22_gpu_q_p95: 0
+    CH22_pim_row_miss: 121
+    CH22_pim_row_hit: 32284
+    CH22_agg_rdlat_p50: 0
+    CH22_agg_wq_count: 0
+    CH22_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH22_num_PRE_commands: 0  # total number of PRE commands
+    CH22_agg_q_mean: 0
+    CH22_dru_rdlat_p99: 0
+    CH22_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH22_gpu_bus_cycles: 0
+    CH22_agg_rdlat_count: 0
+    CH22_num_WR_commands: 33280  # total number of WR commands
+    CH22_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH22_agg_row_conflict: 0
+    CH22_num_PREA_commands: 612  # total number of PREA commands
+    CH22_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH22_gpu_rdlat_mean: 0
+    CH22_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH22_gpu_row_miss: 0
+    CH22_pim_q_p99: 16386
+    CH22_pim_row_conflict: 491
+    CH22_gpu_wr_cols: 0
+    CH22_pim_rdlat_count: 0
+    CH22_gpu_rd_cols: 0
+    CH22_pim_q_mean: 21731.70561770428
+    CH22_pim_rdlat_p95: 0
+    CH22_agg_row_miss: 0
+    CH22_pim_q_p50: 16386
+    CH22_pim_q_count: 16448
+    CH22_pim_q_p95: 16386
+    CH22_pim_wq_mean: 17721.322045233464
+    CH22_dru_row_conflict: 0
+    CH22_pim_rdlat_mean: 0
+    CH22_agg_q_p95: 0
+    CH22_gpu_q_p50: 0
+    CH22_gpu_rdlat_count: 0
+    CH22_agg_wq_mean: 0
+    CH22_pim_rdlat_p50: 0
+    CH22_gpu_row_hit: 0
+    CH22_gpu_row_conflict: 0
+    CH22_gpu_q_count: 0
+    CH22_dru_rdlat_p50: 0
+    CH22_gpu_q_mean: 0
+    CH22_dru_q_p50: 0
+    CH22_gpu_wq_count: 0
+    CH22_gpu_q_p99: 0
+    CH22_gpu_wq_mean: 0
+    CH22_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH22_gpu_rdlat_p50: 0
+    CH22_gpu_rdlat_p95: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+  Controller:
+    impl: AiM
+    id: Channel 23
+    CH23_precharged_cycles: 326975  # total number of precharged cycles
+    CH23_active_cycles: 380244  # total number of active cycles
+    CH23_agg_rdlat_p99: 0
+    CH23_agg_rdlat_p50: 0
+    CH23_agg_rdlat_mean: 0
+    CH23_agg_wq_mean: 0
+    CH23_agg_q_p99: 0
+    CH23_agg_q_p95: 0
+    CH23_agg_q_p50: 0
+    CH23_agg_q_mean: 0
+    CH23_agg_row_miss: 0
+    CH23_pim_allbank_slot_cycles: 98688
+    CH23_agg_row_hit: 0
+    CH23_dru_rdlat_p95: 0
+    CH23_dru_wq_mean: 0
+    CH23_dru_wq_count: 0
+    CH23_agg_bus_cycles: 0
+    CH23_dru_q_p95: 0
+    CH23_dru_rdlat_count: 0
+    CH23_dru_q_p50: 0
+    CH23_dru_q_mean: 0
+    CH23_agg_rd_cols: 0
+    CH23_dru_rdlat_p50: 0
+    CH23_dru_q_count: 0
+    CH23_dru_row_hit: 0
+    CH23_dru_bus_cycles: 0
+    CH23_dru_rd_cols: 0
+    CH23_dru_rdlat_p99: 0
+    CH23_gpu_rdlat_p99: 0
+    CH23_pim_q_p50: 16386
+    CH23_gpu_q_p99: 0
+    CH23_agg_row_conflict: 0
+    CH23_pim_row_hit: 32284
+    CH23_pim_bus_cycles: 0
+    CH23_num_TMOD_commands: 0  # total number of TMOD commands
+    CH23_num_EOC_commands: 0  # total number of EOC commands
+    CH23_dru_row_conflict: 0
+    CH23_num_ABWR_commands: 16448  # total number of ABWR commands
+    CH23_num_REFab_commands: 165  # total number of REFab commands
+    CH23_pim_allbank_cols: 32896
+    CH23_AiM_ISR_GGM_REDUCE_cycles: 66399  # total number of AiM ISR_GGM_REDUCE cycles
+    CH23_agg_rdlat_count: 0
+    CH23_agg_q_count: 0
+    CH23_pim_rd_cols: 0
+    CH23_num_ABRD_commands: 16448  # total number of ABRD commands
+    CH23_gpu_wq_count: 0
+    CH23_num_UNKNOWN_commands: 0  # total number of UNKNOWN commands
+    CH23_pim_wr_cols: 0
+    CH23_num_ACT16_commands: 612  # total number of ACT16 commands
+    CH23_pim_row_conflict: 491
+    CH23_pim_rdlat_mean: 0
+    CH23_agg_rdlat_p95: 0
+    CH23_dru_wr_cols: 0
+    CH23_num_RDA_commands: 0  # total number of RDA commands
+    CH23_gpu_row_conflict: 0
+    CH23_gpu_q_count: 0
+    CH23_agg_wr_cols: 0
+    CH23_dru_q_p99: 0
+    CH23_num_SYNC_commands: 0  # total number of SYNC commands
+    CH23_gpu_row_miss: 0
+    CH23_AiM_ISR_EOC_cycles: 0  # total number of AiM ISR_EOC cycles
+    CH23_pim_rdlat_p50: 0
+    CH23_AiM_ISR_NET_WAIT_cycles: 0  # total number of AiM ISR_NET_WAIT cycles
+    CH23_AiM_ISR_SYNC_cycles: 0  # total number of AiM ISR_SYNC cycles
+    CH23_num_ACT_commands: 0  # total number of ACT commands
+    CH23_idle_cycles: 54  # total number of idle cycles
+    CH23_W_cycles: 0
+    CH23_AiM_ISR_NET_DELAY_cycles: 0  # total number of AiM ISR_NET_DELAY cycles
+    CH23_pim_rdlat_p99: 0
+    CH23_pim_row_miss: 121
+    CH23_num_PREA_commands: 612  # total number of PREA commands
+    CH23_gpu_wq_mean: 0
+    CH23_num_PRE_commands: 0  # total number of PRE commands
+    CH23_R_cycles: 0
+    CH23_num_RD_commands: 65536  # total number of RD commands
+    CH23_num_REFsb_commands: 0  # total number of REFsb commands
+    CH23_pim_q_count: 16448
+    CH23_pim_q_mean: 21731.70561770428
+    CH23_dru_rdlat_mean: 0
+    CH23_dru_row_miss: 0
+    CH23_pim_wq_count: 16448
+    CH23_pim_wq_mean: 17721.322045233464
+    CH23_pim_rdlat_count: 0
+    CH23_pim_rdlat_p95: 0
+    CH23_agg_wq_count: 0
+    CH23_pim_q_p99: 16386
+    CH23_gpu_rd_cols: 0
+    CH23_gpu_q_p95: 0
+    CH23_num_WR_commands: 33280  # total number of WR commands
+    CH23_gpu_wr_cols: 0
+    CH23_gpu_bus_cycles: 0
+    CH23_pim_q_p95: 16386
+    CH23_gpu_row_hit: 0
+    CH23_AiM_ISR_GGM_EXTEND_cycles: 0  # total number of AiM ISR_GGM_EXTEND cycles
+    CH23_gpu_q_mean: 0
+    CH23_gpu_rdlat_count: 0
+    CH23_gpu_rdlat_p50: 0
+    CH23_gpu_q_p50: 0
+    CH23_gpu_rdlat_mean: 0
+    CH23_num_WRA_commands: 0  # total number of WRA commands
+    CH23_gpu_rdlat_p95: 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
