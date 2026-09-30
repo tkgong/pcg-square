@@ -1,0 +1,10 @@
+# GPU DPF baseline, kernel-level breakdown (nsys, L40S, c=8 t=4 logN=22, 8 blocks x 16 instances x 2^21 leaves = 268M leaves)
+# Source trace: overlap_bench_L40S_nsys_trace.csv (DPF-alone pass). Wall 66.6 ms, kernel time 51.7 ms (22% host sync/launch gaps, 168 level launches).
+expand_kernel        24.1 ms (46.6%)  168 launches  -- CW/XOR child assembly, pure data movement (read H, write 2 children)
+hash_kernel_chacha8  12.1 ms (23.3%)  168 launches  -- 1 ChaCha8 block per parent: 22.3 G blocks/s while moving 712 GB/s (82% of peak)
+out_scatter_kernel    9.0 ms (17.4%)    8 launches  -- H' (ChaCha8) + mod-p + atomic scatter: 29.8 G blocks/s
+out_sum_kernel        6.5 ms (12.6%)    8 launches  -- H' (ChaCha8) + sums
+out_fold_kernel       0.0 ms
+# The ChaCha8 primitive (standard 8 rounds, all-register, bit-exact with half_tree_dpf/tree_prg.h) is ~23-53% of the
+# kernel time and the kernels that run it are DRAM-bandwidth-bound; the DPF baseline is limited by data movement and
+# per-level launch/sync gaps, not by ChaCha arithmetic.
