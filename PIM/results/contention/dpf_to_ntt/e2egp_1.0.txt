@@ -1,0 +1,9 @@
+clock=1.0 dru_window=64   (best (c,t) / geomean over all cells; baseline = GPU DPF + merge NTT)
+  B200 fast merge : no contention 6.01/4.68  -> co-sim 5.60/4.50   both/max 1.01-1.11
+  B200 fast f4dru : no contention 6.01/4.68  -> co-sim 5.67/4.53   both/max 1.01-1.06
+  B200 slow merge : no contention 5.49/3.16  -> co-sim 5.25/3.08   both/max 1.01-1.11
+  B200 slow f4dru : no contention 5.49/3.16  -> co-sim 5.31/3.10   both/max 1.01-1.06
+  L40S fast merge : no contention 1.92/1.43  -> co-sim 1.61/1.33   both/max 1.01-1.19
+  L40S fast f4dru : no contention 1.92/1.43  -> co-sim 1.62/1.33   both/max 1.01-1.19
+  L40S slow merge : no contention 1.97/1.70  -> co-sim 1.74/1.57   both/max 1.01-1.19
+  L40S slow f4dru : no contention 1.97/1.70  -> co-sim 1.74/1.58   both/max 1.01-1.19

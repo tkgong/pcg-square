@@ -42,6 +42,14 @@ def main():
     ap.add_argument("--dru-window", type=int, default=64)
     ap.add_argument("--orgs", default="l40s,b200"); ap.add_argument("--designs", default="merge,f4dru")
     ap.add_argument("--jobs", type=int, default=60)
+    ap.add_argument("--spu-presum", action="store_true",
+                    help="with --gather: instances of the same block and bin (k+l) are mapped to the same SPU, "
+                         "whose Convert accumulates them into one partial sum per bin, so the SMs read "
+                         "1/m of the leaves (m = instances per SPU, <= t)")
+    ap.add_argument("--gather", action="store_true",
+                    help="DPF->NTT assembly on the SMs: each block's first NTT kernel reads every "
+                         "converted leaf once (8 B/leaf, t^2 contiguous per-instance segments), "
+                         "mod-adds the <=2t contributions per coefficient and applies the negacyclic fold")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
     ctrl = ["-p", "MemorySystem.Controller.fpu_gate_issue=true", "-p", "MemorySystem.Controller.wr_max_age=1000",
@@ -86,6 +94,15 @@ def main():
                 cells[(org, c, t, lg)] = dict(L=L, spu_ms=spu_ms, s=s)
                 for d in a.designs.split(","):
                     ph = phases(org, d, lg, c * c, scale=s, dru_window=a.dru_window)
+                    if a.gather:
+                        # one block (= t^2 instances, 2Nt leaves) per 2 poly-muls: 8 B/leaf read,
+                        # split over the block's two jobs; memory-bound (mod-adds only)
+                        m = 1
+                        if a.spu_presum:
+                            nspu = {"l40s": 192, "b200": 2048}[org]
+                            m = max(1, min(t, (c * c * t * t) // nspu))
+                        gb = int(round(8 * (2 * (1 << lg) * t) / 2 / m / DEV[org]["ch"] * s))
+                        ph = [(0, 1, gb, 1.0, 32, 0, 32, 20000, 0)] + ph
                     tag = f"{org}_{c}_{t}_{lg}_{d}"
                     jp = os.path.join(a.out, tag + ".jobs"); write_jobs(jp, [(2 * c * c, 0, ph)])
                     jobs.append((tag, os.path.join(a.out, f"spu_{org}.trace"), jp, org))
