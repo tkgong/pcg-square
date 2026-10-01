@@ -53,6 +53,8 @@ def main():
                          "plus a (1-x) share of the DPF (the measured GPU DPF kernel), the SPUs the x share, x chosen to "
                          "balance the two lanes; both lanes' co-run slowdowns come from the window")
     ap.add_argument("--dru-clock", default="nom", help="DRU clock in GHz or 'nom' (= DRAM clock): the DRU tap takes 2*f_DRAM/f_DRU bus cycles per column")
+    ap.add_argument("--win-inst", type=int, default=4, help="window: DPF instances per SPU in the simulated SPU trace")
+    ap.add_argument("--win-depth", type=int, default=12, help="window: GGM tree depth of each simulated instance (2^depth leaves)")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
@@ -65,9 +67,9 @@ def main():
         return ctrl + ["-p", f"MemorySystem.Controller.dru_bus_slot={slot}"]
 
     def spu_trace(org, f, tag):
-        tr = os.path.join(a.out, f"spu_{org}_{a.reduce}_x{a.alu_mult:g}_{tag}.trace"); o = tr[:-6] + ".out"
+        tr = os.path.join(a.out, f"spu_{org}_{a.reduce}_x{a.alu_mult:g}_i{a.win_inst}_n{a.win_depth}_{tag}.trace"); o = tr[:-6] + ".out"
         if not os.path.exists(tr):
-            subprocess.run([sys.executable, GEN, "-n", "12", "-C", "2", "-P", "8", "-I", "64", "--mode", "instances", "--seed-bits", "128",
+            subprocess.run([sys.executable, GEN, "-n", str(a.win_depth), "-C", "2", "-P", "8", "-I", str(16 * a.win_inst), "--mode", "instances", "--seed-bits", "128",
                             "--reread", "--broadcast", "--cl", str(round(155 * FNOM[org] / f / a.alu_mult)), "--reduce", a.reduce,
                             "--convert-cl", str(round(465 * FNOM[org] / f / a.alu_mult)),
                             "--modmul-cl", str(round(32 * FNOM[org] / f / a.alu_mult)), "-o", tr], check=True, stderr=subprocess.DEVNULL)
@@ -130,7 +132,7 @@ def main():
                 if a.spu_lane == "sim":
                     I = c * c * t * t; n_leaf = 2 * (1 << lg) // t
                     per_spu = math.ceil(I / NSPU[org]) if a.occupancy == "ceil" else max(1.0, I / NSPU[org])
-                    spu_ms = TS[org] / 4 * DEV[org]["tck"] / 1e6 * per_spu * n_leaf / 4096   # sim: 4 instances of 4096 leaves per SPU
+                    spu_ms = TS[org] / a.win_inst * DEV[org]["tck"] / 1e6 * per_spu * n_leaf / (1 << a.win_depth)   # window: win_inst instances of 2^win_depth leaves per SPU
                 else:
                     spu_ms = L["spu"] * CLK[org]
                 SPU_MS[(org, c, t, lg)] = spu_ms

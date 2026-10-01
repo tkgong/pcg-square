@@ -1,0 +1,18 @@
+Window-size check (SPU = DRAM clock, LSU overlap, sim SPU lane, SOTA baseline). Reference = the main run's window:
+4 DPF instances x 2^12 leaves per SPU (i4_n12). i8/i16 = 2x/4x instances per SPU, n13 = 2x leaves per instance.
+Headline = best (c,t) / geomean, L40S without DRU (merge), B200 with DRU (f4dru); fast = 40 Gbps, slow = 400 Mbps.
+
+winval_i4_n12    l40s fast  3.01/ 2.49 | l40s slow  3.10/ 2.57 | b200 fast  9.67/ 7.54 | b200 slow  5.97/ 3.47
+winval_i8_n12    l40s fast  3.02/ 2.49 | l40s slow  3.11/ 2.57 | b200 fast  9.69/ 7.62 | b200 slow  6.04/ 3.50
+winval_i16_n12   l40s fast  3.03/ 2.50 | l40s slow  3.12/ 2.58 | b200 fast  9.74/ 7.67 | b200 slow  6.05/ 3.51
+winval_i4_n13    l40s fast  3.08/ 2.53 | l40s slow  3.17/ 2.61 | b200 fast  9.77/ 7.58 | b200 slow  5.93/ 3.47
+  winval_i8_n12 vs winval_i4_n12 l40s: |dSPU lane| max 0.24%  |dSPU slow| max 1.53%  |dNTT slow| max 39.10% mean 9.05%  |dPCG2| max 1.30% mean 0.44%  (22 cells)
+  winval_i8_n12 vs winval_i4_n12 b200: |dSPU lane| max 0.13%  |dSPU slow| max 1.95%  |dNTT slow| max 14.25% mean 3.95%  |dPCG2| max 3.85% mean 1.25%  (25 cells)
+  winval_i16_n12 vs winval_i4_n12 l40s: |dSPU lane| max 0.36%  |dSPU slow| max 1.54%  |dNTT slow| max 52.52% mean 15.02%  |dPCG2| max 1.19% mean 0.44%  (22 cells)
+  winval_i16_n12 vs winval_i4_n12 b200: |dSPU lane| max 0.22%  |dSPU slow| max 2.17%  |dNTT slow| max 18.83% mean 6.67%  |dPCG2| max 6.58% mean 1.70%  (25 cells)
+  winval_i4_n13 vs winval_i4_n12 l40s: |dSPU lane| max 1.09%  |dSPU slow| max 1.62%  |dNTT slow| max 39.10% mean 4.91%  |dPCG2| max 2.70% mean 1.80%  (22 cells)
+  winval_i4_n13 vs winval_i4_n12 b200: |dSPU lane| max 0.66%  |dSPU slow| max 2.08%  |dNTT slow| max 4.58% mean 2.12%  |dPCG2| max 4.75% mean 1.35%  (25 cells)
+
+Largest per-cell changes (i16 vs i4): B200 (8,4)/(8,8) 2^20, NTT-bound (r=1.49): NTT slowdown 1.084 -> 1.018, PCG^2 -6.6%;
+NTT-slowdown changes of 15-50% occur only where the NTT is <5% of the SPU lane (hidden; PCG^2 moves <0.7%).
+Longer windows give equal or slightly higher speedups: the 4-instance window is conservative.
