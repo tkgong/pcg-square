@@ -12,14 +12,16 @@
 #SBATCH --mem=200G
 #SBATCH -t 01:00:00
 #SBATCH -J pcg-single-hash-ab
-#SBATCH -o /home/gong_ten_neu/PCG-acceleration/pcg-square/GPU_baseline/job_single_hash_%j.out
+#SBATCH -o GPU_baseline/job_single_hash_%j.out
 
+# Submit from the repo root of the clone (the B200 host runs it from
+# /home/gong_ten_neu/pcg-square-cosim); paths follow the submit directory.
 set -u
 export PATH="$HOME/opt/cuda-13.0/bin:$PATH"
 export NVCC="$HOME/opt/cuda-13.0/bin/nvcc"
 export GPUNTT_INC="$HOME/.local/include/GPUNTT-1.0"
 export GPUNTT_LIB="$HOME/.local/lib64"      # not ~/.local/lib on this host
-HERE=/home/gong_ten_neu/PCG-acceleration/pcg-square/GPU_baseline
+HERE="${SLURM_SUBMIT_DIR:-$PWD}/GPU_baseline"
 cd "$HERE"
 T0=$(date +%s)
 
