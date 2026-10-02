@@ -1,0 +1,41 @@
+################ SINGLE-HASH A/B ################
+job=1160453 node=b0009
+b0009
+2026-10-02T14:40:41-04:00
+commit: f469f0c33c2bf726886de04e65e2f45e31bacfe3  branch: contention-cosim
+---- NODE-LEVEL co-tenancy BEFORE ----
+     JOBID           USER                     NAME    STATE CPUS TRES_PER_NODE
+1138266_20    yc2352_yale           alt_expr_part1  RUNNING    5 gres/gpu:b200:1
+   1149285 jundawang_umas mtb29_aicr_5_Gemma-3-27B  RUNNING   32 gres/gpu:4
+1150432_77 vhecht_stanfor                cherimoya  RUNNING    5 N/A
+   1160453   gong_ten_neu       pcg-single-hash-ab  RUNNING   16 gres/gpu:b200:1
+loadavg: 11.23 12.18 12.45 12/2921 3736791
+index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]
+0, NVIDIA B200, 595.71.05, 183359 MiB, 0 MiB, 0 %
+
+[dev ] NVIDIA B200  arch=sm_100  nvcc=/home/gong_ten_neu/opt/cuda-13.0/bin/nvcc  commit=f469f0c
+[hyg ] other compute processes at start:
+pid, used_gpu_memory [MiB]
+[bld ] /home/gong_ten_neu/pcg-square-cosim/GPU_baseline/bin/e2e_full_ab_sm_100
+  [ab ] lam80 c2 t64 done
+  [ab ] lam80 c4 t16 done
+  [ab ] lam80 c8 t4 done
+  [ab ] lam128 c2 t128 done
+  [ab ] lam128 c4 t16 done
+  [ab ] lam128 c8 t8 done
+[gate] fingerprint mismatches: 0
+[done] /home/gong_ten_neu/pcg-square-cosim/GPU_baseline/results_b200/single_hash_ab/e2e_single_hash_ab.csv
+
+################ runner exit=0 ################
+---- NODE-LEVEL co-tenancy AFTER ----
+     JOBID           USER                     NAME    STATE CPUS TRES_PER_NODE
+1138266_20    yc2352_yale           alt_expr_part1  RUNNING    5 gres/gpu:b200:1
+1138266_20    yc2352_yale           alt_expr_part1  RUNNING    5 gres/gpu:b200:1
+   1149285 jundawang_umas mtb29_aicr_5_Gemma-3-27B  RUNNING   32 gres/gpu:4
+1150432_77 vhecht_stanfor                cherimoya  RUNNING    5 N/A
+   1160453   gong_ten_neu       pcg-single-hash-ab  RUNNING   16 gres/gpu:b200:1
+loadavg: 12.16 11.82 11.74 13/2947 3750290
+---- deliverable ----
+OK  e2e_single_hash_ab.csv (241 lines)
+MISMATCH rows: 0
+TOTAL WALL CLOCK: 1215 s
