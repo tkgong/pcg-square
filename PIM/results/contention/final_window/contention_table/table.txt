@@ -1,16 +1,16 @@
 
-B200 (4,16) 2^24  (per channel; bus = fraction of DRAM cycles the data bus is occupied; queue = ns from arrival to first command)
-  config                      bus GPU  bus SPU  bus DRU  total |    GPU q mean/p50/p95/p99 ns |  GPU rdlat mean/p99 | SPU q mean | slowdown
-  SPU only                       0.00     0.21     0.00   0.21 |      0/    0/    0/     0      |        0/       0    |       3581 | 
-  GPU NTT (merge) only           0.19     0.00     0.00   0.19 |     65/   41/  257/   617      |       83/     633    |          0 | 
-  GPU NTT (4-step+DRU) only      0.17     0.00     0.08   0.25 |     63/   41/  369/   529      |       80/     553    |          0 | 
-  GPU merge + SPU                0.17     0.20     0.00   0.38 |    132/   41/  445/  3041      |      151/    3237    |       3593 | SPU x1.011  NTT x1.047
-  GPU 4-step + SPU + DRU         0.15     0.20     0.07   0.43 |    126/   41/  399/  2683      |      144/    2701    |       3640 | SPU x1.015  NTT x1.077
+B200 (4,16) 2^24: per-channel data-bus occupancy over each unit's own active span; GPU queueing = arrival -> first command (ns)
+  config                         GPU   SPU   DRU |  GPU q mean/p95/p99 | GPU rdlat mean/p99 | SPU q vs alone | GPU row conflicts | slowdown
+  SPU only                      0.00  0.21  0.00 |      0/    0/    0    |       0/     0      |          +0 ns |                   | 
+  GPU merge NTT only            0.19  0.00  0.00 |     65/  257/  617    |      83/   633      |                |        1741/38922 | 
+  GPU 4-step NTT + DRU only     0.17  0.00  0.08 |     63/  369/  529    |      80/   553      |                |        1716/38912 | 
+  GPU merge + SPU               0.18  0.20  0.00 |    132/  445/ 3041    |     151/  3237      |         +13 ns |        2090/38922 | SPU x1.011  NTT x1.047
+  GPU 4-step + SPU + DRU        0.16  0.20  0.07 |    126/  399/ 2683    |     144/  2701      |         +60 ns |        1957/38912 | SPU x1.015  NTT x1.077
 
-L40S (4,16) 2^22  (per channel; bus = fraction of DRAM cycles the data bus is occupied; queue = ns from arrival to first command)
-  config                      bus GPU  bus SPU  bus DRU  total |    GPU q mean/p50/p95/p99 ns |  GPU rdlat mean/p99 | SPU q mean | slowdown
-  SPU only                       0.00     0.15     0.00   0.15 |      0/    0/    0/     0      |        0/       0    |       3356 | 
-  GPU NTT (merge) only           0.63     0.00     0.00   0.63 |     96/   38/  591/   809      |      114/     827    |          0 | 
-  GPU NTT (4-step+DRU) only      0.45     0.00     0.28   0.73 |     82/   36/  457/   795      |      101/     811    |          0 | 
-  GPU merge + SPU                0.12     0.15     0.00   0.27 |    150/   38/  683/  2285      |      171/    2306    |       3281 | SPU x1.019  NTT x1.487
-  GPU 4-step + SPU + DRU         0.11     0.15     0.07   0.32 |    139/   36/  635/  2319      |      159/    2422    |       3456 | SPU x1.038  NTT x1.422
+L40S (4,16) 2^22: per-channel data-bus occupancy over each unit's own active span; GPU queueing = arrival -> first command (ns)
+  config                         GPU   SPU   DRU |  GPU q mean/p95/p99 | GPU rdlat mean/p99 | SPU q vs alone | GPU row conflicts | slowdown
+  SPU only                      0.00  0.15  0.00 |      0/    0/    0    |       0/     0      |          +0 ns |                   | 
+  GPU merge NTT only            0.63  0.00  0.00 |     96/  591/  809    |     114/   827      |                |        1513/22402 | 
+  GPU 4-step NTT + DRU only     0.45  0.00  0.28 |     82/  457/  795    |     101/   811      |                |        1455/23832 | 
+  GPU merge + SPU               0.43  0.15  0.00 |    150/  683/ 2285    |     171/  2306      |         -76 ns |        1676/22402 | SPU x1.019  NTT x1.487
+  GPU 4-step + SPU + DRU        0.32  0.15  0.20 |    139/  635/ 2319    |     159/  2422      |        +100 ns |        1585/23832 | SPU x1.038  NTT x1.422
