@@ -33,9 +33,9 @@ for mach, org, des in (("L40S", "l40s", "merge"), ("B200", "b200", "f4dru")):
     for clk, tag in (("DRAM clk", "nom"), ("1 GHz", "1.0")):
         Rj = json.load(open(f"{R}/e2e_{tag}.json"))
         for tier, lab in (("fast", "40 Gbps"), ("slow", "400 Mbps")):
-            po, pn, co, cn = [], [], [], []
+            po, pn, pv, co, cn, cv = [], [], [], [], [], []
             for (c, t) in CFG:
-                so, sn = [], []
+                so, sn, sv = [], [], []
                 for r in Rj:
                     if not (r["org"] == org and r["design"] == des and r["tier"] == tier and r["c"] == c and r["t"] == t): continue
                     k = (c, t, r["logN"]); L = LN[mach][k]; ntt = r["gpu_ms"] - L["gpu_dpf_g"]
@@ -45,7 +45,8 @@ for mach, org, des in (("L40S", "l40s", "merge"), ("B200", "b200", "f4dru")):
                     else:
                         dpf = L["gpu_dpf_g"] * ab[k]["singlehash"] / ab[k]["twopass"]
                     so.append(r["base_serial_ms"] / r["pcg_ms"]); sn.append((dpf + ntt + r["nic_ms"]) / r["pcg_ms"])
-                po.append(gm(so)); pn.append(gm(sn)); co += so; cn += sn
-            out.append(f"{mach} SPU {clk:8s} {lab:8s}: two-pass H' {max(po):.2f}/{gm(co):.2f} -> single-hash H' {max(pn):.2f}/{gm(cn):.2f}   per (c,t): "
-                       + " ".join(f"{a:.2f}->{b:.2f}" for a, b in zip(po, pn)))
+                    sv.append(max(dpf + ntt, r["nic_ms"]) / r["pcg_ms"])          # GPU-only baseline overlapping the network
+                po.append(gm(so)); pn.append(gm(sn)); pv.append(gm(sv)); co += so; cn += sn; cv += sv
+            out.append(f"{mach} SPU {clk:8s} {lab:8s}: two-pass H' {max(po):.2f}/{gm(co):.2f} -> single-hash H' {max(pn):.2f}/{gm(cn):.2f}"
+                       f" (overlap-net base {max(pv):.2f}/{gm(cv):.2f})   per (c,t): " + " ".join(f"{a:.2f}->{b:.2f}" for a, b in zip(po, pn)))
 open(sys.argv[1], "w").write("\n".join(out) + "\n"); print("\n".join(out))
