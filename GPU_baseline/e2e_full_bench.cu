@@ -81,8 +81,11 @@ int main(int argc, char** argv) {
     }
 
     const int w = 1, levels = n / w, nk = (1 << w) - 1;
-    std::vector<DpfBlk> roots(B), dltsft((size_t)B * levels * nk);
-    for (int b = 0; b < B; ++b) { roots[b].lo = 0x9e3779b97f4a7c15ULL*(b+1); roots[b].hi = b+1; }
+    // The batched arm expands all c^2*t^2 instances in one call and reads that many
+    // roots/dltsft (sized B before: a heap over-read, so its g was not reproducible).
+    const int Ball = batch_blocks ? B * nblk : B;
+    std::vector<DpfBlk> roots(Ball), dltsft((size_t)Ball * levels * nk);
+    for (int b = 0; b < Ball; ++b) { roots[b].lo = 0x9e3779b97f4a7c15ULL*(b+1); roots[b].hi = b+1; }
     for (size_t i = 0; i < dltsft.size(); ++i) { dltsft[i].lo = 0x1234567ULL*(i+1); dltsft[i].hi = i; }
     std::vector<uint8_t> master(16); for (int i=0;i<16;i++) master[i]=i*7+1;
     std::vector<uint8_t> round_keys((size_t)nk * 176);
