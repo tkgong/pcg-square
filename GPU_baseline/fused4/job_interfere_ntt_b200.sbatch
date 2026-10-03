@@ -1,5 +1,7 @@
 #!/bin/bash
-# Submit from GPU_baseline/fused4:   sbatch job_interfere_ntt_b200.sbatch
+# Submit from GPU_baseline/fused4 of the clone:   cd GPU_baseline/fused4 && sbatch job_interfere_ntt_b200.sbatch
+# Victims: GPU-NTT merge, four-step SM lane (DRU design), four-step with SM transposes; aggressors: streaming,
+# SPU-like row-burst, sleep-only control; blocks sweep the aggressor bandwidth up to the SPU's ~20% share.
 #SBATCH -p b200-batch
 #SBATCH -N 1
 #SBATCH --gres=gpu:b200:1
@@ -18,5 +20,5 @@ nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 mkdir -p bin results
 "$NVCC" -O3 -std=c++17 -arch=sm_100 -I.. -I"$GPUNTT_INC" interfere_ntt.cu -L"$GPUNTT_LIB" -lntt-1.0 -o bin/interfere_ntt_sm100
 for lg in 22 24; do
-  ./bin/interfere_ntt_sm100 --logN $lg --batch 16 --blocks 16,32,64,128 --iters 10 > results/interfere_ntt_B200_$lg.csv
+  ./bin/interfere_ntt_sm100 --logN $lg --batch 16 --blocks 8,16,32,64,128,256,512 --iters 10 > results/interfere_ntt_B200_$lg.csv
 done
