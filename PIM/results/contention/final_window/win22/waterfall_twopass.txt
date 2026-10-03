@@ -1,0 +1,41 @@
+Waterfall, GPU baseline = paper's two-pass H' DPF. up to / geomean per panel; each step cumulative; delta = step / previous.
+
+L40S 40 Gbps: paper 3.19 / 2.54
+   0 paper as published                                        3.19 /  2.54
+   1 baseline NTT -> merge (SOTA)                              2.60 /  2.17   delta 0.814 / 0.858
+   2 PCG2 NTT -> four-step on GPU-NTT kernels (+DRU on B200)   3.37 /  2.52   delta 1.297 / 1.158
+   3a SPU lane: H' charged + LSU overlap (sim)                 3.15 /  2.54   delta 0.936 / 1.009
+   3b NTT lane: simulated, incl. DPF->NTT gather               3.15 /  2.54   delta 1.000 / 1.000
+   4 contention (co-sim)                                       3.03 /  2.50   delta 0.961 / 0.982
+   5 GPU baseline co-schedules the network                     3.03 /  2.48   delta 1.000 / 0.996
+   final vs paper: -5% / -2%   (step 0 reproduces the paper within -0.0% / -0.2%)
+
+L40S 400 Mbps: paper 3.38 / 2.61
+   0 paper as published                                        3.38 /  2.61
+   1 baseline NTT -> merge (SOTA)                              2.78 /  2.27   delta 0.823 / 0.867
+   2 PCG2 NTT -> four-step on GPU-NTT kernels (+DRU on B200)   3.46 /  2.63   delta 1.246 / 1.158
+   3a SPU lane: H' charged + LSU overlap (sim)                 3.24 /  2.62   delta 0.936 / 0.998
+   3b NTT lane: simulated, incl. DPF->NTT gather               3.24 /  2.62   delta 1.000 / 1.000
+   4 contention (co-sim)                                       3.12 /  2.58   delta 0.961 / 0.983
+   5 GPU baseline co-schedules the network                     3.03 /  2.13   delta 0.971 / 0.826
+   final vs paper: -10% / -19%   (step 0 reproduces the paper within -0.0% / +0.2%)
+
+B200 40 Gbps: paper 9.49 / 7.25
+   0 paper as published                                        9.49 /  7.25
+   1 baseline NTT -> merge (SOTA)                              9.02 /  6.89   delta 0.951 / 0.950
+   2 PCG2 NTT -> four-step on GPU-NTT kernels (+DRU on B200)   9.02 /  7.44   delta 1.000 / 1.081
+   3a SPU lane: H' charged + LSU overlap (sim)                 9.89 /  7.86   delta 1.096 / 1.056
+   3b NTT lane: simulated, incl. DPF->NTT gather               9.89 /  7.74   delta 1.000 / 0.984
+   4 contention (co-sim)                                       9.74 /  7.67   delta 0.986 / 0.990
+   5 GPU baseline co-schedules the network                     9.71 /  7.59   delta 0.996 / 0.990
+   final vs paper: +2% / +5%   (step 0 reproduces the paper within -0.0% / +0.1%)
+
+B200 400 Mbps: paper 5.93 / 3.49
+   0 paper as published                                        5.93 /  3.49
+   1 baseline NTT -> merge (SOTA)                              5.55 /  3.34   delta 0.936 / 0.958
+   2 PCG2 NTT -> four-step on GPU-NTT kernels (+DRU on B200)   6.24 /  3.55   delta 1.123 / 1.064
+   3a SPU lane: H' charged + LSU overlap (sim)                 6.24 /  3.56   delta 1.000 / 1.004
+   3b NTT lane: simulated, incl. DPF->NTT gather               6.10 /  3.52   delta 0.978 / 0.988
+   4 contention (co-sim)                                       6.05 /  3.51   delta 0.993 / 0.996
+   5 GPU baseline co-schedules the network                     5.28 /  2.73   delta 0.873 / 0.779
+   final vs paper: -11% / -22%   (step 0 reproduces the paper within +0.0% / -0.1%)
