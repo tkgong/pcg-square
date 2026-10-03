@@ -41,7 +41,7 @@ def report(run, org, label):
     g, gn, nb, us = [], [], 0, []
     for k in ks:
         a, b = R[("sq", "fast") + k], R[(DRU, "fast") + k]
-        A = parse(os.path.join(run, f"{org}_{k[0]}_{k[1]}_{k[2]}_sq_alone.out")); B = parse(os.path.join(run, f"{org}_{k[0]}_{k[1]}_{k[2]}_sqdru_alone.out"))
+        A = parse(os.path.join(run, f"{org}_{k[0]}_{k[1]}_{k[2]}_sq_alone.out")); B = parse(os.path.join(run, f"{org}_{k[0]}_{k[1]}_{k[2]}_{DRU}_alone.out"))
         ba, _ = bus(A, A["pipe0_finish_max"]); bb, bd = bus(B, B["pipe0_finish_max"]); u = bb + bd + spu_bus; us.append(u)
         bound = "NTT" if a["ntt_ms"] * a["ntt_slow"] > a["spu_ms"] * a["spu_slow"] else "SPU"; nb += bound == "NTT"
         ga, g0 = a["pcg_ms"] / b["pcg_ms"], a["pcg_nocont_ms"] / b["pcg_nocont_ms"]; g.append(ga); gn.append(g0)
@@ -74,7 +74,7 @@ if len(sys.argv) > 2:
         g = [R[("sq", "fast") + k]["pcg_ms"] / R[(DRU, "fast") + k]["pcg_ms"] for k in ks]
         nb = sum(R[("sq", "fast") + k]["ntt_ms"] * R[("sq", "fast") + k]["ntt_slow"] > R[("sq", "fast") + k]["spu_ms"] * R[("sq", "fast") + k]["spu_slow"] for k in ks)
         spu = parse(sorted(glob.glob(os.path.join(d, f"spu_{org}_*clk.out")))[-1]); sb = spu["CH0_pim_allbank_slot_cycles"] / spu["pim_done_cycles"]
-        A = parse(os.path.join(d, f"{org}_4_16_24_sq_alone.out")); B = parse(os.path.join(d, f"{org}_4_16_24_sqdru_alone.out"))
+        A = parse(os.path.join(d, f"{org}_4_16_24_sq_alone.out")); B = parse(os.path.join(d, f"{org}_4_16_24_{DRU}_alone.out"))
         ba, _ = bus(A, A["pipe0_finish_max"]); bb, bd = bus(B, B["pipe0_finish_max"])
         k = (4, 16, 24); lane = (R[(DRU, "fast") + k]["ntt_ms"] * R[(DRU, "fast") + k]["ntt_slow"]) / (R[("sq", "fast") + k]["ntt_ms"] * R[("sq", "fast") + k]["ntt_slow"])
         print(f"  {ch:8d} {gm(g):16.3f} {max(g):5.2f} {nb:4d}/{len(ks):<4d} | {ba:9.2f} {bb:8.2f} {bd:5.2f} {sb:5.2f} {bb+bd+sb:5.2f}              | {lane:17.3f}")
