@@ -1,0 +1,8 @@
+pid, process_name, used_gpu_memory [MiB]
+interfere_ntt.cu(210): warning #177-D: variable "cp" was declared but never referenced
+          float ms = 0, cp = 0;
+                        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+[2026-10-02T23:27:04.009] error: *** JOB 1166351 ON b0022 CANCELLED AT 2026-10-02T23:27:04 DUE TO TIME LIMIT ***
