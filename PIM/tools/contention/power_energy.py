@@ -17,7 +17,7 @@ with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 mach, pdir, out = sys.argv[1], sys.argv[2], sys.argv[3]; RUN = sys.argv[4] if len(sys.argv) > 4 else "win22"
-org, des, P_PIM, pcg_ntt = {"L40S": ("l40s", "f4dru", 2.87 + 24 * 0.00147, "f4g_sm"), "B200": ("b200", "f4dru", 30.99, "f4g_sm")}[mach]   # L40S: 192 SPUs + 24 DRUs
+org, des, P_PIM, pcg_ntt = {"L40S": ("l40s", "merge", 2.87 + 24 * 0.00147, "merge"), "B200": ("b200", "f4dru", 30.99, "f4g_sm")}[mach]   # L40S: 192 SPUs + 24 DRUs
 ts = lambda s: datetime.strptime(s.strip(), "%Y/%m/%d %H:%M:%S.%f").timestamp()
 trace = []
 for r in csv.reader(open(os.path.join(pdir, "power_trace.csv"))):

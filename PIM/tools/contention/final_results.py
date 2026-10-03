@@ -3,7 +3,8 @@
   GPU baseline = the submission's GPU implementation (DPF with the two-pass leaf conversion) + GPU-NTT merge
                  (SOTA NTT), with the network co-scheduled: T_base = max(T_GPU, T_net)
   PCG^2        = final design: expansion on the SPUs (SPU at the DRAM clock, H' on the SPU, LSU overlap), NTT =
-                 four-step on GPU-NTT kernels with the transposes on the DRU (both machines);
+                 four-step on GPU-NTT kernels with the transposes on the DRU on B200; on L40S the runtime selects
+                 merge (the DRU design moves 43% more bytes and GDDR6 is the limiter: 0.90x of merge there);
                  PCG^2 = max(SPU lane, NTT lane, network) with the co-simulated contention (22-multiply window).
   Table IV     = GPU baseline / +SPU (the same four-step with the transposes on the SMs, serial) / +SPU+DRU (serial)
                  / +SPU+co-sched / full; the DRU rows are the ablation inside the final design (e2e_f4sm.json).
@@ -18,7 +19,7 @@ with contextlib.redirect_stdout(io.StringIO()):
     from fig8 import BETA
 W, WC, OUT = sys.argv[1], sys.argv[2], sys.argv[3]; os.makedirs(OUT, exist_ok=True)
 LN = {"L40S": L_("L40S"), "B200": L_("B200")}
-DES = {"L40S": ("l40s", "f4dru"), "B200": ("b200", "f4dru")}
+DES = {"L40S": ("l40s", "merge"), "B200": ("b200", "f4dru")}
 PAPER = {"fast": {"L40S": ([2.43, 2.62, 3.19, 2.21, 2.10], 3.19, 2.54), "B200": ([5.01, 9.50, 6.86, 7.92, 7.78], 9.49, 7.25)},
          "slow": {"L40S": ([2.49, 2.98, 3.38, 2.38, 1.69], 3.38, 2.61), "B200": ([5.26, 4.90, 5.93, 2.11, 1.60], 5.93, 3.49)}}
 TIERS = (("fast", "40 Gbps"), ("slow", "400 Mbps"))
@@ -68,6 +69,9 @@ for mach in ("L40S", "B200"):
             f = F[k]; n = LN[mach][k]["n"]; nic = (n + 2) * (0.5 if amode == 500 else alpha_bw(k[0], k[1], BETA[amode]))
             T["GPU baseline"].append(max(m["gpu_ms"], nic)); T["+SPU"].append(m["spu_ms"] + m["ntt_ms"] + nic); T["+SPU+DRU"].append(f["spu_ms"] + f["ntt_ms"] + nic)
             T["+SPU+co-sched"].append(max(m["spu_ms"] * m["spu_slow"], m["ntt_ms"] * m["ntt_slow"], nic)); T["full (DRU on)"].append(max(f["spu_ms"] * f["spu_slow"], f["ntt_ms"] * f["ntt_slow"], nic))
+        if mach == "L40S":   # runtime picks merge on L40S: the final row is merge co-scheduled (from e2e_nom.json)
+            MM = {(r["c"], r["t"], r["logN"]): r for r in rows(f"{W}/e2e_nom.json", mach, "merge")}
+            T["final (L40S: merge selected)"] = [max(MM[k]["spu_ms"] * MM[k]["spu_slow"], MM[k]["ntt_ms"] * MM[k]["ntt_slow"], (LN[mach][k]["n"] + 2) * (0.5 if amode == 500 else alpha_bw(k[0], k[1], BETA[amode]))) for k in M]
         g = {k: gm(v) for k, v in T.items()}
         L.append(f"  {mach} {alab:14s}: " + "; ".join(f"{k} {v:.1f} ({g['GPU baseline']/v:.2f}x)" for k, v in g.items())
                  + f" | increments: SPU {g['GPU baseline']/g['+SPU']:.2f}, DRU serial {g['+SPU']/g['+SPU+DRU']:.3f}, co-scheduling {g['+SPU']/g['+SPU+co-sched']:.2f}, DRU co-scheduled {g['+SPU+co-sched']/g['full (DRU on)']:.3f}")

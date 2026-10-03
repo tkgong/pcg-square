@@ -16,7 +16,7 @@ L40S board power per phase (W; nvml = energy counter / time, smi = nvidia-smi me
   ntt_merge_lg24_b16      287.4  (smi; smi  287.4)
   ntt_merge_lg24_b64      283.9  (smi; smi  283.9)
   ntt_f4gsm_lg22_b16      321.7  (smi; smi  321.7)
-SPU = DRAM clock 40 Gbps : energy ratio baseline/PCG^2 per (c,t) 2.75 4.85 3.87 7.13 7.22 | up to 7.22 geomean 4.59 | PCG^2 mean system power 176 W
-SPU = DRAM clock 400 Mbps: energy ratio baseline/PCG^2 per (c,t) 2.75 4.85 3.87 4.93 2.78 | up to 4.93 geomean 3.76 | PCG^2 mean system power 175 W
-SPU 1 GHz        40 Gbps : energy ratio baseline/PCG^2 per (c,t) 2.39 3.16 2.90 3.78 3.64 | up to 3.78 geomean 3.06 | PCG^2 mean system power 119 W
-SPU 1 GHz        400 Mbps: energy ratio baseline/PCG^2 per (c,t) 2.39 3.16 2.90 3.51 2.64 | up to 3.51 geomean 2.89 | PCG^2 mean system power 119 W
+SPU = DRAM clock 40 Gbps : energy ratio baseline/PCG^2 per (c,t) 2.79 4.99 3.91 7.56 7.42 | up to 7.56 geomean 4.71 | PCG^2 mean system power 177 W
+SPU = DRAM clock 400 Mbps: energy ratio baseline/PCG^2 per (c,t) 2.79 4.99 3.91 5.15 2.80 | up to 5.15 geomean 3.84 | PCG^2 mean system power 176 W
+SPU 1 GHz        40 Gbps : energy ratio baseline/PCG^2 per (c,t) 2.39 3.21 2.94 3.87 3.69 | up to 3.87 geomean 3.10 | PCG^2 mean system power 118 W
+SPU 1 GHz        400 Mbps: energy ratio baseline/PCG^2 per (c,t) 2.39 3.21 2.94 3.58 2.67 | up to 3.58 geomean 2.93 | PCG^2 mean system power 118 W

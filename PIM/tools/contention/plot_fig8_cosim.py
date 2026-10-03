@@ -2,7 +2,7 @@
 """Fig. 8 of the paper, redrawn from the end-to-end co-simulation (e2e_window.py rows).
 Same plotting code (PIM/tools/plot_bw_bars.py): bars = GPU baseline and PCG^2 runtime
 (geomean over N = 2^20..2^24, hatched if fewer than five N), lines = speedup, title =
-geomean speedup over all cells. DRU on both machines. GPU baseline = the
+geomean speedup over all cells. B200 with the DRU, L40S with merge (runtime choice). GPU baseline = the
 submission's DPF + merge NTT with the network co-scheduled: max(T_GPU, T_net).
 
     plot_fig8_cosim.py E2E_JSON OUT
@@ -25,7 +25,7 @@ def data(path):
     D, GEO = {}, {}
     for tier in ("fast", "slow"):
         D[tier], GEO[tier] = {}, {}
-        for M, org, des in (("L40S", "l40s", "f4dru"), ("B200", "b200", "f4dru")):
+        for M, org, des in (("L40S", "l40s", "merge"), ("B200", "b200", "f4dru")):
             cells, allsp = [], []
             for (c, t) in P.CFG:
                 rr = [r for r in R if r["org"] == org and r["design"] == des and r["tier"] == tier and r["c"] == c and r["t"] == t]
