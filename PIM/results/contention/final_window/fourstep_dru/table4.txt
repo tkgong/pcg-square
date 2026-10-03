@@ -1,0 +1,48 @@
+L40S, alpha = 500 us (Table IV), 22 cells, geomean ms (speedup vs SOTA GPU baseline):
+   GPU (SOTA merge NTT)        582.6 ms     1.00x
+   GPU (paper square NTT)      681.3 ms     0.86x
+   +SPU                        424.9 ms     1.37x
+   +SPU+DRU                    404.3 ms     1.44x   [ideal DRU 370.0]
+   +SPU+co-sched               308.8 ms     1.89x
+   full                        293.2 ms     1.99x   [ideal DRU 271.7]
+   DRU increment: serial 1.051 [ideal 1.148], co-scheduled 1.053 [ideal 1.136]; co-scheduling 1.379
+L40S, 40 Gbps (Fig. 8 tier), 22 cells, geomean ms (speedup vs SOTA GPU baseline):
+   GPU (SOTA merge NTT)        570.2 ms     1.00x
+   GPU (paper square NTT)      668.7 ms     0.85x
+   +SPU                        412.3 ms     1.38x
+   +SPU+DRU                    392.0 ms     1.45x   [ideal DRU 357.7]
+   +SPU+co-sched               308.8 ms     1.85x
+   full                        293.2 ms     1.94x   [ideal DRU 271.7]
+   DRU increment: serial 1.052 [ideal 1.153], co-scheduled 1.053 [ideal 1.136]; co-scheduling 1.337
+L40S, 400 Mbps, 22 cells, geomean ms (speedup vs SOTA GPU baseline):
+   GPU (SOTA merge NTT)        767.8 ms     1.00x
+   GPU (paper square NTT)      889.8 ms     0.86x
+   +SPU                        626.4 ms     1.23x
+   +SPU+DRU                    597.3 ms     1.29x   [ideal DRU 551.0]
+   +SPU+co-sched               395.9 ms     1.94x
+   full                        376.0 ms     2.04x   [ideal DRU 348.6]
+   DRU increment: serial 1.049 [ideal 1.137], co-scheduled 1.053 [ideal 1.136]; co-scheduling 1.589
+B200, alpha = 500 us (Table IV), 25 cells, geomean ms (speedup vs SOTA GPU baseline):
+   GPU (SOTA merge NTT)        290.7 ms     1.00x
+   GPU (paper square NTT)      306.8 ms     0.95x
+   +SPU                         87.9 ms     3.31x
+   +SPU+DRU                     80.2 ms     3.62x   [ideal DRU 78.9]
+   +SPU+co-sched                55.2 ms     5.27x
+   full                         48.6 ms     5.98x   [ideal DRU 47.0]
+   DRU increment: serial 1.095 [ideal 1.113], co-scheduled 1.134 [ideal 1.173]; co-scheduling 1.650
+B200, 40 Gbps (Fig. 8 tier), 25 cells, geomean ms (speedup vs SOTA GPU baseline):
+   GPU (SOTA merge NTT)        279.1 ms     1.00x
+   GPU (paper square NTT)      295.2 ms     0.95x
+   +SPU                         76.2 ms     3.66x
+   +SPU+DRU                     68.6 ms     4.07x   [ideal DRU 67.4]
+   +SPU+co-sched                53.9 ms     5.17x
+   full                         47.0 ms     5.94x   [ideal DRU 45.4]
+   DRU increment: serial 1.110 [ideal 1.131], co-scheduled 1.147 [ideal 1.188]; co-scheduling 1.460
+B200, 400 Mbps, 25 cells, geomean ms (speedup vs SOTA GPU baseline):
+   GPU (SOTA merge NTT)        472.7 ms     1.00x
+   GPU (paper square NTT)      495.2 ms     0.95x
+   +SPU                        249.0 ms     1.90x
+   +SPU+DRU                    233.4 ms     2.03x   [ideal DRU 230.7]
+   +SPU+co-sched               174.2 ms     2.71x
+   full                        159.8 ms     2.96x   [ideal DRU 156.4]
+   DRU increment: serial 1.067 [ideal 1.079], co-scheduled 1.090 [ideal 1.114]; co-scheduling 1.461
