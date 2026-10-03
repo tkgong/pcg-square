@@ -1,0 +1,3 @@
+
+B200: PCG^2 with the four-step on the SMs (sq) vs transposes+brev on the DRU (sqdru); SPU bus share 0.21
+  cell           NTT lane sq x slow    sqdru x slow SPU lane | bus: sq SM sqdru SM  +DRU     u | bound | DRU gain no-cont

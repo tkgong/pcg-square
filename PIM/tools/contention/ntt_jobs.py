@@ -48,7 +48,7 @@ def ntt_table(dev):
 # interference curve of GPU_baseline/fused4 interfere_ntt, both with this kernel model.
 #   merge : W=48 R=16 -> standalone +5.2% (logN 22) / +2.7% (24), interference rms 0.053
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
-PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "sq": (48, 16), "sqdru": (48, 16)}
+PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16)}
 
 
 # The submission's own NTT: the square four-step (poly_mul_gpuntt_square.cu, standalone bit-reversal), measured per
@@ -71,6 +71,7 @@ def sq_table(dev):
 def mul_ms(dev, design, logN, batch):
     """measured per-multiply NTT time the lane is sized from (sqdru: the SM side only, the DRU runs in parallel)"""
     if design in ("merge", "f4dru"): return ntt_table(dev)[(logN, batch)][0 if design == "merge" else 1]
+    if design == "sqdruh": design = "sqdru"
     tot, st = sq_table(dev)[(logN, batch)]; ssum = sum(st.values())
     return tot * (1.0 if design == "sq" else (ssum - st["transpose"] - st["brev"]) / ssum)
 
@@ -89,11 +90,15 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
     ck = lambda ms: int(round(ms * 1e6 / d["tck"] * scale))
     by = lambda b: int(round(b * N / d["ch"] * scale * frac))
     byd = lambda b: int(round(b * N / d["ch"] * scale))      # DRU transposes: data not in L2
-    if design in ("sq", "sqdru"):
+    if design in ("sq", "sqdru", "sqdruh"):
         tot, st = sq_table(dev)[(logN, batch)]; f = tot / sum(st.values())      # stage floors scaled to the per-mul total
         K = lambda ms, nb=16: (0, 1, by(nb), 0.5, window, gap, run, 16384, ck(ms * f))
         if design == "sq":
             T = lambda: K(st["transpose"] / 6); B = lambda: K(st["brev"] / 6)
+        elif design == "sqdruh":
+            # conservative DRU: its transposes go through the ordinary bank scheduler as a host stream of class 3
+            # (below the GPU in priority): they pay ACT/PRE, row misses and read/write turnarounds like GPU traffic
+            T = lambda: (1, 3, byd(16), 0.5, window, 0, run, 32768, 0); B = T
         else:
             T = lambda: (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768, 0); B = T
         X = lambda: [T(), B(), K(st["ntt"] / 6), K(st["twiddle"] / 3), T(), B(), K(st["ntt"] / 6)]
