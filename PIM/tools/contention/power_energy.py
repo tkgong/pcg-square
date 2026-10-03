@@ -6,7 +6,7 @@ Fig. 8 cell, plus the synthesised PIM power charged for the WHOLE PCG^2 run (L40
   PCG^2     E = P_ntt' T_ntt' + P_idle (T_pcg - T_ntt') + P_pim T_pcg               (the GPU runs only its NTT lane)
 P_ntt' = merge on L40S (no DRU), the four-step SM lane f4g_sm on B200. Phase power = NVML energy counter / phase
 time when the run recorded it, else the nvidia-smi mean over [start+1 s, end-0.5 s].
-Usage: power_energy.py L40S|B200 POWER_DIR OUT_FILE [RUN=win22]"""
+Usage: power_energy.py L40S|B200 POWER_DIR OUT_FILE [RUN=win22] [PIM_MULT=1]   (PIM_MULT scales the PIM power, e.g. 2 = sensitivity)"""
 import csv, io, contextlib, json, os, re, sys
 from datetime import datetime
 from math import exp, log
@@ -15,7 +15,9 @@ with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 mach, pdir, out = sys.argv[1], sys.argv[2], sys.argv[3]; RUN = sys.argv[4] if len(sys.argv) > 4 else "win22"
+PIM_MULT = float(sys.argv[5]) if len(sys.argv) > 5 else 1.0
 org, des, P_PIM, pcg_ntt = {"L40S": ("l40s", "merge", 2.87, "merge"), "B200": ("b200", "f4dru", 30.99, "f4g_sm")}[mach]
+P_PIM *= PIM_MULT
 ts = lambda s: datetime.strptime(s.strip(), "%Y/%m/%d %H:%M:%S.%f").timestamp()
 trace = []
 for r in csv.reader(open(os.path.join(pdir, "power_trace.csv"))):
@@ -30,7 +32,7 @@ for r in csv.DictReader(open(os.path.join(pdir, "phases.csv"))):
     if en not in ("NA", "", None): P[r["phase"]], src[r["phase"]] = float(en) / 1e3 / (e - s), "nvml"
     else: P[r["phase"]], src[r["phase"]] = smi, "smi"
     P[r["phase"] + "_smi"] = smi
-lines = [f"{mach} board power per phase (W; nvml = energy counter / time, smi = nvidia-smi mean):"]
+lines = [f"{mach} board power per phase (W; nvml = energy counter / time, smi = nvidia-smi mean); PIM power {P_PIM:.2f} W (x{PIM_MULT:g} of the synthesised value):"]
 lines += [f"  {k:22s} {v:6.1f}  ({src[k]}; smi {P[k + '_smi']:6.1f})" for k, v in P.items() if not k.endswith("_smi")]
 P_idle = P["idle_context"]
 def p_ntt(what, lg, b):

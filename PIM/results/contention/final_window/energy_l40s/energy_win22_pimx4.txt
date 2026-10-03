@@ -1,0 +1,22 @@
+L40S board power per phase (W; nvml = energy counter / time, smi = nvidia-smi mean); PIM power 11.48 W (x4 of the synthesised value):
+  idle_nocontext           32.7  (smi; smi   32.7)
+  idle_context             76.6  (smi; smi   76.6)
+  dpf_c8t4                266.4  (smi; smi  266.4)
+  dpf_c4t16               307.3  (smi; smi  307.3)
+  dpf_c8t8                300.4  (smi; smi  300.4)
+  dpf_c2t64               323.3  (smi; smi  323.3)
+  dpf_c2t128              308.8  (smi; smi  308.8)
+  ntt_merge_lg20_b4       347.3  (smi; smi  347.3)
+  ntt_merge_lg20_b16      345.8  (smi; smi  345.8)
+  ntt_merge_lg20_b64      346.8  (smi; smi  346.8)
+  ntt_merge_lg22_b4       340.7  (smi; smi  340.7)
+  ntt_merge_lg22_b16      339.6  (smi; smi  339.6)
+  ntt_merge_lg22_b64      340.2  (smi; smi  340.2)
+  ntt_merge_lg24_b4       285.9  (smi; smi  285.9)
+  ntt_merge_lg24_b16      287.4  (smi; smi  287.4)
+  ntt_merge_lg24_b64      283.9  (smi; smi  283.9)
+  ntt_f4gsm_lg22_b16      321.7  (smi; smi  321.7)
+SPU = DRAM clock 40 Gbps : energy ratio baseline/PCG^2 per (c,t) 2.62 4.44 3.60 6.31 6.31 | up to 6.31 geomean 4.20 | vs network-overlapping baseline 6.30/4.19 | PCG^2 mean system power 186 W
+SPU = DRAM clock 400 Mbps: energy ratio baseline/PCG^2 per (c,t) 2.64 4.63 3.67 4.93 2.88 | up to 4.93 geomean 3.66 | vs network-overlapping baseline 4.44/3.44 | PCG^2 mean system power 184 W
+SPU 1 GHz        40 Gbps : energy ratio baseline/PCG^2 per (c,t) 2.20 2.80 2.64 3.20 3.12 | up to 3.20 geomean 2.72 | vs network-overlapping baseline 3.20/2.72 | PCG^2 mean system power 127 W
+SPU 1 GHz        400 Mbps: energy ratio baseline/PCG^2 per (c,t) 2.22 2.92 2.69 3.41 2.74 | up to 3.41 geomean 2.75 | vs network-overlapping baseline 2.98/2.57 | PCG^2 mean system power 127 W
