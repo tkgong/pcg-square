@@ -1,0 +1,42 @@
+L40S, alpha = 500 us (Table IV), 22 cells, geomean ms (speedup vs GPU baseline):
+   GPU baseline        582.6 ms     1.00x
+   +SPU                315.6 ms     1.85x
+   +SPU+DRU            317.4 ms     1.84x
+   +SPU+co-sched       242.2 ms     2.41x
+   full                246.3 ms     2.37x
+   increments: SPU 1.85, DRU serial 0.994, co-scheduling 1.30, DRU co-scheduled 0.983
+L40S, 40 Gbps, 22 cells, geomean ms (speedup vs GPU baseline):
+   GPU baseline        570.2 ms     1.00x
+   +SPU                303.4 ms     1.88x
+   +SPU+DRU            305.3 ms     1.87x
+   +SPU+co-sched       242.2 ms     2.35x
+   full                246.3 ms     2.31x
+   increments: SPU 1.88, DRU serial 0.994, co-scheduling 1.25, DRU co-scheduled 0.983
+L40S, 400 Mbps, 22 cells, geomean ms (speedup vs GPU baseline):
+   GPU baseline        767.8 ms     1.00x
+   +SPU                479.0 ms     1.60x
+   +SPU+DRU            480.4 ms     1.60x
+   +SPU+co-sched       310.9 ms     2.47x
+   full                316.2 ms     2.43x
+   increments: SPU 1.60, DRU serial 0.997, co-scheduling 1.54, DRU co-scheduled 0.983
+B200, alpha = 500 us (Table IV), 25 cells, geomean ms (speedup vs GPU baseline):
+   GPU baseline        290.7 ms     1.00x
+   +SPU                 73.8 ms     3.94x
+   +SPU+DRU             73.4 ms     3.96x
+   +SPU+co-sched        42.4 ms     6.86x
+   full                 41.8 ms     6.95x
+   increments: SPU 3.94, DRU serial 1.005, co-scheduling 1.74, DRU co-scheduled 1.014
+B200, 40 Gbps, 25 cells, geomean ms (speedup vs GPU baseline):
+   GPU baseline        279.1 ms     1.00x
+   +SPU                 62.2 ms     4.49x
+   +SPU+DRU             61.8 ms     4.52x
+   +SPU+co-sched        40.7 ms     6.85x
+   full                 40.2 ms     6.95x
+   increments: SPU 4.49, DRU serial 1.006, co-scheduling 1.53, DRU co-scheduled 1.014
+B200, 400 Mbps, 25 cells, geomean ms (speedup vs GPU baseline):
+   GPU baseline        472.7 ms     1.00x
+   +SPU                221.1 ms     2.14x
+   +SPU+DRU            220.0 ms     2.15x
+   +SPU+co-sched       145.6 ms     3.25x
+   full                144.0 ms     3.28x
+   increments: SPU 2.14, DRU serial 1.005, co-scheduling 1.52, DRU co-scheduled 1.011
