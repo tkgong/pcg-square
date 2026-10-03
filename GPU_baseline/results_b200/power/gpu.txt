@@ -1,0 +1,5 @@
+name, driver_version, power.limit [W], power.max_limit [W], clocks.max.sm [MHz], clocks.max.memory [MHz]
+NVIDIA B200, 595.71.05, 1000.00 W, 1000.00 W, 1965 MHz, 3996 MHz
+other processes on GPU 0 at start:
+pid, used_gpu_memory [MiB]
+NVML energy counter at start (mJ): 515359820985

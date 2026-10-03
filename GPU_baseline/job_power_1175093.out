@@ -1,0 +1,76 @@
+job=1175093 node=b0025
+b0025
+2026-10-03T15:30:36-04:00
+commit: a04cc045b9ea0e472e486896d006779f5bc8b7ed  branch: contention-cosim
+     JOBID           USER                     NAME    STATE CPUS TRES_PER_NODE
+   1162088      dvdai_mit     guidance-b128-resume  RUNNING   33 gres/gpu:b200:2
+ 1174219_1    keya_hu_mit              search_g000  RUNNING   64 gres/gpu:4
+   1166295 jundawang_umas        mas-score-team-v1  RUNNING   16 N/A
+   1175093   gong_ten_neu           pcg-power-b200  RUNNING    8 gres/gpu:b200:1
+index, name, driver_version, power.draw [W], power.limit [W], memory.used [MiB], utilization.gpu [%]
+0, NVIDIA B200, 595.71.05, 188.75 W, 1000.00 W, 0 MiB, 0 %
+pynvml OK
+/usr/bin/dcgmi
+dcgmi present
+[dev ] NVIDIA B200  arch=sm_100  nvcc=/home/gong_ten_neu/opt/cuda-13.0/bin/nvcc  commit=a04cc04
+  [idle_nocontext] 10.0 s energy 1881662 mJ
+  [idle_context] 11.7 s energy 2746201 mJ
+  [dpf_c8t4] 12.6 s energy 5989394 mJ
+  [dpf_c4t16] 11.4 s energy 7262804 mJ
+  [dpf_c8t8] 13.3 s energy 7085365 mJ
+  [dpf_c2t64] 11.5 s energy 7860965 mJ
+  [dpf_c2t128] 14.0 s energy 8674483 mJ
+  [ntt_merge_lg20_b4] 12.3 s energy 6713319 mJ
+  [ntt_merge_lg20_b16] 12.5 s energy 7867073 mJ
+  [ntt_merge_lg20_b64] 14.9 s energy 8438247 mJ
+  [ntt_merge_lg22_b4] 12.9 s energy 8042744 mJ
+  [ntt_merge_lg22_b16] 15.6 s energy 8738833 mJ
+  [ntt_merge_lg22_b64] 13.0 s energy 8228835 mJ
+  [ntt_merge_lg24_b4] 17.5 s energy 8757188 mJ
+  [ntt_merge_lg24_b16] 15.1 s energy 8378433 mJ
+  [ntt_merge_lg24_b64] 17.9 s energy 9190422 mJ
+  [ntt_f4g_sm_lg20_b4] 11.9 s energy 6255859 mJ
+  [ntt_f4g_sm_lg20_b16] 14.7 s energy 7227372 mJ
+  [ntt_f4g_sm_lg20_b64] 12.6 s energy 6862389 mJ
+  [ntt_f4g_sm_lg22_b4] 14.5 s energy 7830652 mJ
+  [ntt_f4g_sm_lg22_b16] 12.3 s energy 7473256 mJ
+  [ntt_f4g_sm_lg22_b64] 14.6 s energy 8008515 mJ
+  [ntt_f4g_sm_lg24_b4] 12.5 s energy 7563745 mJ
+  [ntt_f4g_sm_lg24_b16] 14.8 s energy 8092140 mJ
+  [ntt_f4g_sm_lg24_b64] 12.3 s energy 7909240 mJ
+[done] /home/gong_ten_neu/pcg-square-cosim/GPU_baseline/results_b200/power
+runner exit=1
+total 283
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    549 Oct  3 15:32 dpf_c2t128.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    549 Oct  3 15:32 dpf_c2t128_probe.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    546 Oct  3 15:32 dpf_c2t64.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    546 Oct  3 15:32 dpf_c2t64_probe.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    545 Oct  3 15:31 dpf_c4t16.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    545 Oct  3 15:31 dpf_c4t16_probe.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    542 Oct  3 15:31 dpf_c8t4.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    542 Oct  3 15:31 dpf_c8t4_probe.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    542 Oct  3 15:31 dpf_c8t8.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    542 Oct  3 15:31 dpf_c8t8_probe.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu    280 Oct  3 15:30 gpu.txt
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     21 Oct  3 15:31 idle_context.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu      0 Oct  3 15:30 idle_nocontext.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     32 Oct  3 15:35 ntt_f4g_sm_lg20_b16.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     31 Oct  3 15:34 ntt_f4g_sm_lg20_b4.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     32 Oct  3 15:35 ntt_f4g_sm_lg20_b64.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     32 Oct  3 15:35 ntt_f4g_sm_lg22_b16.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     31 Oct  3 15:35 ntt_f4g_sm_lg22_b4.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     32 Oct  3 15:36 ntt_f4g_sm_lg22_b64.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     31 Oct  3 15:36 ntt_f4g_sm_lg24_b16.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     30 Oct  3 15:36 ntt_f4g_sm_lg24_b4.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     31 Oct  3 15:36 ntt_f4g_sm_lg24_b64.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     31 Oct  3 15:32 ntt_merge_lg20_b16.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     30 Oct  3 15:32 ntt_merge_lg20_b4.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     31 Oct  3 15:33 ntt_merge_lg20_b64.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     31 Oct  3 15:33 ntt_merge_lg22_b16.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     30 Oct  3 15:33 ntt_merge_lg22_b4.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     31 Oct  3 15:33 ntt_merge_lg22_b64.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     30 Oct  3 15:34 ntt_merge_lg24_b16.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     29 Oct  3 15:34 ntt_merge_lg24_b4.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu     30 Oct  3 15:34 ntt_merge_lg24_b64.log
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu   2168 Oct  3 15:36 phases.csv
+-rw-r--r-- 1 gong_ten_neu gong_ten_neu 266608 Oct  3 15:36 power_trace.csv
