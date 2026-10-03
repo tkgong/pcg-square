@@ -40,7 +40,7 @@ FIELDS="timestamp,power.draw,power.draw.instant,clocks.sm,clocks.mem,utilization
 nvidia-smi -i "$GPU" --query-gpu=$FIELDS --format=csv,noheader >/dev/null 2>&1 || FIELDS="timestamp,power.draw,clocks.sm,clocks.mem,utilization.gpu,temperature.gpu"
 echo "$FIELDS" > "$OUT/power_trace.csv"
 nvidia-smi -i "$GPU" --query-gpu=$FIELDS --format=csv,noheader -lms 100 >> "$OUT/power_trace.csv" &
-SMI=$!; trap 'kill $SMI 2>/dev/null' EXIT
+SMI=$!; trap 'kill $SMI 2>/dev/null || true' EXIT
 PH="$OUT/phases.csv"; echo "phase,start,end,energy_mJ,note" > "$PH"
 phase() {   # phase <name> <note> <cmd...>
   local name=$1 note=$2; shift 2

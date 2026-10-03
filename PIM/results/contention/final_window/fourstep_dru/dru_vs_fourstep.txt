@@ -57,3 +57,12 @@ L40S: PCG^2 with the four-step on the SMs (sq) vs transposes+brev on the DRU (sq
   geomean DRU gain 1.136 (range 0.97-1.47), without contention 1.128; NTT-bound cells 10/22; u 0.75-1.13
   Table IV-style (40 Gbps), geomean PCG^2 time relative to +SPU serial: +SPU (serial) 1.000; +SPU+DRU (serial) 0.867; +SPU+co-sched 0.749; full (+DRU, co-sched) 0.659 | DRU increment: serial 1.153, co-scheduled 1.136
   Table IV-style (400 Mbps), geomean PCG^2 time relative to +SPU serial: +SPU (serial) 1.000; +SPU+DRU (serial) 0.880; +SPU+co-sched 0.632; full (+DRU, co-sched) 0.556 | DRU increment: serial 1.137, co-scheduled 1.136
+
+Channel sweep, four-step with vs without the DRU (B200 HBM3e timing, 8 SPUs per channel):
+  channels DRU gain geomean   max NTT-bound | sq SM bus sqdru SM  +DRU   SPU     u ((4,16) 2^24) | NTT lane sqdru/sq
+        48            1.109  1.50   10/25   |      0.68     0.52  0.44  0.21  1.17              |             0.642
+        96            1.129  1.44   10/25   |      0.52     0.40  0.31  0.21  0.92              |             0.684
+       128            1.149  1.46   10/25   |      0.44     0.33  0.25  0.21  0.79              |             0.708
+       192            1.142  1.37   15/25   |      0.33     0.25  0.17  0.21  0.63              |             0.727
+       256            1.188  1.38   15/25   |      0.25     0.20  0.13  0.21  0.54              |             0.753
+       512            1.185  1.36   15/25   |      0.14     0.12  0.07  0.21  0.39              |             0.762
