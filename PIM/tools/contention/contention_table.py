@@ -13,6 +13,11 @@ def parse(p):
 TCK = {"b200": 0.5, "l40s": 0.444}
 W = sys.argv[1]
 CELLS = [a.split(":") for a in sys.argv[2:]] or [("b200", "4_16_24", "B200 (4,16) 2^24"), ("l40s", "4_16_22", "L40S (4,16) 2^22")]
+if sys.argv[2:] == ["all"]:   # every cell of the suite, compact one-line form
+    CELLS = []
+    for r in json.load(open(f"{W}/e2e.json")):
+        if r["tier"] == "fast" and r["design"] == "merge": CELLS.append((r["org"], f'{r["c"]}_{r["t"]}_{r["logN"]}', f'{r["org"].upper()} ({r["c"]},{r["t"]}) 2^{r["logN"]}'))
+    CELLS.sort()
 
 
 def cols(d):
@@ -21,8 +26,21 @@ def cols(d):
     return d.get("CH0_gpu_bus_cycles", 0), d.get("CH0_pim_allbank_slot_cycles", 0), dru * 2
 
 
+COMPACT = sys.argv[2:] == ["all"]
+if COMPACT:
+    print("Every cell, final design (B200 four-step + DRU, L40S merge). Bus occupancy GPU-only -> co-run: GPU | SPU | DRU; GPU queueing p99 alone -> co-run (ns); slowdowns; which lane bounds PCG^2")
+    print(f"  {'cell':20s} {'GPU bus':>13s} {'SPU':>5s} {'DRU':>5s} | {'GPU q p99':>13s} | {'SPU x':>6s} {'NTT x':>6s} | bound")
 for org, cell, lab in CELLS:
     tck = TCK[org]
+    if COMPACT:
+        des = "f4dru" if org == "b200" else "merge"
+        R = {r["design"]: r for r in json.load(open(f"{W}/e2e.json")) if r["org"] == org and r["tier"] == "fast" and f'{r["c"]}_{r["t"]}_{r["logN"]}' == cell}
+        A = parse(f"{W}/{org}_{cell}_{des}_alone.out"); C = parse(f"{W}/{org}_{cell}_{des}.out"); r = R[des]
+        g, _, u = cols(A); ga, ua = g / A["pipe0_finish_max"], u / A["pipe0_finish_max"]
+        g, _, u = cols(C); gc, uc = g / C["pipe0_finish_max"], u / C["pipe0_finish_max"]; sb = C.get("CH0_pim_allbank_slot_cycles", 0) / C["pim_done_cycles"]
+        bound = "NTT" if r["ntt_ms"] * r["ntt_slow"] > r["spu_ms"] * r["spu_slow"] else "SPU"
+        print(f"  {lab:20s} {ga:5.2f} -> {gc:4.2f} {sb:5.2f} {uc:5.2f} | {A.get('CH0_gpu_q_p99',0)*tck:5.0f} -> {C.get('CH0_gpu_q_p99',0)*tck:5.0f} | {r['spu_slow']:6.3f} {r['ntt_slow']:6.3f} | {bound}")
+        continue
     R = {r["design"]: r for r in json.load(open(f"{W}/e2e.json")) if r["org"] == org and r["tier"] == "fast" and f'{r["c"]}_{r["t"]}_{r["logN"]}' == cell}
     import glob; spu = parse(sorted(glob.glob(f"{W}/spu_{org}_*clk.out"))[-1]); pq0 = spu["CH0_pim_q_mean"] * tck
     print(f"\n{lab}: per-channel data-bus occupancy over each unit's own active span; GPU queueing = arrival -> first command (ns)")

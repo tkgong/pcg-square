@@ -20,6 +20,9 @@ POLICIES = {
 ap = argparse.ArgumentParser(); ap.add_argument("--sim", required=True); ap.add_argument("--run", required=True); ap.add_argument("--out", required=True)
 ap.add_argument("--cells", default="b200:4_16_24:f4dru,b200:4_16_24:merge,l40s:4_16_22:merge"); ap.add_argument("--jobs", type=int, default=24)
 a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
+if a.cells == "all":   # every cell of the suite with the final design
+    import json
+    a.cells = ",".join(sorted({f'{r["org"]}:{r["c"]}_{r["t"]}_{r["logN"]}:{"f4dru" if r["org"] == "b200" else "merge"}' for r in json.load(open(os.path.join(a.run, "e2e.json"))) if r["tier"] == "fast"}))
 def parse(p): return {m.group(1): float(m.group(2)) for m in re.finditer(r"^\s*([A-Za-z0-9_]+):\s*(-?[0-9.eE+]+)", open(p).read(), re.M)}
 work = []
 for cell in a.cells.split(","):
@@ -46,4 +49,17 @@ for cell in a.cells.split(","):
             lines.append(f"  {name:72s} LIVELOCK: the controller's watchdog fired (reads wait behind posted writes that never reach the drain watermark)"); continue
         lines.append(f"  {name:72s} SPU x{r['pim_done_cycles']/spu['pim_done_cycles']:.3f} | NTT x{r['pipe0_finish_max']/alone['pipe0_finish_max']:.3f} | "
                      f"{r.get('CH0_gpu_q_mean',0)*tck:5.0f}/{r.get('CH0_gpu_q_p99',0)*tck:6.0f} | {r.get('CH0_gpu_rdlat_p99',0)*tck:6.0f} | {r.get('CH0_pim_q_mean',0)*tck:6.0f}")
+# per-policy geomean over all cells (SPU / NTT slowdown), plus the NTT-bound subset
+from math import exp, log
+def gm(v): v = list(v); return exp(sum(map(log, v)) / len(v)) if v else float("nan")
+agg = {}
+for (o, cc, d, name, out, args), r in R:
+    if "pim_done_cycles" not in r: continue
+    spu = parse(sorted(glob.glob(os.path.join(a.run, f"spu_{o}_*clk.out")))[-1]); alone = parse(os.path.join(a.run, f"{o}_{cc}_{d}_alone.out"))
+    agg.setdefault((o, name), []).append((r["pim_done_cycles"] / spu["pim_done_cycles"], r["pipe0_finish_max"] / alone["pipe0_finish_max"]))
+lines.append("\nGeomean over all cells, SPU slowdown / NTT slowdown (max over cells in brackets):")
+for (o, name), v in sorted(agg.items()):
+    lines.append(f"  {o.upper()} {name:72s} SPU x{gm(x for x, _ in v):.3f} [{max(x for x, _ in v):.3f}] | NTT x{gm(y for _, y in v):.3f} [{max(y for _, y in v):.3f}]  ({len(v)} cells)")
+for (o, name) in [k for k in agg if k[1].startswith("final:")]:
+    pass
 open(os.path.join(a.out, "summary.txt"), "w").write("\n".join(lines) + "\n"); print("\n".join(lines))
