@@ -28,7 +28,7 @@ def sim(args, out):
 def standalone(W, R):   # per-mul ms at logN 22 / 24, batch 16 vs silicon
     err = []
     for lg in (22, 24):
-        tm, ts = ntt_table("l40s")[(lg, 16)]
+        tm, ts = ntt_table("l40s")[(lg, 16)][:2]
         target = tm if a.design == "merge" else ts
         muls = 8; sc = 1.5e6 / (muls * target * 1e6 / DEV["l40s"]["tck"])
         ph = phases("l40s", a.design, lg, 16, scale=sc, window=W, run=R)
@@ -42,7 +42,7 @@ def curve(W, R):
     """Victim = the same kernel pipeline (with compute floors) as the standalone check,
     next to the aggressor stream; slowdown vs its own standalone time, x = aggressor
     bandwidth while the victim ran."""
-    lg = 22; tm, ts = ntt_table("l40s")[(lg, 16)]; target = tm if a.design == "merge" else ts
+    lg = 22; tm, ts = ntt_table("l40s")[(lg, 16)][:2]; target = tm if a.design == "merge" else ts
     muls = 8; sc = 1.5e6 / (muls * target * 1e6 / DEV["l40s"]["tck"])
     ph = phases("l40s", a.design, lg, 16, scale=sc, window=W, run=R)
     if a.design == "f4dru": ph = [p for p in ph if p[0] == 0]

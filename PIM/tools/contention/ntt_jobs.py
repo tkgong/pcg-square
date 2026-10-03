@@ -21,12 +21,13 @@ for _ch in (48, 96, 128, 192, 512):
 def base(dev):
     """measured device a derived org inherits its tables from"""
     return dev.split("_")[0]
-# B200: AICR job on fused4-dru a392780 (merge_ms, f4g_sm_ms per multiply, min of 3 reps)
-_B200 = {(20, 4): (.1291, .1251), (20, 16): (.1251, .1213), (20, 64): (.1234, .1203),
-         (21, 4): (.2650, .2625), (21, 16): (.2594, .2567), (21, 64): (.2578, .2556),
-         (22, 4): (.5463, .5369), (22, 16): (.5390, .5311), (22, 64): (.5368, .5291),
-         (23, 4): (1.1297, 1.1074), (23, 16): (1.1232, 1.1023), (23, 64): (1.1210, 1.1002),
-         (24, 4): (2.4100, 2.2850), (24, 16): (2.4015, 2.2766), (24, 64): (2.4008, 2.2769)}
+# B200: AICR job on fused4-dru a392780 (per multiply, min of 3 reps): merge_ms, f4g_sm_ms (four-step on GPU-NTT kernels,
+# SM lane only = the DRU design's SM time), f4g_full_ms (the same four-step with the transposes on the SMs)
+_B200 = {(20, 4): (.1291, .1251, .1422), (20, 16): (.1251, .1213, .1409), (20, 64): (.1234, .1203, .1383),
+         (21, 4): (.2650, .2625, .3012), (21, 16): (.2594, .2567, .2939), (21, 64): (.2578, .2556, .2911),
+         (22, 4): (.5463, .5369, .6155), (22, 16): (.5390, .5311, .6038), (22, 64): (.5368, .5291, .6002),
+         (23, 4): (1.1297, 1.1074, 1.2583), (23, 16): (1.1232, 1.1023, 1.2477), (23, 64): (1.1210, 1.1002, 1.2442),
+         (24, 4): (2.4100, 2.2850, 2.5838), (24, 16): (2.4015, 2.2766, 2.5695), (24, 64): (2.4008, 2.2769, 2.5678)}
 
 
 def ntt_table(dev):
@@ -37,9 +38,9 @@ def ntt_table(dev):
     rows = csv.DictReader([lines[0]] + [l for l in lines if not l.startswith(("gpu,", "#"))])
     t = {}
     for r in rows:
-        k = (int(r["logN"]), int(r["batch"])); m, s = float(r["merge_ms_mul"]), float(r["f4g_sm_ms_mul"])
+        k = (int(r["logN"]), int(r["batch"])); m, s, f = float(r["merge_ms_mul"]), float(r["f4g_sm_ms_mul"]), float(r["f4g_full_ms_mul"])
         if s <= 0: continue
-        o = t.get(k); t[k] = (min(m, o[0]), min(s, o[1])) if o else (m, s)
+        o = t.get(k); t[k] = (min(m, o[0]), min(s, o[1]), min(f, o[2])) if o else (m, s, f)
     return t
 
 
@@ -48,7 +49,7 @@ def ntt_table(dev):
 # interference curve of GPU_baseline/fused4 interfere_ntt, both with this kernel model.
 #   merge : W=48 R=16 -> standalone +5.2% (logN 22) / +2.7% (24), interference rms 0.053
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
-PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16)}
+PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16)}
 
 
 # The submission's own NTT: the square four-step (poly_mul_gpuntt_square.cu, standalone bit-reversal), measured per
@@ -70,7 +71,7 @@ def sq_table(dev):
 
 def mul_ms(dev, design, logN, batch):
     """measured per-multiply NTT time the lane is sized from (sqdru: the SM side only, the DRU runs in parallel)"""
-    if design in ("merge", "f4dru"): return ntt_table(dev)[(logN, batch)][0 if design == "merge" else 1]
+    if design in ("merge", "f4dru", "f4sm"): return ntt_table(dev)[(logN, batch)][{"merge": 0, "f4dru": 1, "f4sm": 2}[design]]
     if design == "sqdruh": design = "sqdru"
     tot, st = sq_table(dev)[(logN, batch)]; ssum = sum(st.values())
     return tot * (1.0 if design == "sq" else (ssum - st["transpose"] - st["brev"]) / ssum)
@@ -86,7 +87,7 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
     window = window or PATTERN[design][0]; run = run or PATTERN[design][1]
     if frac is None:
         frac = DRAM_FRACTION.get(f"{base(dev)}/{design}/{logN}/{batch}", 1.0)
-    d = DEV[dev]; N = 1 << logN; tm, ts = ntt_table(dev)[(logN, batch)]
+    d = DEV[dev]; N = 1 << logN; tm, ts = ntt_table(dev)[(logN, batch)][:2]
     ck = lambda ms: int(round(ms * 1e6 / d["tck"] * scale))
     by = lambda b: int(round(b * N / d["ch"] * scale * frac))
     byd = lambda b: int(round(b * N / d["ch"] * scale))      # DRU transposes: data not in L2
@@ -111,7 +112,12 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
         MPW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tm * 24 / 168))
         return [MK(), MK(), MK(), MK(), MK(), MK(), MPW, MK(), MK(), MK()]
     K = lambda: (0, 1, by(20), 0.6, window, gap, run, 16384, ck(ts * 20 / 144))
-    T = lambda: (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768, 0)
+    if design == "f4sm":
+        # the same four-step with the six transposes on the SMs: measured f4g_full - f4g_sm is their SM time
+        tf = ntt_table(dev)[(logN, batch)][2]
+        T = lambda: (0, 1, byd(16), 0.5, window, gap, run, 32768, ck((tf - ts) / 6))
+    else:
+        T = lambda: (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768, 0)
     PW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(ts * 24 / 144))
     return [T(), K(), T(), K(), T(), K(), T(), K(), PW, K(), T(), K(), T()]
 

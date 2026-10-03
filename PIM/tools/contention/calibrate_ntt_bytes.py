@@ -15,7 +15,7 @@ a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
 eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
 MULS = 8
 def t_sim(dev, design, lg, b, f):
-    tm, ts = ntt_table(dev)[(lg, b)]; target = tm if design == "merge" else ts
+    tm, ts = ntt_table(dev)[(lg, b)][:2]; target = tm if design == "merge" else ts
     sc = 1.5e6 / (MULS * target * 1e6 / DEV[dev]["tck"])
     ph = phases(dev, design, lg, b, scale=sc, frac=f)
     if design == "f4dru": ph = [p for p in ph if p[0] == 0]         # SM lane (silicon f4g_sm)
