@@ -15,7 +15,7 @@ with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 P_PIM = 2.87                                   # W, 192 SPUs x 14.95 mW (Sec. VI-C)
-pdir, out = sys.argv[1], sys.argv[2]
+pdir, out = sys.argv[1], sys.argv[2]; RUN = sys.argv[3] if len(sys.argv) > 3 else "overlap_simlane"
 ts = lambda s: datetime.strptime(s.strip(), "%Y/%m/%d %H:%M:%S.%f").timestamp()
 trace = [(ts(r[0]), float(r[1].replace(" W", ""))) for r in csv.reader(open(os.path.join(pdir, "power_trace.csv"))) if len(r) >= 2 and "W" in r[1]]
 P = {}
@@ -35,7 +35,7 @@ for l in open(os.path.join(REPO, "GPU_baseline/results_l40s/e2e_single_hash_all_
     if m: new_l[(int(m[1]), int(m[2]), int(m[3]))] = (float(m[4]) + float(m[5]) + float(m[6])) * 1.026
 LN = L_("L40S")
 for clk, tag in (("SPU = DRAM clock", "nom"), ("SPU 1 GHz", "1.0")):
-    R = json.load(open(os.path.join(REPO, f"PIM/results/contention/final_window/overlap_simlane/e2e_{tag}.json")))
+    R = json.load(open(os.path.join(REPO, f"PIM/results/contention/final_window/{RUN}/e2e_{tag}.json")))
     for tier, lab in (("fast", "40 Gbps"), ("slow", "400 Mbps")):
         per, cells, perv, cellsv, pw = [], [], [], [], []
         for (c, t) in CFG:

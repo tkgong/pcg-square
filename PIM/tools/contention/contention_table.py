@@ -24,7 +24,7 @@ def cols(d):
 for org, cell, lab in CELLS:
     tck = TCK[org]
     R = {r["design"]: r for r in json.load(open(f"{W}/e2e.json")) if r["org"] == org and r["tier"] == "fast" and f'{r["c"]}_{r["t"]}_{r["logN"]}' == cell}
-    spu = parse(f"{W}/spu_{org}_clk.out"); pq0 = spu["CH0_pim_q_mean"] * tck
+    import glob; spu = parse(sorted(glob.glob(f"{W}/spu_{org}_*clk.out"))[-1]); pq0 = spu["CH0_pim_q_mean"] * tck
     print(f"\n{lab}: per-channel data-bus occupancy over each unit's own active span; GPU queueing = arrival -> first command (ns)")
     print(f"  {'config':28s} {'GPU':>5s} {'SPU':>5s} {'DRU':>5s} | {'GPU q mean/p95/p99':>19s} | {'GPU rdlat mean/p99':>18s} | {'SPU q vs alone':>14s} | GPU row conflicts | slowdown")
 
