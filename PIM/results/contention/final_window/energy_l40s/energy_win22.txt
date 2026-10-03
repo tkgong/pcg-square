@@ -1,21 +1,21 @@
-Measured L40S board power (W, mean over each phase):
-  idle_nocontext           32.7
-  idle_context             76.6
-  dpf_c8t4                266.4
-  dpf_c4t16               307.3
-  dpf_c8t8                300.4
-  dpf_c2t64               323.3
-  dpf_c2t128              308.8
-  ntt_merge_lg20_b4       347.3
-  ntt_merge_lg20_b16      345.8
-  ntt_merge_lg20_b64      346.8
-  ntt_merge_lg22_b4       340.7
-  ntt_merge_lg22_b16      339.6
-  ntt_merge_lg22_b64      340.2
-  ntt_merge_lg24_b4       285.9
-  ntt_merge_lg24_b16      287.4
-  ntt_merge_lg24_b64      283.9
-  ntt_f4gsm_lg22_b16      321.7
+L40S board power per phase (W; nvml = energy counter / time, smi = nvidia-smi mean):
+  idle_nocontext           32.7  (smi; smi   32.7)
+  idle_context             76.6  (smi; smi   76.6)
+  dpf_c8t4                266.4  (smi; smi  266.4)
+  dpf_c4t16               307.3  (smi; smi  307.3)
+  dpf_c8t8                300.4  (smi; smi  300.4)
+  dpf_c2t64               323.3  (smi; smi  323.3)
+  dpf_c2t128              308.8  (smi; smi  308.8)
+  ntt_merge_lg20_b4       347.3  (smi; smi  347.3)
+  ntt_merge_lg20_b16      345.8  (smi; smi  345.8)
+  ntt_merge_lg20_b64      346.8  (smi; smi  346.8)
+  ntt_merge_lg22_b4       340.7  (smi; smi  340.7)
+  ntt_merge_lg22_b16      339.6  (smi; smi  339.6)
+  ntt_merge_lg22_b64      340.2  (smi; smi  340.2)
+  ntt_merge_lg24_b4       285.9  (smi; smi  285.9)
+  ntt_merge_lg24_b16      287.4  (smi; smi  287.4)
+  ntt_merge_lg24_b64      283.9  (smi; smi  283.9)
+  ntt_f4gsm_lg22_b16      321.7  (smi; smi  321.7)
 SPU = DRAM clock 40 Gbps : energy ratio baseline/PCG^2 per (c,t) 2.70 4.71 3.75 6.88 6.93 | up to 6.93 geomean 4.45 | vs network-overlapping baseline 6.89/4.44 | PCG^2 mean system power 177 W
 SPU = DRAM clock 400 Mbps: energy ratio baseline/PCG^2 per (c,t) 2.72 4.91 3.82 5.40 3.18 | up to 5.40 geomean 3.89 | vs network-overlapping baseline 4.71/3.64 | PCG^2 mean system power 176 W
 SPU 1 GHz        40 Gbps : energy ratio baseline/PCG^2 per (c,t) 2.32 3.03 2.82 3.53 3.45 | up to 3.53 geomean 2.93 | vs network-overlapping baseline 3.52/2.93 | PCG^2 mean system power 118 W
