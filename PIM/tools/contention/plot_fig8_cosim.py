@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Fig. 8 of the paper, redrawn from the end-to-end co-simulation (e2e_cosim.py).
+"""Fig. 8 of the paper, redrawn from the end-to-end co-simulation (e2e_window.py rows).
 Same plotting code (PIM/tools/plot_bw_bars.py): bars = GPU baseline and PCG^2 runtime
 (geomean over N = 2^20..2^24, hatched if fewer than five N), lines = speedup, title =
-geomean speedup over all cells. L40S without DRU, B200 with DRU.
+geomean speedup over all cells. L40S without DRU, B200 with DRU. GPU baseline = the
+submission's DPF + merge NTT with the network co-scheduled: max(T_GPU, T_net).
 
-    plot_fig8_cosim.py RUN_DIR BASELINE OUT      BASELINE = sota | paper
+    plot_fig8_cosim.py E2E_JSON OUT
 """
 import io, contextlib, json, os, sys
 from math import exp, log
@@ -19,9 +20,8 @@ def gm(v):
     v = list(v); return exp(sum(map(log, v)) / len(v))
 
 
-def data(run_dir, baseline):
-    R = json.load(open(os.path.join(run_dir, "e2e.json")))
-    LN = {"L40S": L_("L40S"), "B200": L_("B200")}
+def data(path):
+    R = json.load(open(path))
     D, GEO = {}, {}
     for tier in ("fast", "slow"):
         D[tier], GEO[tier] = {}, {}
@@ -29,15 +29,8 @@ def data(run_dir, baseline):
             cells, allsp = [], []
             for (c, t) in P.CFG:
                 rr = [r for r in R if r["org"] == org and r["design"] == des and r["tier"] == tier and r["c"] == c and r["t"] == t]
-                # e2e_window.py rows carry pcg_ms / base_serial_ms; e2e_cosim.py rows both_ms / base_ms
-                pcg = [r["pcg_ms"] if "pcg_ms" in r else max(r["both_ms"], r["nic_ms"]) for r in rr]
-                if "pcg_ms" in rr[0]:
-                    base = [r["base_paper_ms"] if baseline == "paper" else
-                            (r["base_overlap_ms"] if baseline == "overlap" else r["base_serial_ms"]) for r in rr]
-                elif baseline == "paper":
-                    base = [LN[M][(c, t, r["logN"])]["gpu_dpf_g"] + LN[M][(c, t, r["logN"])]["ntt_dev"] + r["nic_ms"] for r in rr]
-                else:
-                    base = [r["base_ms"] for r in rr]
+                pcg = [r["pcg_ms"] for r in rr]
+                base = [max(r["gpu_ms"], r["nic_ms"]) for r in rr]
                 sp = [b / p for b, p in zip(base, pcg)]
                 cells.append((round(gm(base), 1), round(gm(pcg), 1), round(gm(sp), 2)))
                 allsp += sp
@@ -57,8 +50,8 @@ def _patch_labels():
 
 
 if __name__ == "__main__":
-    run_dir, baseline, out = sys.argv[1], sys.argv[2], sys.argv[3]
-    P.D, P.GEO = data(run_dir, baseline)
+    path, out = sys.argv[1], sys.argv[2]
+    P.D, P.GEO = data(path)
     _patch_labels()          # after D/GEO are set: the patched main reads them from its copied namespace
     for tier in ("fast", "slow"):
         for M in ("L40S", "B200"):

@@ -1,0 +1,30 @@
+B200 board power per phase (W; nvml = energy counter / time, smi = nvidia-smi mean); PIM power 30.99 W:
+  idle_nocontext          188.1  (nvml; smi  188.3)
+  idle_context            235.4  (nvml; smi  236.3)
+  dpf_c8t4                477.0  (nvml; smi  506.6)
+  dpf_c4t16               636.0  (nvml; smi  656.3)
+  dpf_c8t8                534.0  (nvml; smi  568.3)
+  dpf_c2t64               682.0  (nvml; smi  706.1)
+  dpf_c2t128              618.8  (nvml; smi  659.4)
+  ntt_merge_lg20_b4       543.7  (nvml; smi  555.4)
+  ntt_merge_lg20_b16      629.8  (nvml; smi  677.1)
+  ntt_merge_lg20_b64      567.9  (nvml; smi  574.6)
+  ntt_merge_lg22_b4       623.2  (nvml; smi  667.2)
+  ntt_merge_lg22_b16      558.8  (nvml; smi  576.8)
+  ntt_merge_lg22_b64      634.2  (nvml; smi  673.6)
+  ntt_merge_lg24_b4       501.4  (nvml; smi  500.5)
+  ntt_merge_lg24_b16      554.5  (nvml; smi  583.3)
+  ntt_merge_lg24_b64      512.2  (nvml; smi  511.8)
+  ntt_f4g_sm_lg20_b4      523.9  (nvml; smi  550.2)
+  ntt_f4g_sm_lg20_b16     490.4  (nvml; smi  494.5)
+  ntt_f4g_sm_lg20_b64     545.4  (nvml; smi  582.7)
+  ntt_f4g_sm_lg22_b4      540.5  (nvml; smi  545.3)
+  ntt_f4g_sm_lg22_b16     608.8  (nvml; smi  650.6)
+  ntt_f4g_sm_lg22_b64     548.7  (nvml; smi  553.6)
+  ntt_f4g_sm_lg24_b4      605.3  (nvml; smi  649.4)
+  ntt_f4g_sm_lg24_b16     545.1  (nvml; smi  551.8)
+  ntt_f4g_sm_lg24_b64     642.1  (nvml; smi  662.4)
+SPU = DRAM clock 40 Gbps : energy ratio baseline/PCG^2 per (c,t) 4.26 11.30 6.53 16.61 16.49 | up to 16.61 geomean 9.70 | PCG^2 mean system power 481 W
+SPU = DRAM clock 400 Mbps: energy ratio baseline/PCG^2 per (c,t) 4.26 5.69 5.40 2.71 1.74 | up to 5.69 geomean 3.61 | PCG^2 mean system power 422 W
+SPU 1 GHz        40 Gbps : energy ratio baseline/PCG^2 per (c,t) 3.93 7.83 6.03 9.65 9.13 | up to 9.65 geomean 6.96 | PCG^2 mean system power 422 W
+SPU 1 GHz        400 Mbps: energy ratio baseline/PCG^2 per (c,t) 3.93 5.08 5.21 2.71 1.74 | up to 5.21 geomean 3.45 | PCG^2 mean system power 397 W

@@ -11,7 +11,7 @@ R0 = load(ref)
 def headline(R, org, des, tier):
     per = []; allv = []
     for c, t in CFG:
-        v = [r["base_serial_ms"] / r["pcg_ms"] for k, r in R.items() if k[:5] == (org, des, tier, c, t)]
+        v = [max(r["gpu_ms"], r["nic_ms"]) / r["pcg_ms"] for k, r in R.items() if k[:5] == (org, des, tier, c, t)]
         per.append(gm(v)); allv += v
     return max(per), gm(allv)
 for d in [ref] + runs:

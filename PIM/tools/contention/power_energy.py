@@ -2,11 +2,13 @@
 """System energy (reviewer D): measured GPU board power per phase (run_power.sh) times the lane times of every
 Fig. 8 cell, plus the synthesised PIM power charged for the WHOLE PCG^2 run (L40S 2.87 W = 192 SPUs; B200 30.99 W
 = 2,048 SPUs + 256 DRUs), with the GPU's context-idle power also charged to PCG^2 while the SPUs work.
-  baseline  E = P_dpf(c,t) T_dpf + P_merge(logN, c^2) T_ntt + P_idle T_net          (network serial, Fig. 8 accounting)
+Same accounting as every other result: GPU baseline = the submission's DPF (two-pass H') + merge NTT with the
+network co-scheduled (idle power only for the network time not hidden under compute).
+  baseline  E = P_dpf(c,t) T_dpf + P_merge(logN, c^2) T_ntt + P_idle max(0, T_net - T_dpf - T_ntt)
   PCG^2     E = P_ntt' T_ntt' + P_idle (T_pcg - T_ntt') + P_pim T_pcg               (the GPU runs only its NTT lane)
 P_ntt' = merge on L40S (no DRU), the four-step SM lane f4g_sm on B200. Phase power = NVML energy counter / phase
 time when the run recorded it, else the nvidia-smi mean over [start+1 s, end-0.5 s].
-Usage: power_energy.py L40S|B200 POWER_DIR OUT_FILE [RUN=win22] [PIM_MULT=1]   (PIM_MULT scales the PIM power, e.g. 2 = sensitivity)"""
+Usage: power_energy.py L40S|B200 POWER_DIR OUT_FILE [RUN=win22]"""
 import csv, io, contextlib, json, os, re, sys
 from datetime import datetime
 from math import exp, log
@@ -15,9 +17,7 @@ with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 mach, pdir, out = sys.argv[1], sys.argv[2], sys.argv[3]; RUN = sys.argv[4] if len(sys.argv) > 4 else "win22"
-PIM_MULT = float(sys.argv[5]) if len(sys.argv) > 5 else 1.0
 org, des, P_PIM, pcg_ntt = {"L40S": ("l40s", "merge", 2.87, "merge"), "B200": ("b200", "f4dru", 30.99, "f4g_sm")}[mach]
-P_PIM *= PIM_MULT
 ts = lambda s: datetime.strptime(s.strip(), "%Y/%m/%d %H:%M:%S.%f").timestamp()
 trace = []
 for r in csv.reader(open(os.path.join(pdir, "power_trace.csv"))):
@@ -32,7 +32,7 @@ for r in csv.DictReader(open(os.path.join(pdir, "phases.csv"))):
     if en not in ("NA", "", None): P[r["phase"]], src[r["phase"]] = float(en) / 1e3 / (e - s), "nvml"
     else: P[r["phase"]], src[r["phase"]] = smi, "smi"
     P[r["phase"] + "_smi"] = smi
-lines = [f"{mach} board power per phase (W; nvml = energy counter / time, smi = nvidia-smi mean); PIM power {P_PIM:.2f} W (x{PIM_MULT:g} of the synthesised value):"]
+lines = [f"{mach} board power per phase (W; nvml = energy counter / time, smi = nvidia-smi mean); PIM power {P_PIM:.2f} W:"]
 lines += [f"  {k:22s} {v:6.1f}  ({src[k]}; smi {P[k + '_smi']:6.1f})" for k, v in P.items() if not k.endswith("_smi")]
 P_idle = P["idle_context"]
 def p_ntt(what, lg, b):
@@ -41,35 +41,23 @@ def p_ntt(what, lg, b):
     return a if lo == hi else a + (c - a) * (lg - lo) / (hi - lo)
 if not any(k.startswith("ntt_f4g_sm") for k in P): pcg_ntt = "merge"
 LN = L_(mach)
-if mach == "L40S":
-    new = {}
-    for l in open(os.path.join(REPO, "GPU_baseline/results_l40s/e2e_single_hash_all_arms_L40S.txt")):
-        m = re.match(r"c=(\d+) t=(\d+) logN=(\d+) arm=serial : expand=([\d.]+) convert=([\d.]+) beaver=([\d.]+)", l)
-        if m: new[(int(m[1]), int(m[2]), int(m[3]))] = (float(m[4]) + float(m[5]) + float(m[6])) * 1.026
-    dpf = lambda k: new.get(k)
-else:
-    ab = {}
-    for r in csv.DictReader(open(os.path.join(REPO, "GPU_baseline/results_b200/single_hash_ab/e2e_single_hash_ab.csv"))):
-        if r["status"] == "OK" and r["arm"] == "serial" and r["rtt_us"] == "5":
-            ab.setdefault((int(r["c"]), int(r["t"]), int(r["logN"])), {})[r["mode"]] = float(r["expand_ms"]) + float(r["convert_ms"])
-    dpf = lambda k: LN[k]["gpu_dpf_g"] * ab[k]["singlehash"] / ab[k]["twopass"]
+dpf = lambda k: LN[k]["gpu_dpf_g"]
 for clk, tag in (("SPU = DRAM clock", "nom"), ("SPU 1 GHz", "1.0")):
     R = json.load(open(os.path.join(REPO, f"PIM/results/contention/final_window/{RUN}/e2e_{tag}.json")))
     for tier, lab in (("fast", "40 Gbps"), ("slow", "400 Mbps")):
         per, cells, perv, cellsv, pw = [], [], [], [], []
         for (c, t) in CFG:
-            v, vv = [], []
+            v = []
             for r in R:
                 if not (r["org"] == org and r["design"] == des and r["tier"] == tier and r["c"] == c and r["t"] == t): continue
                 k = (c, t, r["logN"]); d = dpf(k)
                 if d is None: continue
                 T_ntt, T_net, T_pcg, T_nttp = r["gpu_ms"] - LN[k]["gpu_dpf_g"], r["nic_ms"], r["pcg_ms"], r["ntt_ms"] * r["ntt_slow"]
                 Pm, Pp, Pd = p_ntt("merge", r["logN"], c * c), p_ntt(pcg_ntt, r["logN"], c * c), P[f"dpf_c{c}t{t}"]
-                E_base = Pd * d + Pm * T_ntt + P_idle * T_net
-                E_basev = Pd * d + Pm * T_ntt + P_idle * max(0.0, T_net - d - T_ntt)
+                E_base = Pd * d + Pm * T_ntt + P_idle * max(0.0, T_net - d - T_ntt)
                 E_pcg = Pp * T_nttp + P_idle * (T_pcg - T_nttp) + P_PIM * T_pcg
-                v.append(E_base / E_pcg); vv.append(E_basev / E_pcg); pw.append(E_pcg / T_pcg)
-            per.append(gm(v)); cells += v; perv.append(gm(vv)); cellsv += vv
+                v.append(E_base / E_pcg); pw.append(E_pcg / T_pcg)
+            per.append(gm(v)); cells += v
         lines.append(f"{clk:16s} {lab:8s}: energy ratio baseline/PCG^2 per (c,t) " + " ".join(f"{x:.2f}" for x in per)
-                     + f" | up to {max(per):.2f} geomean {gm(cells):.2f} | vs network-overlapping baseline {max(perv):.2f}/{gm(cellsv):.2f} | PCG^2 mean system power {sum(pw)/len(pw):.0f} W")
+                     + f" | up to {max(per):.2f} geomean {gm(cells):.2f} | PCG^2 mean system power {sum(pw)/len(pw):.0f} W")
 open(out, "w").write("\n".join(lines) + "\n"); print("\n".join(lines))

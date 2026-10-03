@@ -1,22 +1,16 @@
-# End-to-end co-simulation, steady-state window (e2e_window.py)
+# End-to-end results (one accounting)
 
-Per Fig. 8 cell: PCG^2 = max(SPU lane x SPU slowdown, NTT lane x NTT slowdown, NIC),
-slowdowns from one SPU-trace window co-run with an NTT kernel pipeline sized to the
-cell's lane ratio (kernels >= 20k CK, a size the standalone validation reproduces).
-GPU kernels carry measured compute floors; DRU transposes use the repo's DRU tap.
-Baseline "serial-net" = GPU DPF + GPU-NTT merge + network (paper's accounting),
-"overlap-net" = max(GPU DPF + merge, network) (reviewer D), "paper" = square NTT.
+GPU baseline = the submission's GPU implementation (DPF with the two-pass leaf conversion) + GPU-NTT merge
+(the SOTA NTT), with the network co-scheduled: T_base = max(T_GPU, T_net).
+PCG^2 = expansion on the SPUs (SPU at the DRAM clock, per-leaf H' on the SPU, LSU overlap), NTT = four-step on
+GPU-NTT kernels with the transposes on the DRU (B200) / merge (L40S, DRU off by the rule);
+PCG^2 = max(SPU lane, NTT lane, network) with the co-simulated contention (e2e_window.py, 22-multiply window).
 
-* `summary_*.txt`, `e2e_*.json`, `fig8/`:  fpu_gate_issue=true (the campaign's serial PU:
-  no load/compute/store overlap), SPU lane = paper anchor scaled by T(clock)/T(nominal).
-* `overlap/`: fpu_gate_issue=false = the LSU overlap described in Sec. IV (next op's loads
-  and the previous op's stores proceed while the FPU computes; compute still serialises
-  on the one FPU per bank pair). SPU lane = paper anchor scaled.
-* `overlap_simlane/`: as overlap, but the SPU lane is taken from the simulation itself
-  (--reduce chacha: expand + per-leaf ChaCha8 hash H' + mod-p on the SPU; ceil(I/NSPU)
-  instances per SPU). The paper's anchor (718,660 CK) matches --reduce mau (leaf hash not
-  charged to the SPU), so this lane is the one consistent with Sec. IV.
-
-SPU ALU bound: 2 SIMD ALUs x 8 lanes, dual issue; 2 ChaCha8 blocks per leaf (expand + H')
-= 38.8 SPU cycles per leaf. L40S (192 SPUs): 11.1 G leaves/s at 2.25 GHz, 4.95 at 1 GHz;
-the L40S GPU baseline does 3.7-9.8 G leaves/s, so at 1 GHz the geomean bound is ~1.0-1.2x.
+* `final/results.txt`   Fig. 8 (all SPU clocks, single ALU), mechanism decomposition, Table IV, DRU increment,
+                        window-size check.  `final/fig8/` the figures.  `final/attribution_vs_paper.txt` the step
+                        by step diff from the submission's numbers.  `final/energy_*.txt` system energy from the
+                        measured board power.  `final/contention_table.txt` per-channel occupancy and queueing.
+* `win22/`              the raw co-simulation rows per cell (e2e_<clock>.json, e2e_1alu.json).
+* `fourstep_dru/`       the DRU against the submission's own four-step NTT (ideal and conservative DRU models),
+                        NTT-vs-NTT, channel sweep.  `channel_sweep/`, `ntt_vs_ntt/` the same for the final NTT.
+* `window_check/`       1x/2x/4x windows.

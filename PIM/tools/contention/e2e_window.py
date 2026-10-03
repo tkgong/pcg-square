@@ -180,7 +180,7 @@ def main():
                              base_serial_ms=gpu + nic, base_overlap_ms=max(gpu, nic),
                              base_paper_ms=cd["L"]["gpu_dpf_g"] + cd["L"]["ntt_dev"] + nic))
     json.dump(rows, open(os.path.join(a.out, "e2e.json"), "w"), indent=1)
-    print(f"clock={a.clock}  (best (c,t) / geomean over all cells; SOTA baseline = GPU DPF + merge NTT)")
+    print(f"clock={a.clock}  (best (c,t) / geomean over all cells; GPU baseline = DPF + merge NTT, network co-scheduled)")
     for org in orgs:
         for tier in ("fast", "slow"):
             for d in a.designs.split(","):

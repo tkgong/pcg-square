@@ -1,4 +1,0 @@
-single-ALU SPU at the DRAM clock, 22-mul window, single-hash baseline: L40S fast 1.72/1.37
-single-ALU SPU at the DRAM clock, 22-mul window, single-hash baseline: L40S slow 1.77/1.63
-single-ALU SPU at the DRAM clock, 22-mul window, single-hash baseline: B200 fast 6.19/4.83
-single-ALU SPU at the DRAM clock, 22-mul window, single-hash baseline: B200 slow 5.44/3.11
