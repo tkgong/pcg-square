@@ -1,0 +1,7 @@
+REAL-KERNEL DPF+convert  n=21 B=16 t=4 w=1 prg=chacha8  leaves=33554432  gN=4194304  checksum=1e7df715b3939648
+  tier=phase-wall (cudaEvent; use nsys for kernel-only):
+  expand (hash+expand kernels + CW D2H/H2D)   :    1.724 ms  0.0514 ns/leaf
+  out_sums   (per-leaf ChaCha8 H' + mod-P)    :    0.568 ms  0.0169 ns/leaf
+  out_scatter (y=C+tau?CW + negacyclic fold)  :    1.955 ms  0.0583 ns/leaf
+  TOTAL DPF+convert                           :    4.247 ms  0.1266 ns/leaf
+  network: rtt=0.0 us  exchanges=21  exposed=0.000 ms (0.0% of TOTAL)
