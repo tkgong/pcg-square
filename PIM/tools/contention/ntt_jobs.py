@@ -14,6 +14,13 @@ Bytes and floors are per real channel (device bytes / channels) times `scale`.
 import csv, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEV = {"l40s": dict(ch=24, tck=0.444), "b200": dict(ch=256, tck=0.500)}
+# Channel-count sweep (Q7): B200's HBM3e channels/timing/kernels with a hypothetical channel count;
+# bytes per channel scale with 256/ch, kernel compute floors stay (same SMs), SPUs = 8 per channel.
+for _ch in (48, 96, 128, 192, 512):
+    DEV[f"b200_ch{_ch}"] = dict(ch=_ch, tck=0.500)
+def base(dev):
+    """measured device a derived org inherits its tables from"""
+    return dev.split("_")[0]
 # B200: AICR job on fused4-dru a392780 (merge_ms, f4g_sm_ms per multiply, min of 3 reps)
 _B200 = {(20, 4): (.1291, .1251), (20, 16): (.1251, .1213), (20, 64): (.1234, .1203),
          (21, 4): (.2650, .2625), (21, 16): (.2594, .2567), (21, 64): (.2578, .2556),
@@ -23,6 +30,7 @@ _B200 = {(20, 4): (.1291, .1251), (20, 16): (.1251, .1213), (20, 64): (.1234, .1
 
 
 def ntt_table(dev):
+    dev = base(dev)
     if dev == "b200":
         return dict(_B200)
     lines = open(os.path.join(HERE, "ntt_l40s_fused4.csv")).read().splitlines()
@@ -52,7 +60,7 @@ DRAM_FRACTION = __import__("json").load(open(_BS_PATH)) if os.path.exists(_BS_PA
 def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dru_window=64, frac=None):
     window = window or PATTERN[design][0]; run = run or PATTERN[design][1]
     if frac is None:
-        frac = DRAM_FRACTION.get(f"{dev}/{design}/{logN}/{batch}", 1.0)
+        frac = DRAM_FRACTION.get(f"{base(dev)}/{design}/{logN}/{batch}", 1.0)
     d = DEV[dev]; N = 1 << logN; tm, ts = ntt_table(dev)[(logN, batch)]
     ck = lambda ms: int(round(ms * 1e6 / d["tck"] * scale))
     by = lambda b: int(round(b * N / d["ch"] * scale * frac))

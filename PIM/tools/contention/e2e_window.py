@@ -17,14 +17,15 @@ Usage: e2e_window.py --sim BIN --out DIR [--clock nom|1.0|0.5] [--gather --spu-p
 import argparse, concurrent.futures as cf, io, contextlib, json, math, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "e2e"))
-from ntt_jobs import DEV, ntt_table, phases, write_jobs
+from ntt_jobs import DEV, base, ntt_table, phases, write_jobs
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, LOGN, alpha_bw, gm
     from fig8 import BETA
 PIM = os.path.dirname(os.path.dirname(HERE))
 GEN = os.path.join(PIM, "tools", "gen_dpf_tree_trace.py")
 YAML = {"l40s": os.path.join(PIM, "sim/test/gddr6_dpf_24ch.yaml"), "b200": os.path.join(PIM, "sim/test/hbm3e_dpf_b200d.yaml")}
-FNOM = {"l40s": 2.25, "b200": 2.0}; MACH = {"l40s": "L40S", "b200": "B200"}; NSPU = {"l40s": 192, "b200": 2048}
+FNOM = {"l40s": 2.25, "b200": 2.0}; MACH = {"l40s": "L40S", "b200": "B200"}
+NSPU = {o: 8 * d["ch"] for o, d in DEV.items()}          # 8 SPUs per channel (192 on L40S, 2048 on B200)
 KERNEL_MIN_CK = 20000
 
 
@@ -62,26 +63,26 @@ def main():
             "-p", "MemorySystem.Controller.pim_row_wait=0", "-p", "MemorySystem.Controller.class_priority=0,1,3,2",
             "-p", "MemorySystem.Controller.class_min_run=64", "-p", "MemorySystem.DRAM.org.channel=2", "-p", "Frontend.issue_width=2"]
     def ctrl_for(org):
-        fd = FNOM[org] if a.dru_clock == "nom" else float(a.dru_clock)
-        slot = max(2, int(round(2 * FNOM[org] / fd)))
+        fd = FNOM[base(org)] if a.dru_clock == "nom" else float(a.dru_clock)
+        slot = max(2, int(round(2 * FNOM[base(org)] / fd)))
         return ctrl + ["-p", f"MemorySystem.Controller.dru_bus_slot={slot}"]
 
     def spu_trace(org, f, tag):
         tr = os.path.join(a.out, f"spu_{org}_{a.reduce}_x{a.alu_mult:g}_i{a.win_inst}_n{a.win_depth}_{tag}.trace"); o = tr[:-6] + ".out"
         if not os.path.exists(tr):
             subprocess.run([sys.executable, GEN, "-n", str(a.win_depth), "-C", "2", "-P", "8", "-I", str(16 * a.win_inst), "--mode", "instances", "--seed-bits", "128",
-                            "--reread", "--broadcast", "--cl", str(round(155 * FNOM[org] / f / a.alu_mult)), "--reduce", a.reduce,
-                            "--convert-cl", str(round(465 * FNOM[org] / f / a.alu_mult)),
-                            "--modmul-cl", str(round(32 * FNOM[org] / f / a.alu_mult)), "-o", tr], check=True, stderr=subprocess.DEVNULL)
+                            "--reread", "--broadcast", "--cl", str(round(155 * FNOM[base(org)] / f / a.alu_mult)), "--reduce", a.reduce,
+                            "--convert-cl", str(round(465 * FNOM[base(org)] / f / a.alu_mult)),
+                            "--modmul-cl", str(round(32 * FNOM[base(org)] / f / a.alu_mult)), "-o", tr], check=True, stderr=subprocess.DEVNULL)
         if not (os.path.exists(o) and "pim_done_cycles" in open(o).read()):
-            with open(o, "w") as fo: subprocess.run([a.sim, "-f", YAML[org], "-t", tr] + ctrl_for(org), stdout=fo, stderr=subprocess.STDOUT)
+            with open(o, "w") as fo: subprocess.run([a.sim, "-f", YAML[base(org)], "-t", tr] + ctrl_for(org), stdout=fo, stderr=subprocess.STDOUT)
         return tr, parse(o)["pim_done_cycles"]
 
     orgs = a.orgs.split(","); TR, TS, CLK = {}, {}, {}
     for org in orgs:
-        f = FNOM[org] if a.clock == "nom" else float(a.clock)
+        f = FNOM[base(org)] if a.clock == "nom" else float(a.clock)
         TR[org], TS[org] = spu_trace(org, f, "clk")
-        CLK[org] = TS[org] / spu_trace(org, FNOM[org], "nom")[1]          # SPU lane scale vs the anchor clock
+        CLK[org] = TS[org] / spu_trace(org, FNOM[base(org)], "nom")[1]          # SPU lane scale vs the anchor clock
 
     def build(org, d, lg, c, t, r):
         """kernel pipeline for the window; returns (jobs file, n muls, scale)"""
@@ -101,14 +102,14 @@ def main():
             # sequential on the SMs: appended to every job as one phase. ~88 B/leaf of DRAM traffic
             # (tree levels 48 B, two H' passes + scatter 40 B), 55% reads, issued at the kernel's own
             # bandwidth (gap-throttled: L40S ~38%, B200 ~30% of peak); compute floor = its measured time.
-            L = L_(MACH[org])[(c, t, lg)]; spu_ms = SPU_MS[(org, c, t, lg)]
+            L = L_(MACH[base(org)])[(c, t, lg)]; spu_ms = SPU_MS[(org, c, t, lg)]
             Tg, Tn0 = L["gpu_dpf_g"], tm * 2 * c * c
             x0 = min(1.0, (Tn0 + Tg) / (spu_ms + Tg))
             share_ms = (1 - x0) * Tg
             dpf_ck = share_ms / spu_ms * TS[org]                       # window CK for the SM's DPF share
             leaves = 2 * (1 << lg) * c * c * t
             dpf_bytes = 88 * leaves * (1 - x0) / DEV[org]["ch"] * (dpf_ck / (share_ms * 1e6 / DEV[org]["tck"])) if share_ms > 0 else 0
-            gap = {"l40s": 5, "b200": 6}[org]
+            gap = {"l40s": 5, "b200": 6}[base(org)]
             ph2 = ph + ([(0, 1, int(dpf_bytes / n), 0.55, 48, gap, 16, 24576, int(dpf_ck / n))] if dpf_bytes > 0 else [])
             write_jobs(jp[:-5] + "_split.jobs", [(n, 0, ph2)])
             X0[(org, c, t, lg, d)] = x0
@@ -118,13 +119,13 @@ def main():
         out = os.path.join(a.out, tag + ".out")
         if not (os.path.exists(out) and "memory_system_cycles" in open(out).read()):
             with open(out, "w") as fo:
-                subprocess.run([a.sim, "-f", YAML[org], "-t", trace, "-p", f"MemorySystem.host_jobs={jp}"] + ctrl_for(org), stdout=fo, stderr=subprocess.STDOUT)
+                subprocess.run([a.sim, "-f", YAML[base(org)], "-t", trace, "-p", f"MemorySystem.host_jobs={jp}"] + ctrl_for(org), stdout=fo, stderr=subprocess.STDOUT)
         return parse(out)
 
     cells, work = {}, []
     SPU_MS, X0 = {}, {}
     for org in orgs:
-        LN = L_(MACH[org])
+        LN = L_(MACH[base(org)])
         for (c, t) in CFG:
             for lg in LOGN:
                 L = LN.get((c, t, lg))
@@ -191,7 +192,7 @@ def main():
                     return max(gm(v) for v in per.values()), gm(allv)
                 nc = [r["base_serial_ms"] / r["pcg_nocont_ms"] for r in rr]
                 ntt_err = gm(r["ntt_ms"] / r["ntt_meas_ms"] for r in rr)
-                print(f"  {MACH[org]} {tier} {d:6s}: serial-net base {hb('base_serial_ms')[0]:.2f}/{hb('base_serial_ms')[1]:.2f}"
+                print(f"  {MACH[base(org)]} {tier} {d:6s}: serial-net base {hb('base_serial_ms')[0]:.2f}/{hb('base_serial_ms')[1]:.2f}"
                       f" | overlap-net base {hb('base_overlap_ms')[0]:.2f}/{hb('base_overlap_ms')[1]:.2f}"
                       f" | paper base {hb('base_paper_ms')[0]:.2f}/{hb('base_paper_ms')[1]:.2f}"
                       f" | no-cont geo {gm(nc):.2f} | SPU slow {min(r['spu_slow'] for r in rr):.2f}-{max(r['spu_slow'] for r in rr):.2f}"

@@ -1,0 +1,21 @@
+clock=nom  (best (c,t) / geomean over all cells; SOTA baseline = GPU DPF + merge NTT)
+  B200 fast merge : serial-net base 2.75/1.90 | overlap-net base 2.74/1.88 | paper base 3.05/2.00 | no-cont geo 1.94 | SPU slow 1.01-1.05 NTT slow 1.40-2.63 | sim NTT lane/measured 1.22
+  B200 fast f4dru : serial-net base 2.63/1.89 | overlap-net base 2.63/1.87 | paper base 2.92/1.99 | no-cont geo 1.94 | SPU slow 1.01-1.04 NTT slow 1.25-2.26 | sim NTT lane/measured 1.60
+  B200 slow merge : serial-net base 2.89/2.10 | overlap-net base 2.74/1.63 | paper base 3.19/2.19 | no-cont geo 2.13 | SPU slow 1.01-1.05 NTT slow 1.40-2.63 | sim NTT lane/measured 1.22
+  B200 slow f4dru : serial-net base 2.77/2.08 | overlap-net base 2.63/1.62 | paper base 3.06/2.18 | no-cont geo 2.13 | SPU slow 1.01-1.04 NTT slow 1.25-2.26 | sim NTT lane/measured 1.60
+  B200 fast merge : serial-net base 3.98/3.42 | overlap-net base 3.98/3.39 | paper base 4.42/3.60 | no-cont geo 3.52 | SPU slow 1.01-1.05 NTT slow 1.17-2.74 | sim NTT lane/measured 1.06
+  B200 fast f4dru : serial-net base 4.07/3.45 | overlap-net base 4.07/3.42 | paper base 4.51/3.63 | no-cont geo 3.52 | SPU slow 1.01-1.05 NTT slow 1.09-2.22 | sim NTT lane/measured 1.27
+  B200 slow merge : serial-net base 4.20/2.80 | overlap-net base 3.98/2.19 | paper base 4.63/2.93 | no-cont geo 2.87 | SPU slow 1.01-1.05 NTT slow 1.17-2.74 | sim NTT lane/measured 1.06
+  B200 slow f4dru : serial-net base 4.29/2.82 | overlap-net base 4.07/2.20 | paper base 4.73/2.95 | no-cont geo 2.87 | SPU slow 1.01-1.05 NTT slow 1.09-2.22 | sim NTT lane/measured 1.27
+  B200 fast merge : serial-net base 5.74/4.70 | overlap-net base 5.73/4.65 | paper base 6.19/4.95 | no-cont geo 4.84 | SPU slow 1.01-1.06 NTT slow 1.05-2.15 | sim NTT lane/measured 1.06
+  B200 fast f4dru : serial-net base 5.82/4.70 | overlap-net base 5.81/4.65 | paper base 6.27/4.95 | no-cont geo 4.83 | SPU slow 1.01-1.05 NTT slow 1.05-1.90 | sim NTT lane/measured 1.18
+  B200 slow merge : serial-net base 5.33/3.19 | overlap-net base 4.66/2.49 | paper base 5.69/3.34 | no-cont geo 3.26 | SPU slow 1.01-1.06 NTT slow 1.05-2.15 | sim NTT lane/measured 1.06
+  B200 slow f4dru : serial-net base 5.40/3.21 | overlap-net base 4.72/2.50 | paper base 5.77/3.35 | no-cont geo 3.26 | SPU slow 1.01-1.05 NTT slow 1.05-1.90 | sim NTT lane/measured 1.18
+  B200 fast merge : serial-net base 6.73/6.06 | overlap-net base 6.72/6.00 | paper base 7.26/6.38 | no-cont geo 6.22 | SPU slow 1.01-1.05 NTT slow 1.02-1.63 | sim NTT lane/measured 1.06
+  B200 fast f4dru : serial-net base 6.57/6.00 | overlap-net base 6.56/5.94 | paper base 7.08/6.32 | no-cont geo 6.22 | SPU slow 1.01-1.04 NTT slow 1.03-1.50 | sim NTT lane/measured 1.14
+  B200 slow merge : serial-net base 5.75/3.35 | overlap-net base 5.02/2.61 | paper base 6.14/3.50 | no-cont geo 3.41 | SPU slow 1.01-1.05 NTT slow 1.02-1.63 | sim NTT lane/measured 1.06
+  B200 slow f4dru : serial-net base 5.65/3.34 | overlap-net base 4.93/2.60 | paper base 6.04/3.48 | no-cont geo 3.41 | SPU slow 1.01-1.04 NTT slow 1.03-1.50 | sim NTT lane/measured 1.14
+  B200 fast merge : serial-net base 16.77/10.20 | overlap-net base 16.52/10.10 | paper base 17.10/10.74 | no-cont geo 10.38 | SPU slow 1.01-1.03 NTT slow 1.01-1.19 | sim NTT lane/measured 1.05
+  B200 fast f4dru : serial-net base 16.80/10.22 | overlap-net base 16.54/10.12 | paper base 17.12/10.76 | no-cont geo 10.49 | SPU slow 1.01-1.03 NTT slow 1.01-1.17 | sim NTT lane/measured 1.07
+  B200 slow merge : serial-net base 5.96/3.49 | overlap-net base 5.21/2.72 | paper base 6.37/3.65 | no-cont geo 3.52 | SPU slow 1.01-1.03 NTT slow 1.01-1.19 | sim NTT lane/measured 1.05
+  B200 slow f4dru : serial-net base 6.05/3.50 | overlap-net base 5.28/2.73 | paper base 6.46/3.66 | no-cont geo 3.54 | SPU slow 1.01-1.03 NTT slow 1.01-1.17 | sim NTT lane/measured 1.07

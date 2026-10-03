@@ -1,0 +1,4 @@
+name, driver_version, power.limit [W], clocks.max.sm [MHz], clocks.max.memory [MHz]
+NVIDIA L40S, 560.35.03, 350.00 W, 2520 MHz, 9001 MHz
+other processes on GPU 2 at start:
+pid, used_gpu_memory [MiB]
