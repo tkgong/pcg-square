@@ -1,38 +1,38 @@
 Accounting: GPU baseline = two-pass-H' DPF + merge NTT, network co-scheduled (max); PCG^2 = final design with contention; up to / geomean.
 
 Fig. 8 (SPU = DRAM clock):
-  40 Gbps  L40S: (8,4) 3.03  (4,16) 2.33  (8,8) 2.63  (2,64) 2.21  (2,128) 2.13  | up to 3.03 geomean 2.48  | paper 3.19/2.54  diff -5%/-2%
+  40 Gbps  L40S: (8,4) 2.88  (4,16) 2.32  (8,8) 2.58  (2,64) 2.20  (2,128) 2.13  | up to 2.88 geomean 2.44  | paper 3.19/2.54  diff -10%/-4%
   40 Gbps  B200: (8,4) 5.20  (4,16) 9.71  (8,8) 7.33  (2,64) 8.34  (2,128) 8.16  | up to 9.71 geomean 7.59  | paper 9.49/7.25  diff +2%/+5%
-  400 Mbps L40S: (8,4) 3.03  (4,16) 2.33  (8,8) 2.63  (2,64) 1.57  (2,128) 1.06  | up to 3.03 geomean 2.13  | paper 3.38/2.61  diff -10%/-19%
+  400 Mbps L40S: (8,4) 2.88  (4,16) 2.32  (8,8) 2.58  (2,64) 1.57  (2,128) 1.06  | up to 2.88 geomean 2.09  | paper 3.38/2.61  diff -15%/-20%
   400 Mbps B200: (8,4) 5.20  (4,16) 3.60  (8,8) 5.28  (2,64) 1.39  (2,128) 1.10  | up to 5.28 geomean 2.73  | paper 5.93/3.49  diff -11%/-22%
 
 SPU clock sensitivity and single-ALU SPU (up to / geomean):
-  DRAM clock               L40S 40 Gbps 3.03/2.48 | L40S 400 Mbps 3.03/2.13 | B200 40 Gbps 9.71/7.59 | B200 400 Mbps 5.28/2.73
-  1.75 GHz                 L40S 40 Gbps 2.44/1.99 | L40S 400 Mbps 2.44/1.79 | B200 40 Gbps 8.59/7.05 | B200 400 Mbps 5.29/2.72
-  1.5 GHz                  L40S 40 Gbps 2.11/1.72 | L40S 400 Mbps 2.11/1.60 | B200 40 Gbps 7.45/6.41 | B200 400 Mbps 5.24/2.69
-  1 GHz                    L40S 40 Gbps 1.45/1.17 | L40S 400 Mbps 1.45/1.17 | B200 40 Gbps 6.18/4.78 | B200 400 Mbps 4.88/2.49
-  single ALU @ DRAM clock  L40S 40 Gbps 1.78/1.44 | L40S 400 Mbps 1.78/1.40 | B200 40 Gbps 6.81/5.28 | B200 400 Mbps 5.18/2.59
+  DRAM clock               L40S 40 Gbps 2.88/2.44 | L40S 400 Mbps 2.88/2.09 | B200 40 Gbps 9.71/7.59 | B200 400 Mbps 5.28/2.73
+  1.75 GHz                 L40S 40 Gbps 2.37/1.97 | L40S 400 Mbps 2.37/1.78 | B200 40 Gbps 8.59/7.05 | B200 400 Mbps 5.29/2.72
+  1.5 GHz                  L40S 40 Gbps 2.07/1.71 | L40S 400 Mbps 2.07/1.59 | B200 40 Gbps 7.45/6.41 | B200 400 Mbps 5.24/2.69
+  1 GHz                    L40S 40 Gbps 1.43/1.17 | L40S 400 Mbps 1.43/1.17 | B200 40 Gbps 6.18/4.78 | B200 400 Mbps 4.88/2.49
+  single ALU @ DRAM clock  L40S 40 Gbps 1.76/1.44 | L40S 400 Mbps 1.76/1.40 | B200 40 Gbps 6.81/5.28 | B200 400 Mbps 5.18/2.59
 
 Mechanism decomposition (geomean): expansion on the SPUs, everything serial -> + NTT overlap -> + network overlap (= PCG^2):
-  40 Gbps  L40S: 1.98 -> 2.46 -> 2.48   (no contention: 2.53)
+  40 Gbps  L40S: 1.97 -> 2.42 -> 2.44   (no contention: 2.53)
   40 Gbps  B200: 4.93 -> 7.03 -> 7.59   (no contention: 7.66)
-  400 Mbps L40S: 1.38 -> 1.67 -> 2.13   (no contention: 2.16)
+  400 Mbps L40S: 1.38 -> 1.64 -> 2.09   (no contention: 2.16)
   400 Mbps B200: 1.79 -> 2.15 -> 2.73   (no contention: 2.74)
 
 Table IV (geomean ms over the suite; alpha = 500 us per exchange as in the paper, then the Fig. 8 tiers):
-  L40S alpha = 500 us: GPU baseline 601.7 (1.00x); +SPU 315.6 (1.91x); +SPU+DRU 317.4 (1.90x); +SPU+co-sched 242.2 (2.48x); full (DRU on) 246.3 (2.44x); final design 242.2 (2.48x) | increments: SPU 1.91, co-scheduling 1.30, DRU 0.983
-  L40S 40 Gbps       : GPU baseline 601.7 (1.00x); +SPU 303.4 (1.98x); +SPU+DRU 305.3 (1.97x); +SPU+co-sched 242.2 (2.48x); full (DRU on) 246.3 (2.44x); final design 242.2 (2.48x) | increments: SPU 1.98, co-scheduling 1.25, DRU 0.983
-  L40S 400 Mbps      : GPU baseline 661.1 (1.00x); +SPU 479.0 (1.38x); +SPU+DRU 480.4 (1.38x); +SPU+co-sched 310.9 (2.13x); full (DRU on) 316.2 (2.09x); final design 310.9 (2.13x) | increments: SPU 1.38, co-scheduling 1.54, DRU 0.983
-  B200 alpha = 500 us: GPU baseline 304.9 (1.00x); +SPU 73.8 (4.13x); +SPU+DRU 73.4 (4.15x); +SPU+co-sched 42.4 (7.19x); full (DRU on) 41.8 (7.29x); final design 41.8 (7.29x) | increments: SPU 4.13, co-scheduling 1.74, DRU 1.014
-  B200 40 Gbps       : GPU baseline 304.9 (1.00x); +SPU 62.2 (4.90x); +SPU+DRU 61.8 (4.93x); +SPU+co-sched 40.7 (7.48x); full (DRU on) 40.2 (7.59x); final design 40.2 (7.59x) | increments: SPU 4.90, co-scheduling 1.53, DRU 1.014
-  B200 400 Mbps      : GPU baseline 393.5 (1.00x); +SPU 221.1 (1.78x); +SPU+DRU 220.0 (1.79x); +SPU+co-sched 145.6 (2.70x); full (DRU on) 144.0 (2.73x); final design 144.0 (2.73x) | increments: SPU 1.78, co-scheduling 1.52, DRU 1.011
+  L40S alpha = 500 us: GPU baseline 601.7 (1.00x); +SPU 349.1 (1.72x); +SPU+DRU 317.4 (1.90x); +SPU+co-sched 257.8 (2.33x); full (DRU on) 246.3 (2.44x) | increments: SPU 1.72, DRU serial 1.100, co-scheduling 1.35, DRU co-scheduled 1.047
+  L40S 40 Gbps       : GPU baseline 601.7 (1.00x); +SPU 336.9 (1.79x); +SPU+DRU 305.3 (1.97x); +SPU+co-sched 257.8 (2.33x); full (DRU on) 246.3 (2.44x) | increments: SPU 1.79, DRU serial 1.104, co-scheduling 1.31, DRU co-scheduled 1.047
+  L40S 400 Mbps      : GPU baseline 661.1 (1.00x); +SPU 523.8 (1.26x); +SPU+DRU 480.4 (1.38x); +SPU+co-sched 330.9 (2.00x); full (DRU on) 316.2 (2.09x) | increments: SPU 1.26, DRU serial 1.090, co-scheduling 1.58, DRU co-scheduled 1.046
+  B200 alpha = 500 us: GPU baseline 304.9 (1.00x); +SPU 76.3 (4.00x); +SPU+DRU 73.4 (4.15x); +SPU+co-sched 44.9 (6.79x); full (DRU on) 41.8 (7.29x) | increments: SPU 4.00, DRU serial 1.040, co-scheduling 1.70, DRU co-scheduled 1.074
+  B200 40 Gbps       : GPU baseline 304.9 (1.00x); +SPU 64.7 (4.71x); +SPU+DRU 61.8 (4.93x); +SPU+co-sched 43.2 (7.06x); full (DRU on) 40.2 (7.59x) | increments: SPU 4.71, DRU serial 1.047, co-scheduling 1.50, DRU co-scheduled 1.075
+  B200 400 Mbps      : GPU baseline 393.5 (1.00x); +SPU 226.4 (1.74x); +SPU+DRU 220.0 (1.79x); +SPU+co-sched 151.9 (2.59x); full (DRU on) 144.0 (2.73x) | increments: SPU 1.74, DRU serial 1.029, co-scheduling 1.49, DRU co-scheduled 1.054
 
-DRU within PCG^2 (four-step on GPU-NTT kernels + DRU vs merge on the SMs), 40 Gbps, contention:
-  L40S: geomean 0.983 (range 0.94-1.00); NTT-bound cells 0/22: nan
-  B200: geomean 1.014 (range 1.00-1.07); NTT-bound cells 10/25: 1.032
+DRU ablation inside the final design (transposes on the SMs vs on the DRU), 40 Gbps, contention:
+  L40S: geomean 1.047 (range 0.99-1.25); NTT-bound cells 5/22: 1.228
+  B200: geomean 1.075 (range 1.00-1.17); NTT-bound cells 14/25: 1.133
 
 Window-size check (headline under this accounting; i4 = 4 DPF instances per SPU, i8/i16 = 2x/4x, n13 = 2x leaves per instance; i16 = the main run):
-  i4_n12           L40S 40 Gbps 3.01/2.47 | L40S 400 Mbps 3.01/2.12 | B200 40 Gbps 9.64/7.46 | B200 400 Mbps 5.21/2.71
-  i8_n12           L40S 40 Gbps 3.02/2.48 | L40S 400 Mbps 3.02/2.12 | B200 40 Gbps 9.65/7.54 | B200 400 Mbps 5.27/2.72
-  i16_n12 (main)   L40S 40 Gbps 3.03/2.48 | L40S 400 Mbps 3.03/2.13 | B200 40 Gbps 9.71/7.59 | B200 400 Mbps 5.28/2.73
-  i4_n13           L40S 40 Gbps 3.07/2.52 | L40S 400 Mbps 3.07/2.15 | B200 40 Gbps 9.74/7.51 | B200 400 Mbps 5.18/2.70
+  i4_n12           L40S 40 Gbps 2.97/2.47 | L40S 400 Mbps 2.97/2.11 | B200 40 Gbps 9.64/7.46 | B200 400 Mbps 5.21/2.71
+  i8_n12           L40S 40 Gbps 2.91/2.46 | L40S 400 Mbps 2.91/2.11 | B200 40 Gbps 9.65/7.54 | B200 400 Mbps 5.27/2.72
+  i16_n12 (main)   L40S 40 Gbps 2.88/2.44 | L40S 400 Mbps 2.88/2.09 | B200 40 Gbps 9.71/7.59 | B200 400 Mbps 5.28/2.73
+  i4_n13           L40S 40 Gbps 2.97/2.49 | L40S 400 Mbps 2.97/2.12 | B200 40 Gbps 9.74/7.51 | B200 400 Mbps 5.18/2.70
