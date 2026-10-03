@@ -17,7 +17,7 @@ Usage: e2e_window.py --sim BIN --out DIR [--clock nom|1.0|0.5] [--gather --spu-p
 import argparse, concurrent.futures as cf, io, contextlib, json, math, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "e2e"))
-from ntt_jobs import DEV, base, ntt_table, phases, write_jobs
+from ntt_jobs import DEV, base, mul_ms, ntt_table, phases, write_jobs
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, LOGN, alpha_bw, gm
     from fig8 import BETA
@@ -86,7 +86,7 @@ def main():
 
     def build(org, d, lg, c, t, r):
         """kernel pipeline for the window; returns (jobs file, n muls, scale)"""
-        tm = ntt_table(org)[(lg, c * c)][0 if d == "merge" else 1]
+        tm = mul_ms(org, d, lg, c * c)
         mul_ck = tm * 1e6 / DEV[org]["tck"]                                  # real per-mul CK
         n = max(1, int(r * TS[org] / (10 * KERNEL_MIN_CK)))
         s = r * TS[org] / (n * mul_ck)
@@ -138,7 +138,7 @@ def main():
                     spu_ms = L["spu"] * CLK[org]
                 SPU_MS[(org, c, t, lg)] = spu_ms
                 for d in a.designs.split(","):
-                    tm = ntt_table(org)[(lg, c * c)][0 if d == "merge" else 1]
+                    tm = mul_ms(org, d, lg, c * c)
                     r = tm * 2 * c * c / spu_ms                                   # real lane ratio (pre-gather)
                     jp, n, s = build(org, d, lg, c, t, r)
                     cells[(org, c, t, lg, d)] = dict(L=L, spu_ms=spu_ms, n=n, s=s, tm=tm)

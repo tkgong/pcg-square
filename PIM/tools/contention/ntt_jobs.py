@@ -48,7 +48,31 @@ def ntt_table(dev):
 # interference curve of GPU_baseline/fused4 interfere_ntt, both with this kernel model.
 #   merge : W=48 R=16 -> standalone +5.2% (logN 22) / +2.7% (24), interference rms 0.053
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
-PATTERN = {"merge": (48, 16), "f4dru": (48, 16)}
+PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "sq": (48, 16), "sqdru": (48, 16)}
+
+
+# The submission's own NTT: the square four-step (poly_mul_gpuntt_square.cu, standalone bit-reversal), measured per
+# stage in ntt_stages.csv. Per multiply: pre-twist a, b | 3 transforms, each [transpose, brev, sub-NTT, twiddle,
+# transpose, brev, sub-NTT] | pointwise | post-twist = 25 DRAM passes, 408N B. "sq" runs everything on the SMs;
+# "sqdru" is the paper's DRU design: the 6 transposes and 6 bit-reversal passes go to the DRU (its dru_share).
+_SQ = {}
+def sq_table(dev):
+    dev = base(dev)
+    if dev in _SQ: return _SQ[dev]
+    path = os.path.join(os.path.dirname(os.path.dirname(HERE)), "..", "GPU_baseline", "pcg_baseline_out" if dev == "b200" else "data_l40s", "ntt_stages.csv")
+    t = {}
+    for r in csv.DictReader(open(os.path.abspath(path))):
+        if r["status"] != "ok" or r["backend"] != "square" or r["brev_mode"] != "standalone": continue
+        k = (int(r["logN"]), int(r["batch"])); st = {x: float(r[x + "_ms"]) / k[1] for x in ("transpose", "brev", "ntt", "twiddle", "twist", "pointwise")}
+        t[k] = (float(r["ms_per_mul"]), st)          # per-multiply total, per-multiply stage times
+    _SQ[dev] = t; return t
+
+
+def mul_ms(dev, design, logN, batch):
+    """measured per-multiply NTT time the lane is sized from (sqdru: the SM side only, the DRU runs in parallel)"""
+    if design in ("merge", "f4dru"): return ntt_table(dev)[(logN, batch)][0 if design == "merge" else 1]
+    tot, st = sq_table(dev)[(logN, batch)]; ssum = sum(st.values())
+    return tot * (1.0 if design == "sq" else (ssum - st["transpose"] - st["brev"]) / ssum)
 
 
 # Effective DRAM-traffic fraction per config (L2 absorbs the rest), fitted so that the
@@ -65,6 +89,16 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
     ck = lambda ms: int(round(ms * 1e6 / d["tck"] * scale))
     by = lambda b: int(round(b * N / d["ch"] * scale * frac))
     byd = lambda b: int(round(b * N / d["ch"] * scale))      # DRU transposes: data not in L2
+    if design in ("sq", "sqdru"):
+        tot, st = sq_table(dev)[(logN, batch)]; f = tot / sum(st.values())      # stage floors scaled to the per-mul total
+        K = lambda ms, nb=16: (0, 1, by(nb), 0.5, window, gap, run, 16384, ck(ms * f))
+        if design == "sq":
+            T = lambda: K(st["transpose"] / 6); B = lambda: K(st["brev"] / 6)
+        else:
+            T = lambda: (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768, 0); B = T
+        X = lambda: [T(), B(), K(st["ntt"] / 6), K(st["twiddle"] / 3), T(), B(), K(st["ntt"] / 6)]
+        tw = lambda: K(st["twist"] / 3)
+        return [tw(), tw()] + X() + X() + [(0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(st["pointwise"] * f))] + X() + [tw()]
     if design == "merge":
         # GPU-NTT merge at 2^20..2^24: 3 kernels per transform (8N rd + 8N wr each);
         # poly-mul = fwd a, fwd b, pointwise (16N rd + 8N wr), inverse -> 10 kernels, 168N B

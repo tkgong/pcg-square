@@ -7,7 +7,7 @@ Usage: ntt_vs_ntt.py --sim BIN --out DIR [--muls 16] [--kernel-ck 40000] [--win-
 import argparse, concurrent.futures as cf, os, re, subprocess, sys
 from math import exp, log
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-from ntt_jobs import DEV, ntt_table, phases, write_jobs
+from ntt_jobs import DEV, mul_ms, ntt_table, phases, write_jobs
 PIM = os.path.dirname(os.path.dirname(HERE))
 YAML = os.path.join(PIM, "sim/test/hbm3e_dpf_b200d.yaml"); GEN = os.path.join(PIM, "tools", "gen_dpf_tree_trace.py")
 CTRL = ["-p", "MemorySystem.Controller.fpu_gate_issue=false", "-p", "MemorySystem.Controller.wr_max_age=1000", "-p", "MemorySystem.Controller.pim_row_wait=0",
@@ -16,6 +16,7 @@ CTRL = ["-p", "MemorySystem.Controller.fpu_gate_issue=false", "-p", "MemorySyste
 ap = argparse.ArgumentParser(); ap.add_argument("--sim", required=True); ap.add_argument("--out", required=True)
 ap.add_argument("--muls", type=int, default=16); ap.add_argument("--kernel-ck", type=int, default=40000); ap.add_argument("--win-inst", type=int, default=40)
 ap.add_argument("--jobs", type=int, default=60)
+ap.add_argument("--designs", default="merge,f4dru", help="A,B: B is the DRU design, A the reference it is compared with")
 a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
 def gm(v): v = list(v); return exp(sum(map(log, v)) / len(v))
 def parse(p): return {m.group(1): float(m.group(2)) for m in re.finditer(r"^\s*([A-Za-z0-9_]+):\s*(-?[0-9.eE+]+)", open(p).read(), re.M)}
@@ -24,11 +25,12 @@ spu = os.path.join(a.out, f"spu_b200_i{a.win_inst}.trace")
 if not os.path.exists(spu):
     subprocess.run([sys.executable, GEN, "-n", "12", "-C", "2", "-P", "8", "-I", str(16 * a.win_inst), "--mode", "instances", "--seed-bits", "128", "--reread",
                     "--broadcast", "--cl", "155", "--reduce", "chacha", "--convert-cl", "465", "--modmul-cl", "32", "-o", spu], check=True, stderr=subprocess.DEVNULL)
-T = ntt_table("b200"); tck = DEV["b200"]["tck"]
+T = ntt_table("b200"); tck = DEV["b200"]["tck"]; DA, DB = a.designs.split(",")
 work = []
 for (lg, b) in sorted(k for k in T if k[0] >= 20):
-    s = a.kernel_ck * 10 / (T[(lg, b)][0] * 1e6 / tck)          # same scale for both designs: merge's kernels ~kernel_ck
-    for d in ("merge", "f4dru"):
+    nph = len([p for p in phases("b200", DA, lg, b) if p[0] == 0])
+    s = a.kernel_ck * nph / (mul_ms("b200", DA, lg, b) * 1e6 / tck)   # same scale for both designs: A's kernels ~kernel_ck
+    for d in (DA, DB):
         jp = os.path.join(a.out, f"b200_{lg}_{b}_{d}.jobs"); write_jobs(jp, [(a.muls, 0, phases("b200", d, lg, b, scale=s))])
         for tag, tr in (("alone", eoc), ("spu", spu)):
             work.append((lg, b, d, tag, jp, tr, s))
@@ -38,12 +40,12 @@ def run(w):
         with open(out, "w") as f: subprocess.run([a.sim, "-f", YAML, "-t", tr, "-p", f"MemorySystem.host_jobs={jp}"] + CTRL, stdout=f, stderr=subprocess.STDOUT)
     r = parse(out); return (lg, b, d, tag), (r["pipe0_finish_max"], r.get("pim_done_cycles", -1), s)
 with cf.ThreadPoolExecutor(a.jobs) as ex: R = dict(ex.map(run, work))
-lines = [f"B200 NTT vs NTT: {a.muls} multiplies pipelined, kernels ~{a.kernel_ck} CK, SPU trace {a.win_inst} instances/SPU. Ratios > 1 = DRU design faster.",
-         f"{'logN/batch':>10s} | {'merge sim/meas':>14s} {'DRU sim/meas':>12s} | {'alone: merge/DRU':>16s} | {'slowdown merge':>14s} {'slowdown DRU':>12s} | {'next to SPUs: merge/DRU':>23s} | {'vs merge alone (GPU baseline)':>29s} | SPU covered"]
+lines = [f"B200 NTT vs NTT, {DB} (DRU design) against {DA}: {a.muls} multiplies pipelined, kernels ~{a.kernel_ck} CK, SPU trace {a.win_inst} instances/SPU. Ratios > 1 = DRU design faster.",
+         f"{'logN/batch':>10s} | {DA+' sim/meas':>14s} {'DRU sim/meas':>12s} | {'alone: '+DA+'/DRU':>16s} | {'slowdown '+DA:>14s} {'slowdown DRU':>12s} | {'next to SPUs: '+DA+'/DRU':>23s} | {'vs '+DA+' alone (no SPU)':>29s} | SPU covered"]
 A, B, C = [], [], []
 for (lg, b) in sorted(k for k in T if k[0] >= 20):
-    ma, ms = R[(lg, b, "merge", "alone")], R[(lg, b, "merge", "spu")]; fa, fs = R[(lg, b, "f4dru", "alone")], R[(lg, b, "f4dru", "spu")]
-    s = ma[2]; meas_m = T[(lg, b)][0] * 1e6 / tck * a.muls * s; meas_f = T[(lg, b)][1] * 1e6 / tck * a.muls * s
+    ma, ms = R[(lg, b, DA, "alone")], R[(lg, b, DA, "spu")]; fa, fs = R[(lg, b, DB, "alone")], R[(lg, b, DB, "spu")]
+    s = ma[2]; meas_m = mul_ms("b200", DA, lg, b) * 1e6 / tck * a.muls * s; meas_f = mul_ms("b200", DB, lg, b) * 1e6 / tck * a.muls * s
     sm, sf = ms[0] / ma[0], fs[0] / fa[0]
     r_alone, r_spu, r_base = ma[0] / fa[0], ms[0] / fs[0], ma[0] / fs[0]
     cov = "yes" if min(ms[1], fs[1]) >= max(ms[0], fs[0]) else f"NO ({min(ms[1], fs[1])/max(ms[0], fs[0]):.2f})"
