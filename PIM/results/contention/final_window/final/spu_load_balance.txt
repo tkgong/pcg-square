@@ -1,0 +1,22 @@
+Per-SPU load (Q6): 8 simulated channels x 8 SPUs = 64 SPUs; SPUs of a channel run in lockstep on all-bank commands. Window: 16 instances x 4096 leaves per SPU; final design, 40 Gbps cells. Times in ms.
+run                            FPU busy mean     std     min     max | completion mean     std     min     max | FPU util | slowdown vs alone
+b200_spu_alone                         1.289  0.0000   1.289   1.289 |           1.352  0.0000   1.352   1.352 |    95.3% |             1.000
+l40s_spu_alone                         1.144  0.0000   1.144   1.144 |           1.214  0.0000   1.214   1.214 |    94.2% |             1.000
+b200_2_128_24_f4dru_corun              1.289  0.0000   1.289   1.289 |           1.357  0.0000   1.357   1.357 |    94.9% |             1.004
+b200_4_16_24_f4dru_corun               1.289  0.0000   1.289   1.289 |           1.380  0.0000   1.380   1.380 |    93.4% |             1.020
+b200_8_4_24_f4dru_corun                1.289  0.0000   1.289   1.289 |           1.385  0.0000   1.385   1.385 |    93.0% |             1.025
+l40s_2_64_22_merge_corun               1.144  0.0000   1.144   1.144 |           1.222  0.0000   1.222   1.222 |    93.6% |             1.006
+l40s_4_16_22_merge_corun               1.144  0.0000   1.144   1.144 |           1.235  0.0000   1.235   1.235 |    92.6% |             1.017
+l40s_8_4_22_merge_corun                1.144  0.0000   1.144   1.144 |           1.276  0.0000   1.276   1.276 |    89.7% |             1.051
+
+Static partition: instances per SPU = ceil(I / N_SPU), I = c^2 t^2; busy time per SPU is proportional to its instance count.
+  B200 (8,4): 1024 instances on 2048 SPUs: 1024 SPUs busy with 1, 1024 idle; utilisation 50%
+  B200 (4,16): 2 instances on every SPU (variance 0)
+  B200 (8,8): 2 instances on every SPU (variance 0)
+  B200 (2,64): 8 instances on every SPU (variance 0)
+  B200 (2,128): 32 instances on every SPU (variance 0)
+  L40S (8,4): 64 SPUs with 6 instances, 128 with 5; mean 5.33, min 5, max 6, max/mean 1.125, utilisation 88.9%
+  L40S (4,16): 64 SPUs with 22 instances, 128 with 21; mean 21.33, min 21, max 22, max/mean 1.031, utilisation 97.0%
+  L40S (8,8): 64 SPUs with 22 instances, 128 with 21; mean 21.33, min 21, max 22, max/mean 1.031, utilisation 97.0%
+  L40S (2,64): 64 SPUs with 86 instances, 128 with 85; mean 85.33, min 85, max 86, max/mean 1.008, utilisation 99.2%
+  L40S (2,128): 64 SPUs with 342 instances, 128 with 341; mean 341.33, min 341, max 342, max/mean 1.002, utilisation 99.8%

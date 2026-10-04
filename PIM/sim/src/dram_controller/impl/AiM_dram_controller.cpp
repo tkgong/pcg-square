@@ -120,6 +120,10 @@ private:
     double s_cls_q_mean[NCLS] = {}, s_cls_q_p50[NCLS] = {}, s_cls_q_p95[NCLS] = {}, s_cls_q_p99[NCLS] = {};
     double s_cls_r_mean[NCLS] = {}, s_cls_r_p50[NCLS] = {}, s_cls_r_p95[NCLS] = {}, s_cls_r_p99[NCLS] = {};
     size_t s_ab_col = 0, s_ab_slot_cycles = 0;
+    // per-channel SPU load: cycles the channel's FPU (8 SPUs in lockstep) is busy, and the cycle at which
+    // its last PIM request completes (per-channel makespan)
+    size_t s_fpu_busy_cycles = 0;
+    int64_t s_pim_last_depart = 0;
     static constexpr int HB = 4;          // histogram bucket width (cycles)
     static constexpr int NHB = 4096;      // last bucket collects everything above
     std::vector<uint64_t> m_qhist[NCLS], m_rhist[NCLS];
@@ -248,6 +252,8 @@ public:
         }
         register_stat(s_ab_col).name(fmt::format("CH{}_pim_allbank_cols", m_channel_id));
         register_stat(s_ab_slot_cycles).name(fmt::format("CH{}_pim_allbank_slot_cycles", m_channel_id));
+        register_stat(s_fpu_busy_cycles).name(fmt::format("CH{}_fpu_busy_cycles", m_channel_id));
+        register_stat(s_pim_last_depart).name(fmt::format("CH{}_pim_last_depart", m_channel_id));
 
         register_stat(s_num_idle_cycles)
             .name(fmt::format("CH{}_idle_cycles", m_channel_id))
@@ -463,6 +469,7 @@ public:
                         int ii = std::min((int)req_it->compute_latency, std::max(ii_cfg, ii_rf));
                         if (m_ggm_compute_overlap) {
                             m_fpu_busy_until[unit] = fpu_start + ii;
+                            s_fpu_busy_cycles += ii;
                         } else {
                             // no-LSU model: without load/store staging the ALU
                             // idles through the op's column I/O and cannot
@@ -487,6 +494,8 @@ public:
                     } else {
                         req_it->depart = mem_depart;
                     }
+                    if (req_it->req_class == 0 && buffer != &m_priority_buffer && (int64_t)req_it->depart > s_pim_last_depart)
+                        s_pim_last_depart = req_it->depart;      // last PIM request (refresh excluded)
                     if (req_it->is_reader()) {
                         pending_reads.push_back(*req_it);
                     } else {
