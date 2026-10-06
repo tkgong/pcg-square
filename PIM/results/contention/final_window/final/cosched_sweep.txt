@@ -1,0 +1,52 @@
+Network co-scheduling ablation (final accounting, contention included). gain = serial / co-scheduled, geomean over the suite;
+net share = network time / serial time; net-bound = cells where the network is the longest lane.
+speedup: both = GPU and PCG^2 co-scheduled (headline), none = neither, PCG^2 only = the submission's accounting.
+
+L40S:  bandwidth | GPU gain net share net-bound | PCG2 gain net share net-bound |  T_c GPU T_c PCG2    T_net | speedup both / none / PCG2-only
+        100 Gbps |    1.002      0.2%     0/22  |     1.004      0.4%     0/22  |    601.7    242.2      0.3 | 2.48 / 2.48 / 2.49
+         40 Gbps |    1.004      0.4%     0/22  |     1.010      0.9%     0/22  |    601.7    242.2      0.7 | 2.48 / 2.47 / 2.50
+         10 Gbps |    1.018      1.7%     0/22  |     1.038      3.5%     0/22  |    601.7    242.2      3.0 | 2.48 / 2.44 / 2.53
+          4 Gbps |    1.043      3.9%     0/22  |     1.089      7.5%     0/22  |    601.7    242.2      7.4 | 2.48 / 2.38 / 2.59
+          1 Gbps |    1.142     11.6%     1/22  |     1.212     19.4%     3/22  |    601.7    242.2     29.5 | 2.34 / 2.20 / 2.67
+        400 Mbps |    1.211     20.4%     3/22  |     1.275     31.1%     5/22  |    601.7    242.2     73.8 | 2.13 / 2.02 / 2.58
+        100 Mbps |    1.286     38.5%     7/22  |     1.341     52.6%    12/22  |    601.7    242.2    295.0 | 1.77 / 1.70 / 2.27
+         40 Mbps |    1.316     52.5%    11/22  |     1.313     67.2%    16/22  |    601.7    242.2    737.6 | 1.48 / 1.48 / 1.95
+         10 Mbps |    1.280     73.3%    18/22  |     1.180     85.1%    21/22  |    601.7    242.2   2950.3 | 1.13 / 1.23 / 1.45
+
+B200:  bandwidth | GPU gain net share net-bound | PCG2 gain net share net-bound |  T_c GPU T_c PCG2    T_net | speedup both / none / PCG2-only
+        100 Gbps |    1.004      0.4%     0/25  |     1.034      3.1%     0/25  |    304.9     40.2      0.4 | 7.59 / 7.37 / 7.62
+         40 Gbps |    1.010      1.0%     0/25  |     1.080      6.8%     0/25  |    304.9     40.2      0.9 | 7.59 / 7.10 / 7.67
+         10 Gbps |    1.039      3.6%     0/25  |     1.200     18.0%     3/25  |    304.9     40.2      3.7 | 7.16 / 6.20 / 7.44
+          4 Gbps |    1.092      7.7%     0/25  |     1.275     29.3%     5/25  |    304.9     40.2      9.3 | 6.14 / 5.26 / 6.71
+          1 Gbps |    1.214     19.8%     3/25  |     1.305     49.6%    13/25  |    304.9     40.2     37.4 | 3.93 / 3.66 / 4.78
+        400 Mbps |    1.283     31.7%     7/25  |     1.272     63.1%    16/25  |    304.9     40.2     93.4 | 2.73 / 2.76 / 3.51
+        100 Mbps |    1.321     53.1%    14/25  |     1.193     80.3%    21/25  |    304.9     40.2    373.6 | 1.64 / 1.82 / 2.17
+         40 Mbps |    1.300     67.3%    18/25  |     1.129     88.5%    24/25  |    304.9     40.2    934.1 | 1.26 / 1.46 / 1.64
+         10 Mbps |    1.180     84.6%    23/25  |     1.046     95.9%    25/25  |    304.9     40.2   3736.4 | 1.03 / 1.16 / 1.22
+
+Per (c,t) at the Fig. 8 tiers: GPU gain / PCG2 gain (geomean over logN)
+  L40S 40 Gbps : (8,4) 1.00/1.00  (4,16) 1.00/1.00  (8,8) 1.00/1.00  (2,64) 1.01/1.02  (2,128) 1.02/1.04
+  L40S 400 Mbps: (8,4) 1.03/1.09  (4,16) 1.15/1.34  (8,8) 1.07/1.18  (2,64) 1.51/1.56  (2,128) 1.58/1.32
+  B200 40 Gbps : (8,4) 1.00/1.00  (4,16) 1.00/1.04  (8,8) 1.00/1.01  (2,64) 1.02/1.13  (2,128) 1.03/1.24
+  B200 400 Mbps: (8,4) 1.05/1.30  (4,16) 1.33/1.41  (8,8) 1.15/1.46  (2,64) 1.50/1.15  (2,128) 1.44/1.08
+
+Bandwidth at which the network time equals the compute time (gain peak, geomean cell):
+  L40S: GPU baseline 49.033 Mbps  |  PCG^2 121.819 Mbps   (T_c GPU 602 ms, T_c PCG^2 242 ms)
+  B200: GPU baseline 122.532 Mbps  |  PCG^2 930.015 Mbps   (T_c GPU 305 ms, T_c PCG^2 40 ms)
+
+Validation of the max() co-scheduling model on the SPU lane (ramulator2, ISR_NET_DELAY/NET_WAIT ladder in the SPU window trace):
+SPU lane with the simulated network ladder in ramulator2 (window: 16 rounds per SPU, each 12 CW exchanges + 2 Beaver opens);
+serial = every exchange blocks the SPU; co-scheduled = round k+1 expands while round k's exchanges are in flight (pass 2 deferred).
+r = T_net / T_compute of the window; model gain = (1 + r) / max(1, r); model co-scheduled time = max(1, r) x T_c.
+
+org       r | serial / T_c  model | co-sched / T_c  model | gain sim gain model
+b200    0.1 |        1.103   1.10 |          1.005   1.00 |    1.097      1.100
+b200    0.3 |        1.301   1.30 |          1.016   1.00 |    1.280      1.300
+b200    1.0 |        2.000   2.00 |          1.102   1.00 |    1.816      2.000
+b200    3.0 |        4.005   4.00 |          3.084   3.00 |    1.298      1.333
+b200   10.0 |       11.002  11.00 |         10.051  10.00 |    1.095      1.100
+l40s    0.1 |        1.101   1.10 |          1.006   1.00 |    1.094      1.100
+l40s    0.3 |        1.325   1.30 |          1.017   1.00 |    1.303      1.300
+l40s    1.0 |        2.002   2.00 |          1.100   1.00 |    1.821      2.000
+l40s    3.0 |        4.005   4.00 |          3.084   3.00 |    1.299      1.333
+l40s   10.0 |       11.038  11.00 |         10.051  10.00 |    1.098      1.100
