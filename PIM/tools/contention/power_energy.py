@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """System energy (reviewer D): measured GPU board power per phase (run_power.sh) times the lane times of every
-Fig. 8 cell, plus the synthesised PIM power charged for the WHOLE PCG^2 run (Table III per-unit power x count: L40S 192 SPUs + 24 DRUs
-= 5.91 W; B200 2,048 SPUs + 256 DRUs = 62.99 W), with the GPU's context-idle power also charged to PCG^2 while the SPUs work.
+Fig. 8 cell, plus the synthesised PIM power (Table III per-unit power x count: L40S 192 SPUs + 24 DRUs = 5.91 W; B200 2,048 SPUs +
+256 DRUs = 62.99 W) charged while the SPU lane runs, with the GPU's context-idle power charged to PCG^2 whenever its NTT lane is not running.
 Same accounting as every other result: GPU baseline = the submission's DPF (two-pass H') + merge NTT with the
 network co-scheduled (idle power only for the network time not hidden under compute).
   baseline  E = P_dpf(c,t) T_dpf + P_merge(logN, c^2) T_ntt + P_idle max(0, T_net - T_dpf - T_ntt)
-  PCG^2     E = P_ntt' T_ntt' + P_idle (T_pcg - T_ntt') + P_pim T_pcg               (the GPU runs only its NTT lane)
+  PCG^2     E = P_ntt' T_ntt' + P_idle (T_pcg - T_ntt') + P_pim T_spu'             (the GPU runs only its NTT lane)
+One rule on both sides: every unit is charged its measured active power while it works and its idle power otherwise;
+the GPU's idle power is the measured context-idle (both sides), the PIM's idle power is taken as zero (the synthesis
+report gives no leakage split; charging the full PIM power over the whole run instead moves the ratios by <= 6%).
 P_ntt' = merge on L40S (no DRU), the four-step SM lane f4g_sm on B200. Phase power = NVML energy counter / phase
 time when the run recorded it, else the nvidia-smi mean over [start+1 s, end-0.5 s].
 Usage: power_energy.py L40S|B200 POWER_DIR OUT_FILE [RUN=win22]"""
@@ -58,7 +61,8 @@ for clk, tag in (("SPU = DRAM clock", "nom"), ("SPU 1 GHz", "1.0")):
                 T_ntt, T_net, T_pcg, T_nttp = r["gpu_ms"] - LN[k]["gpu_dpf_g"], r["nic_ms"], r["pcg_ms"], r["ntt_ms"] * r["ntt_slow"]
                 Pm, Pp, Pd = p_ntt("merge", r["logN"], c * c), p_ntt(pcg_ntt, r["logN"], c * c), P[f"dpf_c{c}t{t}"]
                 E_base = Pd * d + Pm * T_ntt + P_idle * max(0.0, T_net - d - T_ntt)
-                E_pcg = Pp * T_nttp + P_idle * (T_pcg - T_nttp) + P_PIM * T_pcg
+                T_spup = r["spu_ms"] * r["spu_slow"]                       # SPU lane with contention
+                E_pcg = Pp * T_nttp + P_idle * (T_pcg - T_nttp) + P_PIM * T_spup
                 v.append(E_base / E_pcg); pw.append(E_pcg / T_pcg); percell.append((c, t, r["logN"], E_base / E_pcg, E_base, E_pcg))
             per.append(gm(v)); cells += v
         lines.append(f"{clk:16s} {lab:8s}: energy ratio baseline/PCG^2 per (c,t) " + " ".join(f"{x:.2f}" for x in per)
