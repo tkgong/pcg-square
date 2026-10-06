@@ -1,0 +1,12 @@
+L40S alpha 100 µs: runtime at ceiling (192 SPU)   242.2 ms | plateau (8192)    55.4 ms | knee  6144 SPU (beyond the ceiling) | min(knee, ceiling) 192:   242.2 ms
+L40S alpha 500 µs: runtime at ceiling (192 SPU)   242.2 ms | plateau (8192)    64.4 ms | knee  4096 SPU (beyond the ceiling) | min(knee, ceiling) 192:   242.2 ms
+L40S alpha 10 ms : runtime at ceiling (192 SPU)   324.9 ms | plateau (8192)   247.1 ms | knee   512 SPU (beyond the ceiling) | min(knee, ceiling) 192:   324.9 ms
+L40S alpha 20 ms : runtime at ceiling (192 SPU)   480.3 ms | plateau (8192)   435.4 ms | knee   384 SPU (beyond the ceiling) | min(knee, ceiling) 192:   480.3 ms
+L40S alpha 30 ms : runtime at ceiling (192 SPU)   662.7 ms | plateau (8192)   628.8 ms | knee   256 SPU (beyond the ceiling) | min(knee, ceiling) 192:   662.7 ms
+L40S alpha 60 ms : runtime at ceiling (192 SPU)  1243.0 ms | plateau (8192)  1231.9 ms | knee   192 SPU (within the ceiling) | min(knee, ceiling) 192:  1243.0 ms
+B200 alpha 100 µs: runtime at ceiling (2048 SPU)    40.2 ms | plateau (8192)    22.6 ms | knee  8192 SPU (beyond the ceiling) | min(knee, ceiling) 2048:    40.2 ms
+B200 alpha 500 µs: runtime at ceiling (2048 SPU)    41.8 ms | plateau (8192)    28.5 ms | knee  8192 SPU (beyond the ceiling) | min(knee, ceiling) 2048:    41.8 ms
+B200 alpha 10 ms : runtime at ceiling (2048 SPU)   208.3 ms | plateau (8192)   208.3 ms | knee  1536 SPU (within the ceiling) | min(knee, ceiling) 1536:   209.6 ms
+B200 alpha 20 ms : runtime at ceiling (2048 SPU)   409.3 ms | plateau (8192)   409.3 ms | knee   768 SPU (within the ceiling) | min(knee, ceiling) 768:   413.4 ms
+B200 alpha 30 ms : runtime at ceiling (2048 SPU)   614.0 ms | plateau (8192)   614.0 ms | knee   512 SPU (within the ceiling) | min(knee, ceiling) 512:   617.6 ms
+B200 alpha 60 ms : runtime at ceiling (2048 SPU)  1227.9 ms | plateau (8192)  1227.9 ms | knee   256 SPU (within the ceiling) | min(knee, ceiling) 256:  1235.3 ms
