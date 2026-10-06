@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """System energy (reviewer D): measured GPU board power per phase (run_power.sh) times the lane times of every
-Fig. 8 cell, plus the synthesised PIM power charged for the WHOLE PCG^2 run (L40S 2.87 W = 192 SPUs; B200 30.99 W
-= 2,048 SPUs + 256 DRUs), with the GPU's context-idle power also charged to PCG^2 while the SPUs work.
+Fig. 8 cell, plus the synthesised PIM power charged for the WHOLE PCG^2 run (Table III per-unit power x count: L40S 192 SPUs + 24 DRUs
+= 5.91 W; B200 2,048 SPUs + 256 DRUs = 62.99 W), with the GPU's context-idle power also charged to PCG^2 while the SPUs work.
 Same accounting as every other result: GPU baseline = the submission's DPF (two-pass H') + merge NTT with the
 network co-scheduled (idle power only for the network time not hidden under compute).
   baseline  E = P_dpf(c,t) T_dpf + P_merge(logN, c^2) T_ntt + P_idle max(0, T_net - T_dpf - T_ntt)
@@ -17,7 +17,10 @@ with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 mach, pdir, out = sys.argv[1], sys.argv[2], sys.argv[3]; RUN = sys.argv[4] if len(sys.argv) > 4 else "win22"
-org, des, P_PIM, pcg_ntt = {"L40S": ("l40s", "merge", 2.87 + 24 * 0.00147, "merge"), "B200": ("b200", "f4dru", 30.99, "f4g_sm")}[mach]   # L40S: 192 SPUs + 24 DRUs
+SPU_MW, DRU_MW = 30.574, 1.469                      # Table III: per-unit SPU and DRU power (mW)
+NSPU, NDRU = {"L40S": 192, "B200": 2048}, {"L40S": 24, "B200": 256}   # 8 SPUs and 1 DRU per channel
+org, des, pcg_ntt = {"L40S": ("l40s", "merge", "merge"), "B200": ("b200", "f4dru", "f4g_sm")}[mach]
+P_PIM = (NSPU[mach] * SPU_MW + NDRU[mach] * DRU_MW) / 1e3
 ts = lambda s: datetime.strptime(s.strip(), "%Y/%m/%d %H:%M:%S.%f").timestamp()
 trace = []
 for r in csv.reader(open(os.path.join(pdir, "power_trace.csv"))):
