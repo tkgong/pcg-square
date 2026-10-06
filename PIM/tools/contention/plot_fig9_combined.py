@@ -45,7 +45,7 @@ for ch in CH:
 knee = next(exp(log(CH[i]) + (1 - ratio[i]) / (ratio[i + 1] - ratio[i]) * (log(CH[i + 1]) - log(CH[i]))) for i in range(len(CH) - 1) if ratio[i] < 1 <= ratio[i + 1])
 CSTAR = 240 * (1 << 24) / 2.2766e-3 / (8.2e12 / 256 * (1 - 0.21))
 # ---------------- draw ----------------
-fig, (ax, bx) = plt.subplots(2, 1, figsize=(4.2, 4.6), sharex=True, gridspec_kw=dict(height_ratios=[3.0, 1.55], hspace=0.07, left=0.14, right=0.98, top=0.9, bottom=0.1))
+fig, (ax, bx) = plt.subplots(2, 1, figsize=(4.2, 3.3), sharex=True, gridspec_kw=dict(height_ratios=[2.3, 1.0], hspace=0.06, left=0.14, right=0.98, top=0.88, bottom=0.12))
 for mach, mk in (("L40S", "o"), ("B200", "s")):
     ceil_n = DES[mach][2]
     for a_us, lab in ALPHA:
@@ -58,15 +58,15 @@ for n_, lab in ((192, "L40S Ceiling"), (2048, "B200 Ceiling")):
     for a_ in (ax, bx): a_.axvline(AREA(n_), color="#c62828", ls="--", lw=0.8, zorder=1)
     ax.text(AREA(n_) * 1.08, 2.2e4, lab, color="#c62828", fontsize=6, ha="left", va="top")
 ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(AREA(8) / 1.3, AREA(8192) * 1.3); ax.set_ylim(15, 3e4)
-ax.set_ylabel("Runtime (ms)", fontsize=8); ax.tick_params(axis="y", labelsize=6.5); ax.grid(True, which="major", lw=0.3, color="0.85"); ax.set_axisbelow(True)
+ax.set_ylabel("Runtime (ms)", fontsize=7.5); ax.tick_params(axis="y", labelsize=6.5); ax.grid(True, which="major", lw=0.3, color="0.85"); ax.set_axisbelow(True)
 tick_n = [8, 32, 128, 512, 2048, 8192]
 top = ax.secondary_xaxis("top"); top.set_xscale("log"); top.xaxis.set_major_locator(matplotlib.ticker.FixedLocator([AREA(n) for n in tick_n])); top.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([str(n) for n in tick_n]))
 top.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); top.tick_params(labelsize=6.5); top.set_xlabel("SPU count", fontsize=8)
 h, l = ax.get_legend_handles_labels()
 extra = [Line2D([], [], color="0.3", marker="o", ms=3.5, lw=0, mec="black", mew=0.3), Line2D([], [], color="0.3", marker="s", ms=3.5, lw=0, mec="black", mew=0.3),
          Line2D([], [], color="0.3", ls="--", lw=1), Line2D([], [], color="#c62828", ls="--", lw=0.9), Line2D([], [], color="0.3", marker="*", ms=8, lw=0, mec="black", mew=0.5)]
-ax.legend(h + extra, l + ["L40S", "B200", "Past the ceiling", "Card ceiling", "Optimal budget"], fontsize=5.2, ncol=2, loc="lower left", frameon=True, title="Network latency", title_fontsize=5.6)
-ax.text(0.02, 0.905, "(a) SPU budget, memory system fixed", transform=ax.transAxes, fontsize=6.5, va="top")
+ax.legend(h + extra, l + ["L40S", "B200", "Past the ceiling", "Card ceiling", "Optimal budget"], fontsize=4.6, ncol=3, loc="lower left", frameon=True, title="Network latency", title_fontsize=5.0, columnspacing=0.8, handlelength=1.4, borderpad=0.3, labelspacing=0.25)
+ax.text(0.02, 0.9, "(a) SPU budget, memory system fixed", transform=ax.transAxes, fontsize=6, va="top")
 GOLD = "#C9950F"; xs = [AREA(8 * c) for c in CH]
 off = [i for i, c in enumerate(CH) if c < knee]; on = [i for i, c in enumerate(CH) if c >= knee]; i0 = off[-1]
 gk = gain[i0] + (gain[i0 + 1] - gain[i0]) * (log(knee) - log(CH[i0])) / (log(CH[i0 + 1]) - log(CH[i0])); xk = AREA(8 * knee)
@@ -75,12 +75,12 @@ bx.plot([xs[i] for i in off], [gain[i] for i in off], "s", ms=4.2, mfc="white", 
 bx.plot([xk] + [xs[i] for i in on], [gk] + [gain[i] for i in on], "-", color=GOLD, lw=1.5, zorder=3)
 bx.plot([xs[i] for i in on], [gain[i] for i in on], "s", ms=4.2, color=GOLD, mec="black", mew=0.4, zorder=4, label="DRU gain, runtime enables the DRU")
 bx.plot([xk], [gk], "*", ms=10, color="#C8322B", mec="black", mew=0.5, zorder=6)
-for c, x, g in zip(CH, xs, gain): bx.annotate(f"{g:.2f}", (x, g), fontsize=5.2, color="#7a5a08", xytext=(0, 5), textcoords="offset points", ha="center"); bx.annotate(f"{c} ch", (x, g), fontsize=4.8, color="0.35", xytext=(0, -9), textcoords="offset points", ha="center")
-bx.annotate(f"knee {knee:.0f} ch, {8.2*knee/256:.1f} TB/s:\nDRU design overtakes\nthe merge NTT", (xk, gk), fontsize=5.2, color="#C8322B", xytext=(AREA(8 * 300), 1.13), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=4))
-bx.axvline(AREA(8 * CSTAR), color="0.6", lw=0.7, ls=":", zorder=1); bx.text(AREA(8 * CSTAR) * 0.95, 1.03, f"Eq. (dru_enable)\n{CSTAR:.0f} ch", fontsize=4.8, color="0.4", va="bottom", ha="right")
-bx.set_ylim(1.0, 1.42); bx.set_yticks([1.0, 1.1, 1.2, 1.3, 1.4]); bx.tick_params(axis="y", labelsize=6.5); bx.set_ylabel("DRU gain", fontsize=8)
+for c, x, g in zip(CH, xs, gain): bx.annotate(f"{g:.2f}", (x, g), fontsize=4.8, color="#7a5a08", xytext=(0, 4), textcoords="offset points", ha="center"); bx.annotate(f"{c}ch", (x, g), fontsize=4.3, color="0.35", xytext=(0, -8), textcoords="offset points", ha="center")
+bx.annotate(f"knee {knee:.0f} ch ({8.2*knee/256:.1f} TB/s):\nDRU design overtakes merge", (xk, gk), fontsize=4.8, color="#C8322B", xytext=(AREA(8 * 300), 1.1), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=4))
+bx.axvline(AREA(8 * CSTAR), color="0.6", lw=0.7, ls=":", zorder=1); bx.text(AREA(8 * CSTAR) * 0.95, 1.02, f"Eq. (dru_enable) {CSTAR:.0f} ch", fontsize=4.3, color="0.4", va="bottom", ha="right")
+bx.set_ylim(1.0, 1.45); bx.set_yticks([1.0, 1.2, 1.4]); bx.tick_params(axis="y", labelsize=6.5); bx.set_ylabel("DRU gain", fontsize=7)
 bx.set_xticks([AREA(n) for n in tick_n]); bx.set_xticklabels([f"{AREA(n):.2f}" for n in tick_n], fontsize=6.5); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
 bx.set_xlabel("Area (mm$^2$)", fontsize=8); bx.grid(axis="y", lw=0.3, color="0.85"); bx.set_axisbelow(True)
-bx.text(0.02, 0.95, "(b) memory scaled with the budget (8 SPUs + 1 DRU per channel)", transform=bx.transAxes, fontsize=6.0, va="top")
-bx.legend(fontsize=4.8, frameon=False, loc="upper left", bbox_to_anchor=(0.0, 0.86), handlelength=1.6)
+bx.text(0.02, 0.93, "(b) memory scaled with the budget: 8 SPUs + 1 DRU per channel", transform=bx.transAxes, fontsize=5.6, va="top")
+bx.legend(fontsize=4.4, frameon=False, loc="upper left", bbox_to_anchor=(0.0, 0.8), handlelength=1.4, labelspacing=0.2)
 fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.02); fig.savefig(OUT.rsplit(".", 1)[0] + ".pdf", bbox_inches="tight", pad_inches=0.02); print("wrote", OUT)
