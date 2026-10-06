@@ -12,7 +12,7 @@ W, OUT = sys.argv[1], sys.argv[2]
 # lane = 155 cycles (expand), 465 cycles for the fused last level (expand + H' + mod-p + partial sum), 4 cycles per
 # 8-leaf group for the fold (pass 2); 8 SPUs per channel.
 SPU = {"L40S": dict(org="l40s", f=2.25e9, n=192, des="merge"), "B200": dict(org="b200", f=2.0e9, n=2048, des="f4dru")}
-GPU = {"L40S": dict(sms=142, lanes=64, f=2.52e9), "B200": dict(sms=160, lanes=64, f=1.965e9)}   # INT32 lanes per SM (64 on Ada and Blackwell; ChaCha is 32-bit ARX) x the recorded max SM clock: L40S 22.9 T (the paper's roofline), B200 20.1 T
+GPU = {"L40S": dict(sms=142, lanes=64, f=2.52e9), "B200": dict(sms=148, lanes=128, f=1.965e9)}   # INT32 rate as in the paper's roofline: L40S 64 INT32 lanes/SM = 22.9 Tops, B200 128/SM/clk = 37.2 Tops
 OPS_PER_CYCLE = 16
 cyc_per_leaf = (155 + 465) / 16 + 4 / 8                   # tree levels + fused last level + fold, per leaf
 L = []
@@ -31,7 +31,7 @@ for mach, S in SPU.items():
     L.append(f"      GPU DPF kernel reaches {gpu_tp/1e9:.1f} G leaves/s (measured, two-pass H') -> achieved DPF throughput ratio SPU/GPU {spu_tp/gpu_tp:.2f}; "
              f"GPU ALU utilisation in the DPF ~ {gpu_tp * 3 * 256 / gpu_ops:.0%} (3 ChaCha8 blocks/leaf), SPU ~ {spu_tp * 2 * 256 / spu_ops:.0%} (2 blocks/leaf)")
     L.append(f"      {'k':>4s} {'raw ratio':>9s} {'DPF ratio':>9s} | 40 Gbps up to / geomean | 400 Mbps up to / geomean | SPU-bound cells 40 Gbps")
-    for k in ((1, 1.25, 1.5, 2, 3, 3.26, 4, 6, 8, 12, 16) if mach == "B200" else (1, 1.25, 1.5, 2, 2.5, 3, 4, 6, 8, 12, 16)):
+    for k in ((1, 1.25, 1.5, 1.76, 2, 3, 4, 6, 8, 12, 16) if mach == "B200" else (1, 1.25, 1.5, 2, 2.5, 3, 4, 6, 8, 12, 16)):
         row = []
         for tier in ("fast", "slow"):
             rr = [r for r in R if r["tier"] == tier]
