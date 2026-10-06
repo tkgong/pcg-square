@@ -48,7 +48,7 @@ dpf = lambda k: LN[k]["gpu_dpf_g"]
 for clk, tag in (("SPU = DRAM clock", "nom"), ("SPU 1 GHz", "1.0")):
     R = json.load(open(os.path.join(REPO, f"PIM/results/contention/final_window/{RUN}/e2e_{tag}.json")))
     for tier, lab in (("fast", "40 Gbps"), ("slow", "400 Mbps")):
-        per, cells, perv, cellsv, pw = [], [], [], [], []
+        per, cells, perv, cellsv, pw, percell = [], [], [], [], [], []
         for (c, t) in CFG:
             v = []
             for r in R:
@@ -59,8 +59,11 @@ for clk, tag in (("SPU = DRAM clock", "nom"), ("SPU 1 GHz", "1.0")):
                 Pm, Pp, Pd = p_ntt("merge", r["logN"], c * c), p_ntt(pcg_ntt, r["logN"], c * c), P[f"dpf_c{c}t{t}"]
                 E_base = Pd * d + Pm * T_ntt + P_idle * max(0.0, T_net - d - T_ntt)
                 E_pcg = Pp * T_nttp + P_idle * (T_pcg - T_nttp) + P_PIM * T_pcg
-                v.append(E_base / E_pcg); pw.append(E_pcg / T_pcg)
+                v.append(E_base / E_pcg); pw.append(E_pcg / T_pcg); percell.append((c, t, r["logN"], E_base / E_pcg, E_base, E_pcg))
             per.append(gm(v)); cells += v
         lines.append(f"{clk:16s} {lab:8s}: energy ratio baseline/PCG^2 per (c,t) " + " ".join(f"{x:.2f}" for x in per)
                      + f" | up to {max(per):.2f} geomean {gm(cells):.2f} | PCG^2 mean system power {sum(pw)/len(pw):.0f} W")
+        for (c, t) in CFG:
+            pc = [x for x in percell if x[0] == c and x[1] == t]
+            if pc: lines.append(f"    ({c},{t}): " + "  ".join(f"2^{lg} {ratio:.2f} ({eb/1e3:.1f}/{ep/1e3:.2f} J)" for _, _, lg, ratio, eb, ep in pc) + f"  | geomean {gm(x[3] for x in pc):.2f}")
 open(out, "w").write("\n".join(lines) + "\n"); print("\n".join(lines))
