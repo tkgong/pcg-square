@@ -69,12 +69,15 @@ for mach in ("L40S", "B200"):
             f = F[k]; n = LN[mach][k]["n"]; nic = (n + 2) * (0.5 if amode == 500 else alpha_bw(k[0], k[1], BETA[amode]))
             T["GPU baseline"].append(max(m["gpu_ms"], nic)); T["+SPU"].append(m["spu_ms"] + m["ntt_ms"] + nic); T["+SPU+DRU"].append(f["spu_ms"] + f["ntt_ms"] + nic)
             T["+SPU+co-sched"].append(max(m["spu_ms"] * m["spu_slow"], m["ntt_ms"] * m["ntt_slow"], nic)); T["full (DRU on)"].append(max(f["spu_ms"] * f["spu_slow"], f["ntt_ms"] * f["ntt_slow"], nic))
-        if mach == "L40S":   # runtime picks merge on L40S: the final row is merge co-scheduled (from e2e_nom.json)
+        if mach == "L40S":   # runtime picks merge on L40S: Table IV's L40S rows use merge (serial, then co-scheduled; the DRU rows equal them)
             MM = {(r["c"], r["t"], r["logN"]): r for r in rows(f"{W}/e2e_nom.json", mach, "merge")}
-            T["final (L40S: merge selected)"] = [max(MM[k]["spu_ms"] * MM[k]["spu_slow"], MM[k]["ntt_ms"] * MM[k]["ntt_slow"], (LN[mach][k]["n"] + 2) * (0.5 if amode == 500 else alpha_bw(k[0], k[1], BETA[amode]))) for k in M]
+            nic_k = lambda k: (LN[mach][k]["n"] + 2) * (0.5 if amode == 500 else alpha_bw(k[0], k[1], BETA[amode]))
+            T["+SPU (L40S: merge)"] = [MM[k]["spu_ms"] + MM[k]["ntt_ms"] + nic_k(k) for k in M]
+            T["final (L40S: merge selected)"] = [max(MM[k]["spu_ms"] * MM[k]["spu_slow"], MM[k]["ntt_ms"] * MM[k]["ntt_slow"], nic_k(k)) for k in M]
         g = {k: gm(v) for k, v in T.items()}
         L.append(f"  {mach} {alab:14s}: " + "; ".join(f"{k} {v:.1f} ({g['GPU baseline']/v:.2f}x)" for k, v in g.items())
-                 + f" | increments: SPU {g['GPU baseline']/g['+SPU']:.2f}, DRU serial {g['+SPU']/g['+SPU+DRU']:.3f}, co-scheduling {g['+SPU']/g['+SPU+co-sched']:.2f}, DRU co-scheduled {g['+SPU+co-sched']/g['full (DRU on)']:.3f}")
+                 + f" | increments: SPU {g['GPU baseline']/g['+SPU']:.2f}, DRU serial {g['+SPU']/g['+SPU+DRU']:.3f}, co-scheduling {g['+SPU']/g['+SPU+co-sched']:.2f}, DRU co-scheduled {g['+SPU+co-sched']/g['full (DRU on)']:.3f}"
+                 + (f" | Table IV L40S rows (merge): SPU {g['GPU baseline']/g['+SPU (L40S: merge)']:.3f}, co-scheduling {g['+SPU (L40S: merge)']/g['final (L40S: merge selected)']:.3f}" if mach == "L40S" else ""))
 L.append("\nDRU ablation inside the final design (transposes on the SMs vs on the DRU), 40 Gbps, contention:")
 for mach in ("L40S", "B200"):
     M = {(r["c"], r["t"], r["logN"]): r for r in rows(f"{W}/e2e_f4sm.json", mach, "f4sm")}; F = {(r["c"], r["t"], r["logN"]): r for r in rows(f"{W}/e2e_f4sm.json", mach, "f4dru")}
