@@ -77,14 +77,9 @@ extra = [Line2D([], [], color="0.3", marker="o", ms=3.5, lw=0, mec="black", mew=
          Line2D([], [], color="0.3", ls="--", lw=1), Line2D([], [], color="#c62828", ls="--", lw=0.9), Line2D([], [], color="0.3", marker="*", ms=8, lw=0, mec="black", mew=0.5)]
 ax.legend(h + extra, l + ["L40S", "B200", "Past the ceiling", "Card ceiling", "Optimal budget"], fontsize=4.4, ncol=3, loc="lower left", frameon=True, title="Network latency", title_fontsize=4.8, columnspacing=0.8, handlelength=1.4, borderpad=0.3, labelspacing=0.2)
 GOLD = "#C9950F"
-bx.plot(XD, t_no, "-", marker="D", ms=3.4, lw=1.3, color="0.3", mec="black", mew=0.3, zorder=4, label="no DRU: four-step on the SMs")
-bx.plot(XD, t_m, "-", marker="o", ms=3.0, lw=1.0, color="#C8322B", mec="black", mew=0.3, zorder=4, label="merge NTT (runtime fallback)")
-off = [i for i, c in enumerate(CH) if c < knee]; on = [i for i, c in enumerate(CH) if c >= knee]; i0 = off[-1]
+i0 = max(i for i, c in enumerate(CH) if c < knee)
 yk = exp(log(t_dru[i0]) + (log(t_dru[i0 + 1]) - log(t_dru[i0])) * (log(knee) - log(CH[i0])) / (log(CH[i0 + 1]) - log(CH[i0])))
-bx.plot([XD[i] for i in off] + [ADRU(knee)], [t_dru[i] for i in off] + [yk], "--", color=GOLD, lw=1.2, zorder=5)
-bx.plot([XD[i] for i in off], [t_dru[i] for i in off], "D", ms=3.4, mfc="white", mec=GOLD, mew=1.1, zorder=6, label="with DRU, not enabled (merge faster)")
-bx.plot([ADRU(knee)] + [XD[i] for i in on], [yk] + [t_dru[i] for i in on], "-", color=GOLD, lw=1.5, zorder=5)
-bx.plot([XD[i] for i in on], [t_dru[i] for i in on], "D", ms=3.4, color=GOLD, mec="black", mew=0.4, zorder=6, label="with DRU, enabled by the runtime")
+bx.plot(XD, t_dru, "-", marker="D", ms=3.4, lw=1.5, color=GOLD, mec="black", mew=0.4, zorder=5)
 bx.plot([ADRU(knee)], [yk], "*", ms=10, color="#C8322B", mec="black", mew=0.5, zorder=8)
 bx.annotate(f"{knee:.0f}", (ADRU(knee), yk), fontsize=4.4, xytext=(3, 2), textcoords="offset points", zorder=9)
 bx.axvline(ADRU(256), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(256) * 1.04, 200, "B200 Ceiling", fontsize=5.5, color="#c62828", va="top")
@@ -95,6 +90,5 @@ bx.set_ylabel("Runtime (ms)", fontsize=7)
 topb = bx.secondary_xaxis("top"); topb.set_xscale("log"); topb.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(XD)); topb.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([str(c) for c in CH]))
 topb.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); topb.tick_params(labelsize=6); topb.set_xlabel("DRU count (one per channel)", fontsize=7, labelpad=2)
 bx.grid(True, which="major", lw=0.3, color="0.85"); bx.set_axisbelow(True)
-bx.legend(fontsize=4.4, frameon=False, loc="upper right", bbox_to_anchor=(1.0, 0.86), handlelength=1.4, labelspacing=0.2)
 
 fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.02); fig.savefig(OUT.rsplit(".", 1)[0] + ".pdf", bbox_inches="tight", pad_inches=0.02); print("wrote", OUT)
