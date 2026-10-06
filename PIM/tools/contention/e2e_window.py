@@ -73,7 +73,8 @@ def main():
             subprocess.run([sys.executable, GEN, "-n", str(a.win_depth), "-C", "2", "-P", "8", "-I", str(16 * a.win_inst), "--mode", "instances", "--seed-bits", "128",
                             "--reread", "--broadcast", "--cl", str(round(155 * FNOM[base(org)] / f / a.alu_mult)), "--reduce", a.reduce,
                             "--convert-cl", str(round(465 * FNOM[base(org)] / f / a.alu_mult)),
-                            "--modmul-cl", str(round(32 * FNOM[base(org)] / f / a.alu_mult)), "-o", tr], check=True, stderr=subprocess.DEVNULL)
+                            "--modmul-cl", str(round(32 * FNOM[base(org)] / f / a.alu_mult)),
+                            "--add64m-cl", str(max(1, round(4 * FNOM[base(org)] / f / a.alu_mult))), "-o", tr], check=True, stderr=subprocess.DEVNULL)
         if not (os.path.exists(o) and "pim_done_cycles" in open(o).read()):
             with open(o, "w") as fo: subprocess.run([a.sim, "-f", YAML[base(org)], "-t", tr] + ctrl_for(org), stdout=fo, stderr=subprocess.STDOUT)
         return tr, parse(o)["pim_done_cycles"]

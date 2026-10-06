@@ -770,6 +770,7 @@ def main():
                     help="EXTEND compute latency; default 279 @128b (256 ChaCha + 16 ff + "
                          "4 PACKLR32 + 2 VCXOR + 1 VXOR free-child), 282 @256b")
     ap.add_argument("--modmul-cl", type=int, default=32, help="Barrett 62b modmul cycles per 8-leaf GROUP (lane-parallel 32b sequence)")
+    ap.add_argument("--add64m-cl", type=int, default=4, help="64b mod-P accumulate cycles per 8-leaf group (pass 2 / fold); scaled with the SPU datapath")
     ap.add_argument("--convert-cl", type=int, default=465,
                     help="chacha mode: fused CONVERT compute latency for the LAST "
                          "level (expand + per-child ChaCha8 out-hash H' + sparse "
@@ -857,10 +858,11 @@ def main():
     ap.add_argument("-o", "--out", required=True)
     a = ap.parse_args()
 
-    global RD_COLS, WR_COLS, REREAD
+    global RD_COLS, WR_COLS, REREAD, ADD64M_CL
     RD_COLS = a.seed_bits // 32
     WR_COLS = 2 * RD_COLS
     REREAD = a.reread
+    ADD64M_CL = a.add64m_cl
     if a.cl is None:
         a.cl = 279 if a.seed_bits == 128 else 282
 
