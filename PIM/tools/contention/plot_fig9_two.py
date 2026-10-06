@@ -47,11 +47,13 @@ CSTAR = 240 * (1 << 24) / 2.2766e-3 / (8.2e12 / 256 * (1 - 0.21))
 
 # ---------------- bottom data: channel-scaled B200 runtime at 500 us ----------------
 A500 = 500; LNB = L_("B200")
-def rt(rowsd): return gm(max(r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"], (LNB[(r["c"], r["t"], r["logN"])]["n"] + 2) * A500 / 1000.0) for r in rowsd.values())
+SPU_FIX = {k: r["spu_ms"] * r["spu_slow"] for k, r in cells(MF, "b200", "f4dru").items()}     # the B200 SPU array (2,048 SPUs) at every channel count
+def rt(rowsd): return gm(max(SPU_FIX[k], r["ntt_ms"] * r["ntt_slow"], (LNB[k]["n"] + 2) * A500 / 1000.0) for k, r in rowsd.items())
 t_no, t_dru, t_m = [], [], []
 for ch in CH:
     org = "b200" if ch == 256 else f"b200_ch{ch}"
     t_no.append(rt(cells(SQ, org, "sq"))); t_dru.append(rt(cells(MF, org, "f4dru"))); t_m.append(rt(cells(MF, org, "merge")))
+print("channels", CH); print("no DRU", [round(x, 1) for x in t_no]); print("merge ", [round(x, 1) for x in t_m]); print("DRU   ", [round(x, 1) for x in t_dru]); print("gain  ", [round(a / b, 3) for a, b in zip(t_no, t_dru)])
 BW = [8.2 * c / 256 for c in CH]
 # ---------------- draw: two panels, each with its own x axis ----------------
 fig, (ax, bx) = plt.subplots(2, 1, figsize=(4.2, 3.3), gridspec_kw=dict(height_ratios=[1.75, 1.0], hspace=0.62, left=0.14, right=0.98, top=0.9, bottom=0.11))
@@ -86,14 +88,14 @@ bx.plot([knee] + [CH[i] for i in on], [yk] + [t_dru[i] for i in on], "-", color=
 bx.plot([CH[i] for i in on], [t_dru[i] for i in on], "D", ms=3.4, color=GOLD, mec="black", mew=0.4, zorder=6, label="with DRU, enabled by the runtime")
 bx.plot([knee], [yk], "*", ms=10, color="#C8322B", mec="black", mew=0.5, zorder=8)
 for c, a, b in zip(CH, t_no, t_dru): bx.annotate(f"{a/b:.2f}×", (c, b), fontsize=4.4, color="#7a5a08", xytext=(0, -8), textcoords="offset points", ha="center", zorder=9)
-bx.annotate(f"DRU knee {knee:.0f} ch ({8.2*knee/256:.1f} TB/s)", (knee, yk), fontsize=4.8, color="#C8322B", xytext=(50, 47), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=5), zorder=9)
-bx.axvline(256, color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(256 * 1.04, 28, "B200", fontsize=5, color="#c62828", va="bottom")
+bx.annotate(f"DRU knee {knee:.0f} ch ({8.2*knee/256:.1f} TB/s)", (knee, yk), fontsize=4.8, color="#C8322B", xytext=(50, 36), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=5), zorder=9)
+bx.axvline(256, color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(256 * 1.04, 29, "B200", fontsize=5, color="#c62828", va="bottom")
 bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(CH); bx.set_xticklabels([str(c) for c in CH], fontsize=6); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(42, 590)
-bx.set_ylim(26, 230); bx.set_yticks([30, 50, 100, 200]); bx.set_yticklabels(["30", "50", "100", "200"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-bx.set_xlabel("channels (8 SPUs + 1 DRU each)", fontsize=7, labelpad=1); bx.set_ylabel("Runtime (ms)", fontsize=7)
+bx.set_ylim(28, 120); bx.set_yticks([30, 50, 100]); bx.set_yticklabels(["30", "50", "100"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+bx.set_xlabel("memory channels (SPU array fixed at the B200 design, 2,048 SPUs)", fontsize=6.5, labelpad=1); bx.set_ylabel("Runtime (ms)", fontsize=7)
 topb = bx.secondary_xaxis("top"); topb.set_xscale("log"); topb.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(CH)); topb.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([f"{b:.1f}" for b in BW]))
 topb.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); topb.tick_params(labelsize=5.5); topb.set_xlabel("aggregate bandwidth (TB/s)", fontsize=6.5, labelpad=2)
 bx.grid(True, which="major", lw=0.3, color="0.85"); bx.set_axisbelow(True)
 bx.legend(fontsize=4.4, frameon=False, loc="upper right", handlelength=1.4, labelspacing=0.2)
-bx.text(0.02, 0.06, "(b) memory scaled with the budget, 500 µs", transform=bx.transAxes, fontsize=5.8, va="bottom")
+bx.text(0.02, 0.06, "(b) channel count, SPUs fixed, 500 µs", transform=bx.transAxes, fontsize=5.8, va="bottom")
 fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.02); fig.savefig(OUT.rsplit(".", 1)[0] + ".pdf", bbox_inches="tight", pad_inches=0.02); print("wrote", OUT)
