@@ -1,0 +1,11 @@
+DRU gain vs channel count (B200 variants). Gains are geomean over the 25 cells (NTT-bound subset in brackets); u = (B_SM+B_DRU)/(BW t_f4sm) + u_SPU at (4,16) 2^24.
+
+  ch  SPUs  agg BW | needed  avail     u | DRU in four-step: NTT lane  e2e [NTT-bound] | sq->f4dru e2e | merge->f4dru NTT    e2e  on? | sq->sqdruh e2e | NTT-bound
+  48   384   1.54T |  1.77T  1.21T  1.36 |                      0.943   1.026 [1.123] |         1.150 |            0.850  0.996   no |          1.032 | 5/25
+  96   768   3.08T |  1.77T  2.43T  0.79 |                      1.001   1.050 [1.260] |         1.184 |            0.955  1.009   no |          1.068 | 5/25
+ 128  1024   4.10T |  1.77T  3.24T  0.64 |                      1.027   1.052 [1.137] |         1.219 |            0.969  1.001   no |          1.070 | 10/25
+ 192  1536   6.15T |  1.77T  4.86T  0.50 |                      1.018   1.045 [1.127] |           nan |            0.968  0.990   no |            nan | 10/25
+ 256  2048   8.20T |  1.77T  6.48T  0.43 |                      1.157   1.075 [1.133] |         1.343 |            1.017  1.014  yes |          1.147 | 14/25
+ 512  4096  16.40T |  1.77T 12.96T  0.32 |                      1.076   1.066 [1.113] |           nan |            0.999  1.002   no |            nan | 15/25
+
+Eq. dru_enable knee (needed = available): C* = 70 channels = 2.24 TB/s aggregate; L40S (24 GDDR6 channels, 0.86 TB/s) is below it and the runtime keeps merge there.
