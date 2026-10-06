@@ -86,7 +86,7 @@ bx.plot([knee] + [CH[i] for i in on], [yk] + [t_dru[i] for i in on], "-", color=
 bx.plot([CH[i] for i in on], [t_dru[i] for i in on], "D", ms=3.4, color=GOLD, mec="black", mew=0.4, zorder=6, label="with DRU, enabled by the runtime")
 bx.plot([knee], [yk], "*", ms=10, color="#C8322B", mec="black", mew=0.5, zorder=8)
 for c, a, b in zip(CH, t_no, t_dru): bx.annotate(f"{a/b:.2f}×", (c, b), fontsize=4.4, color="#7a5a08", xytext=(0, -8), textcoords="offset points", ha="center", zorder=9)
-bx.annotate(f"DRU knee {knee:.0f} ch ({8.2*knee/256:.1f} TB/s)", (knee, yk), fontsize=4.8, color="#C8322B", xytext=(52, 33), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=5), zorder=9)
+bx.annotate(f"DRU knee {knee:.0f} ch ({8.2*knee/256:.1f} TB/s)", (knee, yk), fontsize=4.8, color="#C8322B", xytext=(50, 47), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=5), zorder=9)
 bx.axvline(256, color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(256 * 1.04, 28, "B200", fontsize=5, color="#c62828", va="bottom")
 bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(CH); bx.set_xticklabels([str(c) for c in CH], fontsize=6); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(42, 590)
 bx.set_ylim(26, 230); bx.set_yticks([30, 50, 100, 200]); bx.set_yticklabels(["30", "50", "100", "200"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
