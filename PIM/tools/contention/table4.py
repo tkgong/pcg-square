@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Table IV (component ablation): GPU baseline = DPF + HEonGPU merge NTT, network overlapped; the DRU rows use the
-submission's four-step NTT, without (sq: transposes + bit-reversal on the SMs) and with the DRU (sqdruh: conservative DRU
-paying ACT/PRE); on L40S the DRU design loses to the merge NTT, so its rows keep the baseline's merge NTT.
+submission's four-step NTT without the DRU (sq: transposes + bit-reversal on the SMs) and, with the DRU, the headline design
+(f4dru: four-step on GPU-NTT kernels with its transposes on the DRU, as in Fig. 8); on L40S the DRU design loses to the merge NTT, so its rows keep the baseline's merge NTT.
 Co-scheduled rows include the co-simulated contention.   Usage: table4.py FINAL_WINDOW_DIR OUT_TXT"""
 import io, contextlib, json, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e"))
@@ -22,11 +22,11 @@ for tier, lab in (("a500", "alpha = 500 us"), ("fast", "40 Gbps"), ("slow", "400
         S = cells(f"{W}/fourstep_dru/e2e_nom_conservative_dru.json", org, "sq"); D = cells(f"{W}/fourstep_dru/e2e_nom_conservative_dru.json", org, "sqdruh")
         ks = [k for k in M if k in S and k in D]; nic = {k: nic_of(org, k, tier) for k in ks}
         base = gm(max(M[k]["gpu_ms"], nic[k]) for k in ks)
-        A, B = (M, M) if org == "l40s" else (S, D)          # L40S: merge kept (DRU not used); B200: submission's four-step without / with the DRU
+        A, B = (M, M) if org == "l40s" else (S, F)          # L40S: merge kept (DRU not used); B200: submission's four-step without the DRU -> headline design with it
         rows = [("GPU baseline", base), ("+SPU", gm(ser(A[k], nic[k]) for k in ks)), ("+SPU+DRU", gm(ser(B[k], nic[k]) for k in ks)),
                 ("+SPU+co-schedule", gm(cos(A[k], nic[k]) for k in ks)), ("full", gm(cos(B[k], nic[k]) for k in ks))]
         inc = [None, rows[0][1] / rows[1][1], rows[1][1] / rows[2][1], rows[1][1] / rows[3][1], rows[3][1] / rows[4][1]]
         L.append(f"{org.upper()} {lab} ({len(ks)} cells): " + " | ".join(f"{n} {v:.1f} ms {base/v:.2f}x" + (f" inc {i:.3f}" if i else "") for (n, v), i in zip(rows, inc))
-                 + f" || runtime NTT (fused four-step + DRU on B200, merge on L40S) full {gm(cos(F[k] if org == 'b200' else M[k], nic[k]) for k in ks):.1f} ms {base/gm(cos(F[k] if org == 'b200' else M[k], nic[k]) for k in ks):.2f}x")
+                 + (f" || of the DRU row's gain, fusing the four-step alone (f4sm) gives {rows[1][1]/gm(ser(cells(f'{W}/win22/e2e_f4sm.json', org, 'f4sm')[k], nic[k]) for k in ks):.3f} serial / {rows[3][1]/gm(cos(cells(f'{W}/win22/e2e_f4sm.json', org, 'f4sm')[k], nic[k]) for k in ks):.3f} co-scheduled" if org == "b200" else ""))
     L.append("")
 open(OUT, "w").write("\n".join(L) + "\n"); print("\n".join(L))

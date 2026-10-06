@@ -1,14 +1,14 @@
 Table IV (component ablation): GPU baseline = DPF + HEonGPU merge NTT, network overlapped; the DRU rows use the
-submission's four-step NTT, without (sq: transposes + bit-reversal on the SMs) and with the DRU (sqdruh: conservative DRU
-paying ACT/PRE); on L40S the DRU design loses to the merge NTT, so its rows keep the baseline's merge NTT.
+submission's four-step NTT without the DRU (sq: transposes + bit-reversal on the SMs) and, with the DRU, the headline design
+(f4dru: four-step on GPU-NTT kernels with its transposes on the DRU, as in Fig. 8); on L40S the DRU design loses to the merge NTT, so its rows keep the baseline's merge NTT.
 Co-scheduled rows include the co-simulated contention.
 
-L40S alpha = 500 us (22 cells): GPU baseline 601.7 ms 1.00x | +SPU 315.6 ms 1.91x inc 1.907 | +SPU+DRU 315.6 ms 1.91x inc 1.000 | +SPU+co-schedule 242.2 ms 2.48x inc 1.303 | full 242.2 ms 2.48x inc 1.000 || runtime NTT (fused four-step + DRU on B200, merge on L40S) full 242.2 ms 2.48x
-B200 alpha = 500 us (25 cells): GPU baseline 304.9 ms 1.00x | +SPU 87.9 ms 3.47x inc 3.471 | +SPU+DRU 80.2 ms 3.80x inc 1.095 | +SPU+co-schedule 55.2 ms 5.53x inc 1.592 | full 48.6 ms 6.27x inc 1.134 || runtime NTT (fused four-step + DRU on B200, merge on L40S) full 41.8 ms 7.29x
+L40S alpha = 500 us (22 cells): GPU baseline 601.7 ms 1.00x | +SPU 315.6 ms 1.91x inc 1.907 | +SPU+DRU 315.6 ms 1.91x inc 1.000 | +SPU+co-schedule 242.2 ms 2.48x inc 1.303 | full 242.2 ms 2.48x inc 1.000
+B200 alpha = 500 us (25 cells): GPU baseline 304.9 ms 1.00x | +SPU 87.9 ms 3.47x inc 3.471 | +SPU+DRU 73.4 ms 4.15x inc 1.197 | +SPU+co-schedule 55.2 ms 5.53x inc 1.592 | full 41.8 ms 7.29x inc 1.320 || of the DRU row's gain, fusing the four-step alone (f4sm) gives 1.151 serial / 1.229 co-scheduled
 
-L40S 40 Gbps (22 cells): GPU baseline 601.7 ms 1.00x | +SPU 303.4 ms 1.98x inc 1.983 | +SPU+DRU 303.4 ms 1.98x inc 1.000 | +SPU+co-schedule 242.2 ms 2.48x inc 1.253 | full 242.2 ms 2.48x inc 1.000 || runtime NTT (fused four-step + DRU on B200, merge on L40S) full 242.2 ms 2.48x
-B200 40 Gbps (25 cells): GPU baseline 304.9 ms 1.00x | +SPU 76.2 ms 4.00x inc 4.000 | +SPU+DRU 68.6 ms 4.44x inc 1.110 | +SPU+co-schedule 53.9 ms 5.65x inc 1.413 | full 47.0 ms 6.49x inc 1.147 || runtime NTT (fused four-step + DRU on B200, merge on L40S) full 40.2 ms 7.59x
+L40S 40 Gbps (22 cells): GPU baseline 601.7 ms 1.00x | +SPU 303.4 ms 1.98x inc 1.983 | +SPU+DRU 303.4 ms 1.98x inc 1.000 | +SPU+co-schedule 242.2 ms 2.48x inc 1.253 | full 242.2 ms 2.48x inc 1.000
+B200 40 Gbps (25 cells): GPU baseline 304.9 ms 1.00x | +SPU 76.2 ms 4.00x inc 4.000 | +SPU+DRU 61.8 ms 4.93x inc 1.233 | +SPU+co-schedule 53.9 ms 5.65x inc 1.413 | full 40.2 ms 7.59x inc 1.343 || of the DRU row's gain, fusing the four-step alone (f4sm) gives 1.178 serial / 1.249 co-scheduled
 
-L40S 400 Mbps (22 cells): GPU baseline 661.1 ms 1.00x | +SPU 479.0 ms 1.38x inc 1.380 | +SPU+DRU 479.0 ms 1.38x inc 1.000 | +SPU+co-schedule 310.9 ms 2.13x inc 1.541 | full 310.9 ms 2.13x inc 1.000 || runtime NTT (fused four-step + DRU on B200, merge on L40S) full 310.9 ms 2.13x
-B200 400 Mbps (25 cells): GPU baseline 393.5 ms 1.00x | +SPU 249.0 ms 1.58x inc 1.580 | +SPU+DRU 233.4 ms 1.69x inc 1.067 | +SPU+co-schedule 174.2 ms 2.26x inc 1.429 | full 159.8 ms 2.46x inc 1.090 || runtime NTT (fused four-step + DRU on B200, merge on L40S) full 144.0 ms 2.73x
+L40S 400 Mbps (22 cells): GPU baseline 661.1 ms 1.00x | +SPU 479.0 ms 1.38x inc 1.380 | +SPU+DRU 479.0 ms 1.38x inc 1.000 | +SPU+co-schedule 310.9 ms 2.13x inc 1.541 | full 310.9 ms 2.13x inc 1.000
+B200 400 Mbps (25 cells): GPU baseline 393.5 ms 1.00x | +SPU 249.0 ms 1.58x inc 1.580 | +SPU+DRU 220.0 ms 1.79x inc 1.132 | +SPU+co-schedule 174.2 ms 2.26x inc 1.429 | full 144.0 ms 2.73x inc 1.209 || of the DRU row's gain, fusing the four-step alone (f4sm) gives 1.100 serial / 1.147 co-scheduled
 
