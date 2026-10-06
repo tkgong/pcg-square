@@ -92,10 +92,10 @@ bx.annotate(f"DRU knee {knee:.0f} ch ({8.2*knee/256:.1f} TB/s)", (knee, yk), fon
 bx.axvline(256, color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(256 * 1.04, 29, "B200", fontsize=5, color="#c62828", va="bottom")
 bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(CH); bx.set_xticklabels([str(c) for c in CH], fontsize=6); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(42, 590)
 bx.set_ylim(28, 135); bx.set_yticks([30, 50, 100]); bx.set_yticklabels(["30", "50", "100"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-bx.set_xlabel("memory channels (SPU array fixed at the B200 design, 2,048 SPUs)", fontsize=6.5, labelpad=1); bx.set_ylabel("Runtime (ms)", fontsize=7)
+bx.set_xlabel("(b) memory channels, SPU array fixed at the B200 design (2,048 SPUs), 500 µs", fontsize=6.5, labelpad=1); bx.set_ylabel("Runtime (ms)", fontsize=7)
 topb = bx.secondary_xaxis("top"); topb.set_xscale("log"); topb.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(CH)); topb.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([f"{b:.1f}" for b in BW]))
 topb.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); topb.tick_params(labelsize=5.5); topb.set_xlabel("aggregate bandwidth (TB/s)", fontsize=6.5, labelpad=2)
 bx.grid(True, which="major", lw=0.3, color="0.85"); bx.set_axisbelow(True)
 bx.legend(fontsize=4.4, frameon=False, loc="upper center", bbox_to_anchor=(0.6, 1.0), handlelength=1.4, labelspacing=0.2)
-bx.text(0.02, 0.06, "(b) channel count, SPUs fixed, 500 µs", transform=bx.transAxes, fontsize=5.8, va="bottom")
+
 fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.02); fig.savefig(OUT.rsplit(".", 1)[0] + ".pdf", bbox_inches="tight", pad_inches=0.02); print("wrote", OUT)
