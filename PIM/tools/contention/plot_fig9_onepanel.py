@@ -74,9 +74,9 @@ ax.plot([xs[i] for i in off], [t_dru[i] for i in off], "D", ms=4.2, mfc="white",
 ax.plot([xk] + [xs[i] for i in on], [yk] + [t_dru[i] for i in on], "-", color=GOLD, lw=1.8, zorder=5)
 ax.plot([xs[i] for i in on], [t_dru[i] for i in on], "D", ms=4.2, color=GOLD, mec="black", mew=0.4, zorder=6, label="B200, memory scaled, DRU enabled by the runtime")
 ax.plot([xk], [yk], "*", ms=12, color="#C8322B", mec="black", mew=0.6, zorder=8)
-for c, x, a, b in zip(CH, xs, t_no, t_dru):
-    ax.annotate(f"{c} ch\n{a/b:.2f}×", (x, b), fontsize=4.8, color="#7a5a08", xytext=(0, -7), textcoords="offset points", ha="center", va="top", zorder=9)
-ax.annotate(f"DRU knee: {knee:.0f} channels ({8.2*knee/256:.1f} TB/s),\nDRU design overtakes the merge NTT", (xk, yk), fontsize=5.4, color="#C8322B", xytext=(AREA(8 * 14), 3200), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=6), zorder=9)
+for j, (c, x, a, b) in enumerate(zip(CH, xs, t_no, t_dru)):
+    ax.annotate(f"{c} ch\n{a/b:.2f}×", (x, b), fontsize=4.8, color="#7a5a08", xytext=(0, -20 if j == 3 else -7), textcoords="offset points", ha="center", va="top", zorder=9)
+ax.annotate(f"DRU knee: {knee:.0f} channels ({8.2*knee/256:.1f} TB/s),\nDRU design overtakes the merge NTT", (xk, yk), fontsize=5.4, color="#C8322B", xytext=(AREA(8 * 26), 2300), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=6), zorder=9)
 ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(AREA(8) / 1.3, AREA(8192) * 1.3); ax.set_ylim(15, 3e4)
 ax.set_ylabel("Runtime (ms)", fontsize=8); ax.set_xlabel("Area (mm$^2$)", fontsize=8); ax.tick_params(axis="y", labelsize=6.5)
 tick_n = [8, 32, 128, 512, 2048, 8192]; ax.set_xticks([AREA(n) for n in tick_n]); ax.set_xticklabels([f"{AREA(n):.2f}" for n in tick_n], fontsize=6.5); ax.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
