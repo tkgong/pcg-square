@@ -54,7 +54,7 @@ for ch in CH:
     org = "b200" if ch == 256 else f"b200_ch{ch}"
     t_no.append(rt(cells(SQ, org, "sq"))); t_dru.append(rt(cells(MF, org, "f4dru"))); t_m.append(rt(cells(MF, org, "merge")))
 print("channels", CH); print("no DRU", [round(x, 1) for x in t_no]); print("merge ", [round(x, 1) for x in t_m]); print("DRU   ", [round(x, 1) for x in t_dru]); print("gain  ", [round(a / b, 3) for a, b in zip(t_no, t_dru)])
-BW = [8.2 * c / 256 for c in CH]
+BW = [8.2 * c / 256 for c in CH]; ADRU = lambda n: n * 0.024924; XD = [ADRU(c) for c in CH]
 # ---------------- draw: two panels, each with its own x axis ----------------
 fig, (ax, bx) = plt.subplots(2, 1, figsize=(4.2, 3.3), gridspec_kw=dict(height_ratios=[1.75, 1.0], hspace=0.62, left=0.14, right=0.98, top=0.9, bottom=0.11))
 for mach, mk in (("L40S", "o"), ("B200", "s")):
@@ -78,24 +78,25 @@ extra = [Line2D([], [], color="0.3", marker="o", ms=3.5, lw=0, mec="black", mew=
 ax.legend(h + extra, l + ["L40S", "B200", "Past the ceiling", "Card ceiling", "Optimal budget"], fontsize=4.4, ncol=3, loc="lower left", frameon=True, title="Network latency", title_fontsize=4.8, columnspacing=0.8, handlelength=1.4, borderpad=0.3, labelspacing=0.2)
 ax.text(0.02, 0.9, "(a) SPU budget, memory system fixed", transform=ax.transAxes, fontsize=5.8, va="top")
 GOLD = "#C9950F"
-bx.plot(CH, t_no, "-", marker="D", ms=3.4, lw=1.3, color="0.3", mec="black", mew=0.3, zorder=4, label="no DRU: four-step on the SMs")
-bx.plot(CH, t_m, "-", marker="o", ms=3.0, lw=1.0, color="#C8322B", mec="black", mew=0.3, zorder=4, label="merge NTT (runtime fallback)")
+bx.plot(XD, t_no, "-", marker="D", ms=3.4, lw=1.3, color="0.3", mec="black", mew=0.3, zorder=4, label="no DRU: four-step on the SMs")
+bx.plot(XD, t_m, "-", marker="o", ms=3.0, lw=1.0, color="#C8322B", mec="black", mew=0.3, zorder=4, label="merge NTT (runtime fallback)")
 off = [i for i, c in enumerate(CH) if c < knee]; on = [i for i, c in enumerate(CH) if c >= knee]; i0 = off[-1]
 yk = exp(log(t_dru[i0]) + (log(t_dru[i0 + 1]) - log(t_dru[i0])) * (log(knee) - log(CH[i0])) / (log(CH[i0 + 1]) - log(CH[i0])))
-bx.plot([CH[i] for i in off] + [knee], [t_dru[i] for i in off] + [yk], "--", color=GOLD, lw=1.2, zorder=5)
-bx.plot([CH[i] for i in off], [t_dru[i] for i in off], "D", ms=3.4, mfc="white", mec=GOLD, mew=1.1, zorder=6, label="with DRU, not enabled (merge faster)")
-bx.plot([knee] + [CH[i] for i in on], [yk] + [t_dru[i] for i in on], "-", color=GOLD, lw=1.5, zorder=5)
-bx.plot([CH[i] for i in on], [t_dru[i] for i in on], "D", ms=3.4, color=GOLD, mec="black", mew=0.4, zorder=6, label="with DRU, enabled by the runtime")
-bx.plot([knee], [yk], "*", ms=10, color="#C8322B", mec="black", mew=0.5, zorder=8)
-for c, a, b in zip(CH, t_no, t_dru): bx.annotate(f"{a/b:.2f}×", (c, b), fontsize=4.4, color="#7a5a08", xytext=(0, -8), textcoords="offset points", ha="center", zorder=9)
-bx.annotate(f"DRU knee {knee:.0f} ch ({8.2*knee/256:.1f} TB/s)", (knee, yk), fontsize=4.8, color="#C8322B", xytext=(56, 112), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=5), zorder=9)
-bx.axvline(256, color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(256 * 1.04, 29, "B200", fontsize=5, color="#c62828", va="bottom")
-bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(CH); bx.set_xticklabels([str(c) for c in CH], fontsize=6); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(42, 590)
+bx.plot([XD[i] for i in off] + [ADRU(knee)], [t_dru[i] for i in off] + [yk], "--", color=GOLD, lw=1.2, zorder=5)
+bx.plot([XD[i] for i in off], [t_dru[i] for i in off], "D", ms=3.4, mfc="white", mec=GOLD, mew=1.1, zorder=6, label="with DRU, not enabled (merge faster)")
+bx.plot([ADRU(knee)] + [XD[i] for i in on], [yk] + [t_dru[i] for i in on], "-", color=GOLD, lw=1.5, zorder=5)
+bx.plot([XD[i] for i in on], [t_dru[i] for i in on], "D", ms=3.4, color=GOLD, mec="black", mew=0.4, zorder=6, label="with DRU, enabled by the runtime")
+bx.plot([ADRU(knee)], [yk], "*", ms=10, color="#C8322B", mec="black", mew=0.5, zorder=8)
+for c, a, b in zip(XD, t_no, t_dru): bx.annotate(f"{a/b:.2f}×", (c, b), fontsize=4.4, color="#7a5a08", xytext=(0, -8), textcoords="offset points", ha="center", zorder=9)
+bx.annotate(f"DRU knee: {knee:.0f} DRUs ({8.2*knee/256:.1f} TB/s)", (ADRU(knee), yk), fontsize=4.8, color="#C8322B", xytext=(ADRU(56), 112), textcoords="data", ha="left", va="center", arrowprops=dict(arrowstyle="-", color="#C8322B", lw=0.6, shrinkB=5), zorder=9)
+bx.axvline(ADRU(256), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(256) * 1.04, 29, "B200", fontsize=5, color="#c62828", va="bottom")
+bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(XD); bx.set_xticklabels([f"{x:.2f}" for x in XD], fontsize=6); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(ADRU(42), ADRU(590))
 bx.set_ylim(28, 135); bx.set_yticks([30, 50, 100]); bx.set_yticklabels(["30", "50", "100"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-bx.set_xlabel("(b) memory channels, SPU array fixed at the B200 design (2,048 SPUs), 500 µs", fontsize=6.5, labelpad=1); bx.set_ylabel("Runtime (ms)", fontsize=7)
-topb = bx.secondary_xaxis("top"); topb.set_xscale("log"); topb.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(CH)); topb.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([f"{b:.1f}" for b in BW]))
-topb.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); topb.tick_params(labelsize=5.5); topb.set_xlabel("aggregate bandwidth (TB/s)", fontsize=6.5, labelpad=2)
+bx.set_xlabel("DRU area (mm$^2$)", fontsize=7, labelpad=1)
+bx.text(0.3, 0.05, "(b) DRU budget: one DRU per channel, 2,048 SPUs, 500 µs", transform=bx.transAxes, fontsize=5.6, va="bottom", ha="left"); bx.set_ylabel("Runtime (ms)", fontsize=7)
+topb = bx.secondary_xaxis("top"); topb.set_xscale("log"); topb.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(XD)); topb.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([str(c) for c in CH]))
+topb.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); topb.tick_params(labelsize=6); topb.set_xlabel("DRU count (one per channel)", fontsize=7, labelpad=2)
 bx.grid(True, which="major", lw=0.3, color="0.85"); bx.set_axisbelow(True)
-bx.legend(fontsize=4.4, frameon=False, loc="upper center", bbox_to_anchor=(0.6, 1.0), handlelength=1.4, labelspacing=0.2)
+bx.legend(fontsize=4.4, frameon=False, loc="upper center", bbox_to_anchor=(0.72, 1.0), handlelength=1.4, labelspacing=0.2)
 
 fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.02); fig.savefig(OUT.rsplit(".", 1)[0] + ".pdf", bbox_inches="tight", pad_inches=0.02); print("wrote", OUT)
