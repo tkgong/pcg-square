@@ -15,20 +15,20 @@ L40S: SPU = 192 units x 8 lanes x 2 ALUs at the DRAM clock 2.25 GHz = 6.9 T int3
       16.00      0.01      0.14 |    0.19 /    0.16      |    0.23 /    0.17       | 22/22
       geomean speedup reaches 1.0 at k = 2.5 (raw ratio 0.061, DPF ratio 0.92); the existing re-simulated points: 1.75/1.5/1.0 GHz = k 1.14/1.33/2.0, single ALU = k 1.8
 
-B200: SPU = 2048 units x 8 lanes x 2 ALUs at the DRAM clock 2.00 GHz = 65.5 T int32 ops/s; GPU SMs = 148 x 128 lanes x 1.97 GHz = 37.2 T ops/s -> raw ratio SPU/GPU 1.76
+B200: SPU = 2048 units x 8 lanes x 2 ALUs at the DRAM clock 2.00 GHz = 65.5 T int32 ops/s; GPU SMs = 160 x 128 lanes x 1.97 GHz = 40.2 T ops/s -> raw ratio SPU/GPU 1.63
       per SPU: ChaCha8 block per lane in 155 cycles, fused last level 465, fold 4 per 8 leaves -> 39.25 cycles/leaf = 51 M leaves/s per SPU, 104 G leaves/s for the array (simulated lane reaches 86 G leaves/s, geomean over cells)
-      GPU DPF kernel reaches 10.2 G leaves/s (measured, two-pass H') -> achieved DPF throughput ratio SPU/GPU 8.45; GPU ALU utilisation in the DPF ~ 21% (3 ChaCha8 blocks/leaf), SPU ~ 68% (2 blocks/leaf)
+      GPU DPF kernel reaches 10.2 G leaves/s (measured, two-pass H') -> achieved DPF throughput ratio SPU/GPU 8.45; GPU ALU utilisation in the DPF ~ 20% (3 ChaCha8 blocks/leaf), SPU ~ 68% (2 blocks/leaf)
          k raw ratio DPF ratio | 40 Gbps up to / geomean | 400 Mbps up to / geomean | SPU-bound cells 40 Gbps
-      1.00      1.76      8.45 |    9.71 /    7.59      |    5.28 /    2.73       | 15/25
-      1.25      1.41      6.76 |    7.77 /    6.64      |    5.28 /    2.71       | 15/25
-      1.50      1.17      5.63 |    7.32 /    5.95      |    5.28 /    2.67       | 17/25
-      1.76      1.00      4.80 |    6.73 /    5.23      |    5.15 /    2.58       | 25/25
-      2.00      0.88      4.22 |    5.93 /    4.60      |    4.77 /    2.45       | 25/25
-      3.00      0.59      2.82 |    3.95 /    3.07      |    3.60 /    2.04       | 25/25
-      4.00      0.44      2.11 |    2.96 /    2.30      |    2.86 /    1.76       | 25/25
-      6.00      0.29      1.41 |    1.98 /    1.53      |    1.98 /    1.37       | 25/25
-      8.00      0.22      1.06 |    1.48 /    1.15      |    1.48 /    1.13       | 25/25
-      12.00      0.15      0.70 |    0.99 /    0.77      |    0.99 /    0.83       | 25/25
-      16.00      0.11      0.53 |    0.74 /    0.57      |    0.78 /    0.66       | 25/25
-      geomean speedup reaches 1.0 at k = 9.2 (raw ratio 0.191, DPF ratio 0.92); the existing re-simulated points: 1.75/1.5/1.0 GHz = k 1.14/1.33/2.0, single ALU = k 1.8
+      1.00      1.63      8.45 |    9.71 /    7.59      |    5.28 /    2.73       | 15/25
+      1.25      1.30      6.76 |    7.77 /    6.64      |    5.28 /    2.71       | 15/25
+      1.50      1.09      5.63 |    7.32 /    5.95      |    5.28 /    2.67       | 17/25
+      1.76      0.93      4.80 |    6.73 /    5.23      |    5.15 /    2.58       | 25/25
+      2.00      0.81      4.22 |    5.93 /    4.60      |    4.77 /    2.45       | 25/25
+      3.00      0.54      2.82 |    3.95 /    3.07      |    3.60 /    2.04       | 25/25
+      4.00      0.41      2.11 |    2.96 /    2.30      |    2.86 /    1.76       | 25/25
+      6.00      0.27      1.41 |    1.98 /    1.53      |    1.98 /    1.37       | 25/25
+      8.00      0.20      1.06 |    1.48 /    1.15      |    1.48 /    1.13       | 25/25
+      12.00      0.14      0.70 |    0.99 /    0.77      |    0.99 /    0.83       | 25/25
+      16.00      0.10      0.53 |    0.74 /    0.57      |    0.78 /    0.66       | 25/25
+      geomean speedup reaches 1.0 at k = 9.2 (raw ratio 0.177, DPF ratio 0.92); the existing re-simulated points: 1.75/1.5/1.0 GHz = k 1.14/1.33/2.0, single ALU = k 1.8
 

@@ -12,7 +12,7 @@ W, OUT = sys.argv[1], sys.argv[2]
 # lane = 155 cycles (expand), 465 cycles for the fused last level (expand + H' + mod-p + partial sum), 4 cycles per
 # 8-leaf group for the fold (pass 2); 8 SPUs per channel.
 SPU = {"L40S": dict(org="l40s", f=2.25e9, n=192, des="merge"), "B200": dict(org="b200", f=2.0e9, n=2048, des="f4dru")}
-GPU = {"L40S": dict(sms=142, lanes=128, f=2.52e9), "B200": dict(sms=148, lanes=128, f=1.965e9)}   # FP32-lane count x boost clock
+GPU = {"L40S": dict(sms=142, lanes=128, f=2.52e9), "B200": dict(sms=160, lanes=128, f=1.965e9)}   # FP32-lane count x the recorded max SM clock (B200: 160 SMs x 128 x 1.965 GHz = the 80 TFLOPS FP32 spec; L40S 142 x 128 x 2.52 GHz = 91.6 TFLOPS)
 OPS_PER_CYCLE = 16
 cyc_per_leaf = (155 + 465) / 16 + 4 / 8                   # tree levels + fused last level + fold, per leaf
 L = []
