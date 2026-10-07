@@ -19,7 +19,7 @@ DEV = {"l40s": dict(ch=24, tck=0.444), "b200": dict(ch=256, tck=0.500)}
 for _ch in (8, 16, 32, 48, 96, 128, 192, 512):
     DEV[f"b200_ch{_ch}"] = dict(ch=_ch, tck=0.500)
 # L40S variants: GDDR6 channels/timing/kernels with a hypothetical channel count (native 24 = 0.86 TB/s)
-for _ch in (48, 96, 128, 192, 256, 512):
+for _ch in (8, 16, 48, 96, 128, 192, 256, 512):
     DEV[f"l40s_ch{_ch}"] = dict(ch=_ch, tck=0.444)
 def base(dev):
     """measured device a derived org inherits its tables from"""

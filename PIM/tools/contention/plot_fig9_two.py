@@ -49,8 +49,8 @@ CSTAR = 240 * (1 << 24) / 2.2766e-3 / (8.2e12 / 256 * (1 - 0.21))
 A500 = 500
 CARD = {"B200": dict(org="b200", native=256, chs=[8, 16, 32, 48, 96, 128, 192, 256, 512], mk="s",
                      rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/channel_sweep/e2e.json") + load(f"{W}/channel_sweep/e2e_b200_low.json")),
-        "L40S": dict(org="l40s", native=24, chs=[24, 48, 96, 128, 192, 256, 512], mk="o",
-                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/channel_sweep/e2e_l40s.json"))}
+        "L40S": dict(org="l40s", native=24, chs=[8, 16, 24, 48, 96, 128, 192, 256, 512], mk="o",
+                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/channel_sweep/e2e_l40s.json") + load(f"{W}/channel_sweep/e2e_l40s_low.json"))}
 ADRU = lambda n: n * 0.024924
 B = {}
 for mach, c in CARD.items():
@@ -97,7 +97,7 @@ for mach, c in CARD.items():
         yk = exp(log(d["t"][i0]) + (log(d["t"][i0 + 1]) - log(d["t"][i0])) * (log(kn) - log(d["chs"][i0])) / (log(d["chs"][i0 + 1]) - log(d["chs"][i0])))
         bx.plot([ADRU(kn)], [yk], "*", ms=9, color=COLB[mach], mec="black", mew=0.5, zorder=8); bx.annotate(f"{kn:.0f}", (ADRU(kn), yk), fontsize=4.4, xytext=(3, 2), textcoords="offset points", zorder=9)
     bx.axvline(ADRU(c["native"]), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(c["native"]) * 1.06, 620, f"{mach} Ceiling", fontsize=5.5, color="#c62828", va="top")
-CHT = [8, 24, 48, 96, 128, 192, 256, 512]; XD = [ADRU(n) for n in CHT]
+CHT = [8, 16, 24, 48, 96, 128, 192, 256, 512]; XD = [ADRU(n) for n in CHT]
 bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(XD); bx.set_xticklabels([f"{x:.2f}" for x in XD], fontsize=5.5); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(ADRU(7), ADRU(590))
 bx.set_ylim(28, 700); bx.set_yticks([30, 100, 300]); bx.set_yticklabels(["30", "100", "300"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
 bx.set_xlabel("DRU area (mm$^2$)", fontsize=7, labelpad=1)
