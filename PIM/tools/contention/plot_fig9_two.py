@@ -45,17 +45,28 @@ for ch in CH:
 knee = next(exp(log(CH[i]) + (1 - ratio[i]) / (ratio[i + 1] - ratio[i]) * (log(CH[i + 1]) - log(CH[i]))) for i in range(len(CH) - 1) if ratio[i] < 1 <= ratio[i + 1])
 CSTAR = 240 * (1 << 24) / 2.2766e-3 / (8.2e12 / 256 * (1 - 0.21))
 
-# ---------------- bottom data: channel-scaled B200 runtime at 500 us ----------------
-A500 = 500; LNB = L_("B200")
-SPU_FIX = {k: r["spu_ms"] * r["spu_slow"] for k, r in cells(MF, "b200", "f4dru").items()}     # the B200 SPU array (2,048 SPUs) at every channel count
-def rt(rowsd): return gm(max(SPU_FIX[k], r["ntt_ms"] * r["ntt_slow"], (LNB[k]["n"] + 2) * A500 / 1000.0) for k, r in rowsd.items())
-t_no, t_dru, t_m = [], [], []
-for ch in CH:
-    org = "b200" if ch == 256 else f"b200_ch{ch}"
-    t_no.append(rt(cells(SQ, org, "sq"))); t_dru.append(rt(cells(MF, org, "f4dru"))); t_m.append(rt(cells(MF, org, "merge")))
-print("channels", CH); print("no DRU", [round(x, 1) for x in t_no]); print("merge ", [round(x, 1) for x in t_m]); print("DRU   ", [round(x, 1) for x in t_dru]); print("gain  ", [round(a / b, 3) for a, b in zip(t_no, t_dru)])
-BW = [8.2 * c / 256 for c in CH]; ADRU = lambda n: n * 0.024924; XD = [ADRU(c) for c in CH]
-# ---------------- draw: two panels, each with its own x axis ----------------
+# ---------------- bottom data: channel count (= DRU count, bandwidth = count x per-channel), SPU array fixed per card ----------------
+A500 = 500
+CARD = {"B200": dict(org="b200", native=256, chs=[8, 16, 32, 48, 96, 128, 192, 256, 512], mk="s",
+                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/channel_sweep/e2e.json") + load(f"{W}/channel_sweep/e2e_b200_low.json")),
+        "L40S": dict(org="l40s", native=24, chs=[24, 48, 96, 128, 192, 256, 512], mk="o",
+                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/channel_sweep/e2e_l40s.json"))}
+ADRU = lambda n: n * 0.024924
+B = {}
+for mach, c in CARD.items():
+    LNm = L_(mach); nat = cells(c["rows"], c["org"], "f4dru"); SPU_FIX = {k: r["spu_ms"] * r["spu_slow"] for k, r in nat.items()}
+    def rt(rowsd): return gm(max(SPU_FIX[k], r["ntt_ms"] * r["ntt_slow"], (LNm[k]["n"] + 2) * A500 / 1000.0) for k, r in rowsd.items() if k in SPU_FIX)
+    chs, t_dru, ratio = [], [], []
+    for ch in c["chs"]:
+        org = c["org"] if ch == c["native"] else f"{c['org']}_ch{ch}"
+        d, m = cells(c["rows"], org, "f4dru"), cells(c["rows"], org, "merge")
+        if not d: continue
+        chs.append(ch); t_dru.append(rt(d)); ratio.append(gm(lane(m[k]) / lane(d[k]) for k in d if k in m) if m else float("nan"))
+    kn = None
+    for i in range(len(chs) - 1):
+        if ratio[i] < 1 <= ratio[i + 1]: kn = exp(log(chs[i]) + (1 - ratio[i]) / (ratio[i + 1] - ratio[i]) * (log(chs[i + 1]) - log(chs[i]))); break
+    B[mach] = dict(chs=chs, t=t_dru, ratio=ratio, knee=kn)
+    print(mach, "channels", chs, "runtime", [round(x, 1) for x in t_dru], "merge/f4dru lane", [round(x, 3) for x in ratio], "enable at", kn)
 fig, (ax, bx) = plt.subplots(2, 1, figsize=(4.2, 3.3), gridspec_kw=dict(height_ratios=[1.75, 1.0], hspace=0.62, left=0.14, right=0.98, top=0.9, bottom=0.11))
 for mach, mk in (("L40S", "o"), ("B200", "s")):
     ceil_n = DES[mach][2]
@@ -76,19 +87,24 @@ h, l = ax.get_legend_handles_labels()
 extra = [Line2D([], [], color="0.3", marker="o", ms=3.5, lw=0, mec="black", mew=0.3), Line2D([], [], color="0.3", marker="s", ms=3.5, lw=0, mec="black", mew=0.3),
          Line2D([], [], color="0.3", ls="--", lw=1), Line2D([], [], color="#c62828", ls="--", lw=0.9), Line2D([], [], color="0.3", marker="*", ms=8, lw=0, mec="black", mew=0.5)]
 ax.legend(h + extra, l + ["L40S", "B200", "Past the ceiling", "Card ceiling", "Optimal budget"], fontsize=4.4, ncol=3, loc="lower left", frameon=True, title="Network latency", title_fontsize=4.8, columnspacing=0.8, handlelength=1.4, borderpad=0.3, labelspacing=0.2)
-GOLD = "#C9950F"
-i0 = max(i for i, c in enumerate(CH) if c < knee)
-yk = exp(log(t_dru[i0]) + (log(t_dru[i0 + 1]) - log(t_dru[i0])) * (log(knee) - log(CH[i0])) / (log(CH[i0 + 1]) - log(CH[i0])))
-bx.plot(XD, t_dru, "-", marker="D", ms=3.4, lw=1.5, color=GOLD, mec="black", mew=0.4, zorder=5)
-bx.plot([ADRU(knee)], [yk], "*", ms=10, color="#C8322B", mec="black", mew=0.5, zorder=8)
-bx.annotate(f"{knee:.0f}", (ADRU(knee), yk), fontsize=4.4, xytext=(3, 2), textcoords="offset points", zorder=9)
-bx.axvline(ADRU(256), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(256) * 1.04, 200, "B200 Ceiling", fontsize=5.5, color="#c62828", va="top")
-bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(XD); bx.set_xticklabels([f"{x:.2f}" for x in XD], fontsize=6); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(ADRU(42), ADRU(590))
-bx.set_ylim(28, 210); bx.set_yticks([30, 50, 100, 200]); bx.set_yticklabels(["30", "50", "100", "200"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+COLB = {"B200": "#C9950F", "L40S": "#C8322B"}
+for mach, c in CARD.items():
+    d = B[mach]; xs = [ADRU(n) for n in d["chs"]]; i = d["chs"].index(c["native"])
+    bx.plot(xs[:i + 1], d["t"][:i + 1], "-", marker=c["mk"], ms=3.2, lw=1.3, color=COLB[mach], mec="black", mew=0.35, zorder=5, label=mach)
+    bx.plot(xs[i:], d["t"][i:], "--", marker=c["mk"], ms=3.2, lw=1.1, color=COLB[mach], mec="black", mew=0.35, alpha=0.8, zorder=5)
+    if d["knee"]:
+        i0 = max(j for j, n in enumerate(d["chs"]) if n < d["knee"]); kn = d["knee"]
+        yk = exp(log(d["t"][i0]) + (log(d["t"][i0 + 1]) - log(d["t"][i0])) * (log(kn) - log(d["chs"][i0])) / (log(d["chs"][i0 + 1]) - log(d["chs"][i0])))
+        bx.plot([ADRU(kn)], [yk], "*", ms=9, color=COLB[mach], mec="black", mew=0.5, zorder=8); bx.annotate(f"{kn:.0f}", (ADRU(kn), yk), fontsize=4.4, xytext=(3, 2), textcoords="offset points", zorder=9)
+    bx.axvline(ADRU(c["native"]), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(c["native"]) * 1.06, 620, f"{mach} Ceiling", fontsize=5.5, color="#c62828", va="top")
+CHT = [8, 24, 48, 96, 128, 192, 256, 512]; XD = [ADRU(n) for n in CHT]
+bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(XD); bx.set_xticklabels([f"{x:.2f}" for x in XD], fontsize=5.5); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(ADRU(7), ADRU(590))
+bx.set_ylim(28, 700); bx.set_yticks([30, 100, 300]); bx.set_yticklabels(["30", "100", "300"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
 bx.set_xlabel("DRU area (mm$^2$)", fontsize=7, labelpad=1)
 bx.set_ylabel("Runtime (ms)", fontsize=7)
-topb = bx.secondary_xaxis("top"); topb.set_xscale("log"); topb.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(XD)); topb.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([str(c) for c in CH]))
+topb = bx.secondary_xaxis("top"); topb.set_xscale("log"); topb.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(XD)); topb.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([str(c) for c in CHT]))
 topb.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); topb.tick_params(labelsize=6); topb.set_xlabel("DRU count (one per channel)", fontsize=7, labelpad=2)
+bx.legend(fontsize=5, frameon=True, loc="lower left", handlelength=1.6)
 bx.grid(True, which="major", lw=0.3, color="0.85"); bx.set_axisbelow(True)
 
 fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.02); fig.savefig(OUT.rsplit(".", 1)[0] + ".pdf", bbox_inches="tight", pad_inches=0.02); print("wrote", OUT)
