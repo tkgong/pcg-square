@@ -20,3 +20,10 @@ Static partition: instances per SPU = ceil(I / N_SPU), I = c^2 t^2; busy time pe
   L40S (8,8): 64 SPUs with 22 instances, 128 with 21; mean 21.33, min 21, max 22, max/mean 1.031, utilisation 97.0%
   L40S (2,64): 64 SPUs with 86 instances, 128 with 85; mean 85.33, min 85, max 86, max/mean 1.008, utilisation 99.2%
   L40S (2,128): 64 SPUs with 342 instances, 128 with 341; mean 341.33, min 341, max 342, max/mean 1.002, utilisation 99.8%
+
+Per-DRU transpose volume (co-run, 8 simulated channels = 8 DRUs; the symmetric tile-to-channel mapping gives every channel the same tile count):
+  run                              DRU columns per DRU: mean / std / min / max        bytes per DRU   DRU bus-slot occupancy   GPU columns per channel: std
+  b200_2_128_24_f4dru_corun        12288 / 0 / 12288 / 12288                           0.4 MB          0.07                     0
+  b200_4_16_24_f4dru_corun         98340 / 0 / 98340 / 98340                           3.1 MB          0.08                     0
+  b200_8_4_24_f4dru_corun          196680 / 0 / 196680 / 196680                        6.3 MB          0.08                     0
+DRAM timing conflicts do not translate into load imbalance: per-channel completion times of the SPUs are identical across the 8 channels in every co-run (std 0), the per-channel GPU and DRU column counts are identical, and the only imbalance is the static partition quantisation (ceil(I / N_SPU)) listed above.
