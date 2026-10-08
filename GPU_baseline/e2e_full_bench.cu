@@ -118,8 +118,15 @@ int main(int argc, char** argv) {
     // modpow twiddle tables, seconds at large N) is per-N one-time state that a
     // deployment reuses across expansions -- without this it dominated the
     // measured "ntt" phase 100:1.
-    pcg_cuda::poly_mul_u64_gpuntt_square(pc.data(), pa.data(), pb.data(),
-                                         batch, N, P, nullptr);
+    const bool use_merge = std::getenv("PCG_NTT") && !strcmp(std::getenv("PCG_NTT"), "merge");
+    double ntt_dev_ms = 0.0;   // device-only time of the NTT kernels inside the stitched run (no host copies)
+    auto poly_mul = [&](uint64_t* o, const uint64_t* x, const uint64_t* y) {
+        pcg_cuda::PolyMulStats st;
+        if (use_merge) pcg_cuda::poly_mul_u64_gpuntt_merge(o, x, y, batch, N, P, &st);
+        else pcg_cuda::poly_mul_u64_gpuntt_square(o, x, y, batch, N, P, &st);
+        ntt_dev_ms += st.device_ms;
+    };
+    poly_mul(pc.data(), pa.data(), pb.data()); ntt_dev_ms = 0.0;
     double dpf_ms=0, sums_ms=0, sca_ms=0, ntt_ms=0, net_ms=0, wall_ms=0;
     uint64_t cks = 0;
     for (int it = 0; it < iters; ++it) {
@@ -178,8 +185,7 @@ int main(int argc, char** argv) {
 
         // step 4: 2*c^2 poly_muls of degree N, batch c^2 -> 2 batched calls
         for (int r = 0; r < 2; ++r)
-            pcg_cuda::poly_mul_u64_gpuntt_square(pc.data(), pa.data(), pb.data(),
-                                                 batch, N, P, nullptr);
+            poly_mul(pc.data(), pa.data(), pb.data());
         CK(cudaDeviceSynchronize());
         auto a5 = std::chrono::steady_clock::now();
 
@@ -192,13 +198,13 @@ int main(int argc, char** argv) {
     dpf_ms/=iters; sums_ms/=iters; sca_ms/=iters; ntt_ms/=iters;
     net_ms/=iters; wall_ms/=iters;
     const double conv = sums_ms + sca_ms;
-    std::printf("  expand=%.3f  out_sums=%.3f  out_scatter=%.3f  beaver_net=%.3f  ntt=%.3f  WALL=%.3f ms\n",
-                dpf_ms, sums_ms, sca_ms, net_ms, ntt_ms, wall_ms);
-    std::printf("RESULT c=%d t=%d logN=%d mode=%s rtt=%.1f B=%d n=%d leaves=%lld "
-                "expand=%.4f convert=%.4f beaver=%.4f ntt=%.4f wall=%.4f "
+    std::printf("  expand=%.3f  out_sums=%.3f  out_scatter=%.3f  beaver_net=%.3f  ntt=%.3f (device kernels %.3f)  WALL=%.3f ms\n",
+                dpf_ms, sums_ms, sca_ms, net_ms, ntt_ms, ntt_dev_ms / iters, wall_ms);
+    std::printf("RESULT c=%d t=%d logN=%d ntt=%s mode=%s rtt=%.1f B=%d n=%d leaves=%lld "
+                "expand=%.4f convert=%.4f beaver=%.4f ntt=%.4f ntt_dev=%.4f wall=%.4f "
                 "ns_per_leaf=%.5f exch=%lld checksum=%016llx STATUS=OK\n",
-                c, t, logN, batch_blocks ? "batched" : "serial", rtt_us, B, n, leaves,
-                dpf_ms, conv, net_ms, ntt_ms, wall_ms,
+                c, t, logN, use_merge ? "merge" : "square", batch_blocks ? "batched" : "serial", rtt_us, B, n, leaves,
+                dpf_ms, conv, net_ms, ntt_ms, ntt_dev_ms / iters, wall_ms,
                 (dpf_ms+conv)*1e6/(double)leaves,
                 exch_n, (unsigned long long)cks);
     return 0;

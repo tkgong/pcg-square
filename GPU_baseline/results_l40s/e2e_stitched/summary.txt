@@ -1,0 +1,12 @@
+L40S, full GPU PCG in one binary (e2e_full_bench, PCG_NTT=square|merge, serial arm, 50 us RTT, 3 iters): the NTT kernels' device time inside the
+stitched run against the standalone per-multiplication measurement x 2c^2, and the DPF phases with either NTT backend. ms.
+cell           |  expand sq / merge | convert sq / merge | square NTT in-situ / standalone | merge NTT in-situ / standalone |  wall sq / merge
+(2,64) 2^22     |    310.0 /    310.0 |    131.2 /    129.0 |      27.9 /      28.6 (0.976) |       9.6 /       9.8 (0.986) |     555 /     560
+(2,128) 2^22     |    619.3 /    618.3 |    253.4 /    252.4 |      28.0 /      28.6 (0.977) |       9.6 /       9.8 (0.982) |    1013 /    1018
+(4,16) 2^20     |     92.0 /     91.6 |     34.9 /     35.2 |      21.3 /      22.0 (0.967) |       8.6 /       8.7 (0.984) |     225 /     210
+(4,16) 2^22     |    320.0 /    320.3 |    154.2 /    159.8 |     110.8 /     114.4 (0.968) |      38.5 /      38.7 (0.996) |     915 /     958
+(4,16) 2^24     |   1219.6 /   1222.2 |    609.5 /    621.3 |     453.6 /     456.3 (0.994) |     158.5 /     158.7 (0.998) |    3502 /    3675
+(8,4) 2^22     |    385.3 /    383.4 |    248.5 /    253.7 |     437.4 /     439.3 (0.996) |     153.1 /     152.8 (1.001) |    2596 /    2431
+(8,4) 2^24     |   1300.0 /   1294.5 |   1034.2 /   1032.6 |    1817.0 /    1815.6 (1.001) |     629.0 /     627.4 (1.003) |   10012 /    8358
+(8,8) 2^21     |    373.6 /    373.6 |    171.4 /    169.5 |     186.2 /     189.4 (0.983) |      69.3 /      69.4 (0.999) |    1628 /    1621
+The e2e 'ntt' phase of this benchmark also contains host<->device copies of the operands (host-array interface); the baseline accounting uses the device kernel time, as a device-resident pipeline would.

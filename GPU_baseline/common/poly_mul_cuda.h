@@ -30,6 +30,10 @@ void poly_mul_u64_gpuntt_square(uint64_t* out, const uint64_t* a, const uint64_t
                                 int batch, int N, uint64_t prime,
                                 PolyMulStats* stats = nullptr);
 
+// GPU-NTT merge backend (HEonGPU's NTT): 2 forward + pointwise + 1 inverse, no transposes; same host interface.
+void poly_mul_u64_gpuntt_merge(uint64_t* out, const uint64_t* a, const uint64_t* b,
+                               int batch, int N, uint64_t prime,
+                               PolyMulStats* stats = nullptr);
 }  // namespace pcg_cuda
 
 #endif  // COMMON_POLY_MUL_CUDA_H__
