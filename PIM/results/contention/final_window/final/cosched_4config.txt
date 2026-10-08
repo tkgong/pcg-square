@@ -1,0 +1,24 @@
+Network co-scheduling sensitivity: geomean speedup of PCG^2 over the GPU baseline under the four co-scheduling configurations
+(GPU serial/co-scheduled x PCG^2 serial/co-scheduled), per network bandwidth. serial = compute + network, co-scheduled = max(compute, network).
+Also each side's own co-scheduling gain (serial / co-scheduled) and the share of cells where the network is the longest lane of PCG^2.
+
+L40S: bandwidth | GPU ser / PIM ser GPU cos / PIM ser GPU ser / PIM cos GPU cos / PIM cos | GPU gain PIM gain | net-bound PIM cells
+       100 Gbps |              2.48              2.47              2.49              2.48 |    1.002    1.004 | 0/22
+        40 Gbps |              2.47              2.46              2.50              2.48 |    1.004    1.010 | 0/22
+        10 Gbps |              2.44              2.39              2.53              2.48 |    1.018    1.038 | 0/22
+         4 Gbps |              2.38              2.28              2.59              2.48 |    1.043    1.089 | 0/22
+         1 Gbps |              2.20              1.93              2.67              2.34 |    1.142    1.212 | 3/22
+       400 Mbps |              2.02              1.67              2.58              2.13 |    1.211    1.275 | 5/22
+       100 Mbps |              1.70              1.32              2.27              1.77 |    1.286    1.341 | 12/22
+        40 Mbps |              1.48              1.13              1.95              1.48 |    1.316    1.313 | 16/22
+
+B200: bandwidth | GPU ser / PIM ser GPU cos / PIM ser GPU ser / PIM cos GPU cos / PIM cos | GPU gain PIM gain | net-bound PIM cells
+       100 Gbps |              7.37              7.34              7.62              7.59 |    1.004    1.034 | 0/25
+        40 Gbps |              7.10              7.03              7.67              7.59 |    1.010    1.080 | 0/25
+        10 Gbps |              6.20              5.97              7.44              7.16 |    1.039    1.200 | 3/25
+         4 Gbps |              5.26              4.81              6.71              6.14 |    1.092    1.275 | 5/25
+         1 Gbps |              3.66              3.01              4.78              3.93 |    1.214    1.305 | 13/25
+       400 Mbps |              2.76              2.15              3.51              2.73 |    1.283    1.272 | 16/25
+       100 Mbps |              1.82              1.38              2.17              1.64 |    1.321    1.193 | 21/25
+        40 Mbps |              1.46              1.12              1.64              1.26 |    1.300    1.129 | 24/25
+
