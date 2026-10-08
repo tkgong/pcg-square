@@ -1,0 +1,25 @@
+NTT lane alone, DPF->NTT gather removed (ms, geomean over the suite); HEonGPU = measured merge kernel time on the real card (fixed).
+
+B200: HEonGPU measured 17.44 ms | four-step SM-lane kernels measured 17.01 ms
+    ch | 4step+DRU | 4step no DRU | DRU gain | vs HEonGPU
+     8 |    149.25 |        280.2 |     1.88 |     0.117
+    16 |     72.42 |        140.3 |     1.94 |     0.241
+    32 |     35.17 |         70.6 |     2.01 |     0.496
+    48 |     23.69 |         52.1 |     2.20 |     0.736
+    96 |     18.97 |         34.6 |     1.82 |     0.919
+   128 |     18.37 |         31.6 |     1.72 |     0.950
+   192 |     17.78 |         29.8 |     1.68 |     0.981
+   256 |     17.43 |         29.4 |     1.69 |     1.001
+   512 |     17.09 |         29.4 |     1.72 |     1.021
+
+L40S: HEonGPU measured 34.25 ms | four-step SM-lane kernels measured 32.14 ms
+    ch | 4step+DRU | 4step no DRU | DRU gain | vs HEonGPU
+     8 |    133.79 |          n/a |      n/a |     0.256
+    16 |     63.60 |          n/a |      n/a |     0.539
+    24 |     41.34 |        114.9 |     2.78 |     0.829
+    48 |     35.30 |        101.3 |     2.87 |     0.970
+    96 |     33.45 |        100.3 |     3.00 |     1.024
+   128 |     32.97 |        100.3 |     3.04 |     1.039
+   192 |     32.52 |        100.3 |     3.08 |     1.053
+   256 |     32.34 |        100.3 |     3.10 |     1.059
+   512 |     32.18 |        100.3 |     3.12 |     1.065
