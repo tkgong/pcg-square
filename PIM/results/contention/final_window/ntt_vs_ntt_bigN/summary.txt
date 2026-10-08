@@ -1,0 +1,23 @@
+DRU design vs GPU-NTT merge, NTT lane alone, L40S memory system, 16 multiplies pipelined. Ratio > 1 = DRU design faster.
+silicon inputs per multiply (ms, batch 4): merge = 3 x measured forward transform + pointwise; SM lane = 2^24 value x N/2^24.
+ variant        org logN | merge ms  SM-lane ms | sim merge/DRU | sim merge vs silicon | DRU lane vs its SM lane
+headline       l40s   24 |    4.963       4.772 |         1.019 |                1.000 |                  1.020
+headline       l40s   25 |    9.899       9.544 |         1.044 |                1.027 |                  1.020
+headline       l40s   26 |   20.270      19.088 |         1.044 |                1.004 |                  1.020
+headline       l40s   27 |   40.543      38.177 |         1.045 |                1.004 |                  1.020
+headline       l40s   28 |   86.683      76.354 |         1.112 |                1.000 |                  1.021
+headline  l40s_ch96   24 |    4.963       4.772 |         1.037 |                1.000 |                  1.003
+headline  l40s_ch96   25 |    9.899       9.544 |         1.034 |                1.000 |                  1.003
+headline  l40s_ch96   26 |   20.270      19.088 |         1.059 |                1.000 |                  1.003
+headline  l40s_ch96   27 |   40.543      38.177 |         1.059 |                1.000 |                  1.003
+headline  l40s_ch96   28 |   86.683      76.354 |         1.132 |                1.000 |                  1.003
+     own       l40s   24 |    4.963       3.683 |         1.048 |                1.000 |                  1.286
+     own       l40s   25 |    9.899       7.366 |         1.073 |                1.027 |                  1.287
+     own       l40s   26 |   20.270      14.732 |         1.080 |                1.004 |                  1.279
+     own       l40s   27 |   40.543      29.463 |         1.078 |                1.004 |                  1.282
+     own       l40s   28 |   86.683      58.926 |         1.148 |                1.000 |                  1.282
+     own  l40s_ch96   24 |    4.963       3.683 |         1.342 |                1.000 |                  1.004
+     own  l40s_ch96   25 |    9.899       7.366 |         1.339 |                1.000 |                  1.004
+     own  l40s_ch96   26 |   20.270      14.732 |         1.371 |                1.000 |                  1.004
+     own  l40s_ch96   27 |   40.543      29.463 |         1.371 |                1.000 |                  1.004
+     own  l40s_ch96   28 |   86.683      58.926 |         1.465 |                1.000 |                  1.004
