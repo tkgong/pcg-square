@@ -12,7 +12,7 @@ PIM = os.path.dirname(os.path.dirname(HERE)); GEN = os.path.join(PIM, "tools", "
 YAML = {"l40s": os.path.join(PIM, "sim/test/gddr6_dpf_24ch.yaml"), "b200": os.path.join(PIM, "sim/test/hbm3e_dpf_b200d.yaml")}
 CH = {"l40s": 24, "b200": 128}; HALF = {"l40s": 1, "b200": 2}; P = 8; DEPTH = 10; KERNEL_MIN_CK = 20000
 DES = {"l40s": "merge", "b200": "f4dru"}
-CELLS = {"l40s": [(8, 4, 22), (4, 16, 22)], "b200": [(8, 4, 24), (4, 16, 24)]}
+CELLS = {"l40s": [(8, 4, 22), (4, 16, 22), (2, 128, 22), (8, 8, 24)], "b200": [(8, 4, 24), (4, 16, 24), (2, 128, 24), (8, 8, 24)]}
 CTRL = ["-p", "MemorySystem.Controller.fpu_gate_issue=false", "-p", "MemorySystem.Controller.wr_max_age=1000", "-p", "MemorySystem.Controller.pim_row_wait=0",
         "-p", "MemorySystem.Controller.class_priority=0,1,3,2", "-p", "MemorySystem.Controller.class_min_run=64", "-p", "Frontend.issue_width=2",
         "-p", "MemorySystem.Controller.dru_bus_slot=2"]
