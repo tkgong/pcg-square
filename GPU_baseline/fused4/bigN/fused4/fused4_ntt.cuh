@@ -245,12 +245,14 @@ struct Plan {
         }
         upload(&tw, h_tw);
         upload(&twi, h_twi);
-        for (int lg : {log1, log2}) if (lg > 12 && lg <= 13) {   // 2^13 tiles = 64 KB dynamic shared memory
+        int optin = 0; cudaDeviceGetAttribute(&optin, cudaDevAttrMaxSharedMemoryPerBlockOptin, 0);
+        for (int lg : {log1, log2}) if (lg > 12 && lg <= 14 && (1 << lg) * 8 <= optin) {   // 2^13/2^14 tiles = 64/128 KB dynamic shared memory (L40S 100 KB, B200 227 KB)
             cudaFuncSetAttribute(fwd_rows<true>, cudaFuncAttributeMaxDynamicSharedMemorySize, (1 << lg) * 8);
             cudaFuncSetAttribute(fwd_rows<false>, cudaFuncAttributeMaxDynamicSharedMemorySize, (1 << lg) * 8);
             cudaFuncSetAttribute(inv_rows<true>, cudaFuncAttributeMaxDynamicSharedMemorySize, (1 << lg) * 8);
             cudaFuncSetAttribute(inv_rows<false>, cudaFuncAttributeMaxDynamicSharedMemorySize, (1 << lg) * 8);
         }
+        (void) cudaGetLastError();
     }
 
     ~Plan() {

@@ -191,11 +191,12 @@ static bool selftest() {
 
 // Big-N bench: logN 25..28, batch 1, prime with 2-adicity >= 29 (kernel time is prime-independent).
 int main(int argc, char** argv) {
-    std::vector<int> logNs = {25, 26, 27, 28}; int iters = 3;
+    std::vector<int> logNs = {25, 26, 27, 28}; int iters = 3; int max_tile = 13;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--logN") && i + 1 < argc) logNs = parse_list(argv[++i]);
         else if (!strcmp(argv[i], "--iters") && i + 1 < argc) iters = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--prime") && i + 1 < argc) P = strtoull(argv[++i], nullptr, 10);
+        else if (!strcmp(argv[i], "--max-tile") && i + 1 < argc) max_tile = atoi(argv[++i]);   // own-kernel sub-transform log length: 13 on L40S (100 KB), 14 on B200 (227 KB)
     }
     printf("logN,batch,prime,merge_ms_mul,f4g_sm_ms_mul,f4g_full_ms_mul,f4g_sm_passes,check_g,f4_sm_ms_mul,f4_full_ms_mul,check_own\n");
     for (int lg : logNs) {
@@ -205,7 +206,7 @@ int main(int argc, char** argv) {
         fused4::check(cudaMalloc(&tx, total * 8), "tx"); fused4::check(cudaMalloc(&ty, total * 8), "ty");
         MergePlan merge(lg);
         fused4g::PlanG plang(lg, P);
-        const bool own_ok = (lg + 1) / 2 <= 13;
+        const bool own_ok = (lg + 1) / 2 <= max_tile;
         std::unique_ptr<fused4::Plan> plan; if (own_ok) plan.reset(new fused4::Plan(lg, P));
         // correctness vs merge
         fill(x, total, 1234 + lg); fill(y, total, 5678 + lg); plang.multiply(x, y, tx, ty, batch, 3);
