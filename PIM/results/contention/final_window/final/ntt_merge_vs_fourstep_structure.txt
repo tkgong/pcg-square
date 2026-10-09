@@ -2,7 +2,7 @@ HEonGPU/GPU-NTT merge NTT vs the PCG^2 four-step (transposes on the DRU): struct
 
 A. Global-memory passes per transform (from GPU-NTT's kernel table, src/include/gpuntt/ntt_merge/ntt.cuh, and fused4/):
    merge: tile = 512 or 1024 elements of shared memory (4-8 KB); passes = kernels per transform:
-     logN 11-16: 2 | 17-26: 3 | 27-28: 4 (3 on the sm_89 build). Each pass reads+writes the whole polynomial (16N B on the GPU bus).
+     logN 11-16: 2 | 17-28: 3 (CC_89 is #defined unconditionally in ntt.cuh, so the 1024-element 3-kernel table applies on every GPU; GPU-NTT stops at 2^28). Each pass reads+writes the whole polynomial (16N B on the GPU bus).
      The transpose is implicit: all passes but the last gather 64 B granules at a stride that grows with N
      (2^24: kernel 1 = 64 B every 1 MB, kernel 2 = 64 B every 8 KB, kernel 3 = contiguous 8 KB).
    four-step + DRU: the SMs only ever stream contiguous rows of length n1 or n2; the 2 transposes per transform run
@@ -66,7 +66,7 @@ D. Where the two designs stand as N grows (silicon, >= 2^22, geomean over batche
    L40S merge / own-kernel SM lane: 2^22 1.39, 2^23 1.36, 2^24 1.33
    Simulated NTT lane (ntt_vs_ntt, B200, DRU design vs merge, alone): 2^20 1.03, 2^21 1.01, 2^22 1.01, 2^23 1.02, 2^24 1.05.
    Merge's pass count is 3 over the whole measurable range (2^17-2^26), so the ratio cannot grow much inside it; the next structural step
-   (4 passes) is at 2^27 in GPU-NTT's table. Sizes above 2^24 are not measurable here (prime 2-adicity; fused4 caps logN at 24).
+   would need a fourth kernel only beyond 2^28, which GPU-NTT does not support. Sizes above 2^24 are not measurable here (prime 2-adicity; fused4 caps logN at 24).
 
 E. Repository note: branch contention-cosim carries fused4_gpuntt.cuh from b9a7e58 (balanced split, 2^12 x 2^12 -> 4 SM passes per transform);
    rebuilt today it gives SM lane 5.82 ms/mul at 2^24 (0.86x merge). The CSV in PIM/tools/contention and the B200 AICR job were measured on

@@ -1,6 +1,6 @@
 #!/bin/bash
 # GPU-NTT merge forward transform 2^20..2^28 on B200 (merge_scale_bench.cu): per-pass cost vs N and the
-# 4-kernel step at 2^27 of the non-sm_89 GPU-NTT table. Submit from GPU_baseline/fused4: sbatch job_merge_scale_b200.sbatch
+# HBM row-locality loss of the strided passes (GPU-NTT keeps 3 kernels through 2^28 on every GPU). Submit from GPU_baseline/fused4: sbatch job_merge_scale_b200.sbatch
 #SBATCH -p b200-batch
 #SBATCH -N 1
 #SBATCH --gres=gpu:b200:1
