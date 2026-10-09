@@ -25,6 +25,14 @@ def main(D, outpath):
             s = [D[tier][mach][i][2] for i in range(n)]
             rax.plot(np.arange(n), s, "-o", color=LINE[mach], ms=4.2, lw=1.6, mec="white", mew=0.9, zorder=7)
             rax.plot(np.arange(n), EE[tier][mach], "--", marker="o", color=LINE[mach], ms=4.2, lw=1.3, mfc="white", mec=LINE[mach], mew=1.2, zorder=6)
+            for i, v in enumerate(s):                       # speedup labels, as in the submitted figure
+                dy = -10 if mach == "L40S" or v > 9.2 else 6
+                rax.annotate(f"{v:.1f}", (i, v), fontsize=6.0, color=LINE[mach], xytext=(0, dy), textcoords="offset points", ha="center", zorder=8,
+                             bbox=dict(boxstyle="round,pad=0.08", fc="white", ec="none", alpha=0.85))
+            for i, v in enumerate(EE[tier][mach]):          # energy-efficiency labels on the other side of the point
+                dx = 11 if mach == "B200" else -11            # beside the hollow marker, B200 right / L40S left
+                rax.annotate(f"{v:.1f}", (i, v), fontsize=6.0, color=LINE[mach], xytext=(dx, -2.5), textcoords="offset points", ha="center", zorder=8,
+                             bbox=dict(boxstyle="round,pad=0.08", fc="white", ec="none", alpha=0.85))
         rax.set_ylim(0, 16.8); rax.set_yticks([0, 4, 8, 12, 16]); rax.tick_params(labelsize=6.4, pad=1.5)
         if ax is axes[1]: rax.set_ylabel("speedup / energy efficiency", fontsize=7.6, labelpad=2)
         else: rax.set_yticklabels([])
