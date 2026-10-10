@@ -1,0 +1,13 @@
+DRU design vs GPU-NTT merge, NTT lane alone, B200 HBM3e memory system (256 channels), 16 multiplies pipelined. Ratio > 1 = DRU design faster.
+silicon inputs per multiply (ms, batch 1, B200 AICR big-N job): merge, four-step SM lane (headline = GPU-NTT kernels, own = single-kernel sub-transforms).
+ variant        org logN | merge ms  SM-lane ms | sim merge/DRU | sim merge vs silicon | DRU lane vs its SM lane
+headline       b200   24 |    2.443       2.313 |         1.054 |                1.000 |                  1.003
+headline       b200   25 |    5.039       4.764 |         1.055 |                1.000 |                  1.003
+headline       b200   26 |   10.445       9.809 |         1.062 |                1.000 |                  1.003
+headline       b200   27 |   22.012      20.705 |         1.061 |                1.000 |                  1.002
+headline       b200   28 |   49.359      42.581 |         1.156 |                1.000 |                  1.002
+     own       b200   24 |    2.443       3.172 |         0.769 |                1.000 |                  1.002
+     own       b200   25 |    5.039       6.112 |         0.823 |                1.000 |                  1.002
+     own       b200   26 |   10.445      11.850 |         0.880 |                1.000 |                  1.002
+     own       b200   27 |   22.012      23.210 |         0.946 |                1.000 |                  1.002
+     own       b200   28 |   49.359      45.545 |         1.081 |                1.000 |                  1.002
