@@ -1,0 +1,16 @@
+DPF -> NTT-ready polynomial: where the accumulation and the data movement are charged (main-run settings, 40 Gbps cells).
+
+1. Accumulation on the SPU (pass 2 of the chacha reduce mode): re-read C from the bank, y = C + tau*CW (CADDP), negacyclic
+   scatter-accumulate into g with the 2N->N fold (ADDP/NEGP), 4 cycles per 8 leaves, g written back in the bank.
+   Probe: same SPU trace with the pass-2 block removed (gen_dpf_tree_trace.py, chacha branch disabled), same controller settings.
+     B200 SPU lane: with pass 2 2,703,909 CK, without 2,557,769 CK -> pass 2 = 5.4% of the SPU lane
+     L40S SPU lane: with pass 2 2,735,939 CK, without 2,597,915 CK -> pass 2 = 5.0% of the SPU lane
+
+2. Data movement to the GPU (DPF -> NTT gather): the SMs read the t pre-summed sparse vectors, 8*N*t/m bytes per multiply
+   (m = min(t, I/N_SPU) presum factor done by the SPUs with ADDP), as the first phase of every NTT pipeline (class-1 reads).
+   Probe: ntt_nogather.py re-simulates every NTT-lane pipeline without that phase (win22_raw, four-step + DRU).
+     B200: gather = 4.7% of the NTT lane (geomean over 25 cells, range 3.0-7.4%)
+     L40S: gather = 3.3% of the NTT lane (geomean over 22 cells, range 2.1-4.2%)
+
+Both are inside the reported runtimes: pass 2 is part of the simulated SPU trace, the gather is part of the simulated NTT lane,
+and the GPU baseline pays its own scatter (dpf_out_scatter_g) inside its measured DPF kernel time.
