@@ -1,0 +1,15 @@
+B200, NTT lane slowdown next to the SPUs (bank-level, DQ 0) vs next to an iso-throughput near-memory GGM engine whose output crosses the
+channel bus (rate-limited write stream, spread over the NTT window; ramulator2, same controller settings as the main co-simulation).
+NMP 40%: GGM only at PCG^2's 211 G leaves/s, 16 B/leaf written back (gap 5 = one column per 5 CK).  NMP 9%: full DPF at 86 G leaves/s, 8 B/leaf (gap 22).
+An earlier run with gap 0 (the NMP's writes issued as one burst at full bus rate) gave NTT x1.463 / x1.099 / x2.102 on every cell; that serialises the
+two streams by construction and is not a fair NMP model, so it is not used.
+
+cell              NTT     | next to SPUs | NMP 40% bus | NMP 9% bus
+(4, 16) 2^24     f4dru   |   x1.033     |   x1.097    |   x1.025
+(4, 16) 2^24     merge   |   x1.043     |   x1.085    |   x1.021
+(8,  4) 2^24     f4dru   |   x1.010     |   x1.045    |   x1.013
+(8,  4) 2^24     merge   |   x1.031     |   x1.041    |   x1.010
+(2, 64) 2^24     f4dru   |   x1.077     |   x1.091    |   x1.021
+(2, 64) 2^24     merge   |   x1.046     |   x1.084    |   x1.024
+(8,  8) 2^22     f4dru   |   x1.014     |   x1.053    |   x1.013
+(8,  8) 2^22     merge   |   x1.015     |   x1.048    |   x1.012
