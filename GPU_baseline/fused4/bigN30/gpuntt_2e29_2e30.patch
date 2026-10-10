@@ -1,0 +1,94 @@
+--- src/include/gpuntt/ntt_merge/ntt.cuh	2026-06-10 20:59:13.642819971 -0400
++++ src/include/gpuntt/ntt_merge/ntt.cuh	2026-10-10 18:43:24.430600897 -0400
+@@ -694,7 +694,17 @@
+             {28,
+              {{262144, 1, 2, 256, 1024 * sizeof(T), 9, 0, 0, 9, true},
+               {512, 512, 2, 256, 1024 * sizeof(T), 9, 9, 0, 9, true},
+-              {262144, 1, 512, 1, 1024 * sizeof(T), 9, 18, 0, 10, false}}}
++              {262144, 1, 512, 1, 1024 * sizeof(T), 9, 18, 0, 10, false}}},
++            // extension beyond the library's table, same 1024-element tiles and 3 global passes:
++            // 2^29 = 10+9+10 stages, 2^30 = 10+10+10 stages
++            {29,
++             {{524288, 1, 1, 512, 1024 * sizeof(T), 9, 0, 0, 10, true},
++              {512, 1024, 2, 256, 1024 * sizeof(T), 9, 10, 0, 9, true},
++              {524288, 1, 512, 1, 1024 * sizeof(T), 9, 19, 0, 10, false}}},
++            {30,
++             {{1048576, 1, 1, 512, 1024 * sizeof(T), 9, 0, 0, 10, true},
++              {1024, 1024, 1, 512, 1024 * sizeof(T), 9, 10, 0, 10, true},
++              {1048576, 1, 512, 1, 1024 * sizeof(T), 9, 20, 0, 10, false}}}
+ #endif
+         };
+     }
+@@ -791,7 +801,15 @@
+             {28,
+              {{262144, 1, 512, 1, 1024 * sizeof(T), 9, 27, 18, 10, false},
+               {512, 512, 2, 256, 1024 * sizeof(T), 9, 17, 9, 9, false},
+-              {262144, 1, 2, 256, 1024 * sizeof(T), 9, 8, 0, 9, true}}}
++              {262144, 1, 2, 256, 1024 * sizeof(T), 9, 8, 0, 9, true}}},
++            {29,
++             {{524288, 1, 512, 1, 1024 * sizeof(T), 9, 28, 19, 10, false},
++              {512, 1024, 2, 256, 1024 * sizeof(T), 9, 18, 10, 9, false},
++              {524288, 1, 1, 512, 1024 * sizeof(T), 9, 9, 0, 10, true}}},
++            {30,
++             {{1048576, 1, 512, 1, 1024 * sizeof(T), 9, 29, 20, 10, false},
++              {1024, 1024, 1, 512, 1024 * sizeof(T), 9, 19, 10, 10, false},
++              {1048576, 1, 1, 512, 1024 * sizeof(T), 9, 9, 0, 10, true}}}
+ #endif
+         };
+     }
+--- src/lib/ntt_merge/ntt.cu	2026-06-10 20:59:13.642819971 -0400
++++ src/lib/ntt_merge/ntt.cu	2026-10-10 18:43:24.430600897 -0400
+@@ -2085,7 +2085,7 @@
+         {
+             case PerPolynomial:
+             {
+-                if ((cfg.n_power <= 0 || cfg.n_power >= 29))
++                if ((cfg.n_power <= 0 || cfg.n_power >= 31))
+                 {
+                     throw std::invalid_argument("Invalid n_power range!");
+                 }
+@@ -2267,7 +2267,7 @@
+         {
+             case PerPolynomial:
+             {
+-                if ((cfg.n_power <= 0 || cfg.n_power >= 29))
++                if ((cfg.n_power <= 0 || cfg.n_power >= 31))
+                 {
+                     throw std::invalid_argument("Invalid n_power range!");
+                 }
+@@ -2569,7 +2569,7 @@
+         {
+             case PerPolynomial:
+             {
+-                if ((cfg.n_power <= 0 || cfg.n_power >= 29))
++                if ((cfg.n_power <= 0 || cfg.n_power >= 31))
+                 {
+                     throw std::invalid_argument("Invalid n_power range!");
+                 }
+@@ -2757,7 +2757,7 @@
+         {
+             case PerPolynomial:
+             {
+-                if ((cfg.n_power <= 0 || cfg.n_power >= 29))
++                if ((cfg.n_power <= 0 || cfg.n_power >= 31))
+                 {
+                     throw std::invalid_argument("Invalid n_power range!");
+                 }
+@@ -3604,7 +3604,7 @@
+                             ntt_rns_configuration<T> cfg, int batch_size,
+                             int mod_count, int* order)
+     {
+-        if ((cfg.n_power <= 9 || cfg.n_power >= 29))
++        if ((cfg.n_power <= 9 || cfg.n_power >= 31))
+         {
+             throw std::invalid_argument("Invalid n_power range!");
+         }
+@@ -4285,7 +4285,7 @@
+                          ntt_rns_configuration<T> cfg, int batch_size,
+                          int mod_count, int* order)
+     {
+-        if ((cfg.n_power <= 9 || cfg.n_power >= 29))
++        if ((cfg.n_power <= 9 || cfg.n_power >= 31))
+         {
+             throw std::invalid_argument("Invalid n_power range!");
+         }
