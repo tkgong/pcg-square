@@ -1,0 +1,13 @@
+Table IV with one NTT family on both cards: GPU baseline = DPF + HEonGPU merge NTT (network overlapped);
+"+SPU" rows = four-step on GPU-NTT kernels with the transposes as shared-memory tile transposes on the SMs (f4sm);
+"+DRU" rows = the same kernels with the transposes on the DRU (f4dru). Co-scheduled rows include the co-simulated contention.
+
+L40S alpha = 500 us (22 cells): GPU baseline 601.7 ms 1.00x | +SPU (SM transpose) 349.1 ms 1.72x inc 1.724 | +SPU+DRU 317.4 ms 1.90x inc 1.100 | +SPU+co-schedule (SM transpose) 257.8 ms 2.33x inc 1.354 | full (+DRU, co-scheduled) 246.3 ms 2.44x inc 1.047
+B200 alpha = 500 us (25 cells): GPU baseline 304.9 ms 1.00x | +SPU (SM transpose) 76.3 ms 4.00x inc 3.995 | +SPU+DRU 73.4 ms 4.15x inc 1.040 | +SPU+co-schedule (SM transpose) 44.9 ms 6.79x inc 1.700 | full (+DRU, co-scheduled) 41.8 ms 7.29x inc 1.074
+
+L40S 40 Gbps (22 cells): GPU baseline 601.7 ms 1.00x | +SPU (SM transpose) 336.9 ms 1.79x inc 1.786 | +SPU+DRU 305.3 ms 1.97x inc 1.104 | +SPU+co-schedule (SM transpose) 257.8 ms 2.33x inc 1.307 | full (+DRU, co-scheduled) 246.3 ms 2.44x inc 1.047
+B200 40 Gbps (25 cells): GPU baseline 304.9 ms 1.00x | +SPU (SM transpose) 64.7 ms 4.71x inc 4.712 | +SPU+DRU 61.8 ms 4.93x inc 1.047 | +SPU+co-schedule (SM transpose) 43.2 ms 7.06x inc 1.499 | full (+DRU, co-scheduled) 40.2 ms 7.59x inc 1.075
+
+L40S 400 Mbps (22 cells): GPU baseline 661.1 ms 1.00x | +SPU (SM transpose) 523.8 ms 1.26x inc 1.262 | +SPU+DRU 480.4 ms 1.38x inc 1.090 | +SPU+co-schedule (SM transpose) 330.9 ms 2.00x inc 1.583 | full (+DRU, co-scheduled) 316.2 ms 2.09x inc 1.046
+B200 400 Mbps (25 cells): GPU baseline 393.5 ms 1.00x | +SPU (SM transpose) 226.4 ms 1.74x inc 1.738 | +SPU+DRU 220.0 ms 1.79x inc 1.029 | +SPU+co-schedule (SM transpose) 151.9 ms 2.59x inc 1.491 | full (+DRU, co-scheduled) 144.0 ms 2.73x inc 1.054
+
