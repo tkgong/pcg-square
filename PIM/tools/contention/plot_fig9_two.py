@@ -49,9 +49,9 @@ CSTAR = 240 * (1 << 24) / 2.2766e-3 / (8.2e12 / 256 * (1 - 0.21))
 A500 = 500
 SQ_ALL = load(f"{W}/fourstep_dru/e2e_chsweep_conservative_dru.json") + load(f"{W}/fourstep_dru/e2e_nom_conservative_dru.json")
 CARD = {"B200": dict(org="b200", native=256, chs=[8, 16, 32, 48, 96, 128, 192, 256, 512], mk="s",
-                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/channel_sweep/e2e.json") + load(f"{W}/channel_sweep/e2e_b200_low.json") + SQ_ALL),
+                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/win22/e2e_f4sm.json") + load(f"{W}/channel_sweep/e2e.json") + load(f"{W}/channel_sweep/e2e_f4sm.json") + load(f"{W}/channel_sweep/e2e_b200_low.json") + load(f"{W}/channel_sweep/e2e_f4sm_b200_low.json")),
         "L40S": dict(org="l40s", native=24, chs=[8, 16, 24, 48, 96, 128, 192, 256, 512], mk="o",
-                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/channel_sweep/e2e_l40s.json") + load(f"{W}/channel_sweep/e2e_l40s_low.json") + load(f"{W}/channel_sweep/e2e_l40s_low_sq.json") + SQ_ALL)}
+                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/win22/e2e_f4sm.json") + load(f"{W}/channel_sweep/e2e_l40s.json") + load(f"{W}/channel_sweep/e2e_l40s_low.json") + load(f"{W}/channel_sweep/e2e_f4sm_l40s.json"))}
 ADRU = lambda n: n * 0.024924
 B = {}
 for mach, c in CARD.items():
@@ -60,9 +60,9 @@ for mach, c in CARD.items():
     chs, t_dru, t_no, ratio = [], [], [], []
     for ch in c["chs"]:
         org = c["org"] if ch == c["native"] else f"{c['org']}_ch{ch}"
-        d, m, q = cells(c["rows"], org, "f4dru"), cells(c["rows"], org, "merge"), cells(c["rows"], org, "sq")
+        d, m, q = cells(c["rows"], org, "f4dru"), cells(c["rows"], org, "merge"), cells(c["rows"], org, "f4sm")   # no DRU = same four-step kernels, transposes on the SMs (shared-memory tile transpose)
         if not d: continue
-        chs.append(ch); t_dru.append(rt(d)); t_no.append(rt(q) if q else float("nan")); ratio.append(gm(lane(m[k]) / lane(d[k]) for k in d if k in m) if m else float("nan"))
+        chs.append(ch); t_dru.append(rt(d)); t_no.append(rt(cells(c["rows"], c["org"], "f4sm"))); ratio.append(gm(lane(m[k]) / lane(d[k]) for k in d if k in m) if m else float("nan"))   # no-DRU baseline = the real card with the transposes in shared memory, independent of the channel count
     kn = None
     for i in range(len(chs) - 1):
         if ratio[i] < 1 <= ratio[i + 1]: kn = exp(log(chs[i]) + (1 - ratio[i]) / (ratio[i + 1] - ratio[i]) * (log(chs[i + 1]) - log(chs[i]))); break
@@ -93,21 +93,21 @@ for mach, c in CARD.items():
     d = B[mach]; xs = [ADRU(n) for n in d["chs"]]; i = d["chs"].index(c["native"])
     bx.plot(xs[:i + 1], d["t"][:i + 1], "-", marker=c["mk"], ms=3.2, lw=1.3, color=COLB[mach], mec="black", mew=0.35, zorder=5, label=f"{mach}, with DRU")
     bx.plot(xs[i:], d["t"][i:], "--", marker=c["mk"], ms=3.2, lw=1.1, color=COLB[mach], mec="black", mew=0.35, alpha=0.8, zorder=5)
-    bx.plot(xs[:i + 1], d["t_no"][:i + 1], ":", marker=c["mk"], ms=3.2, lw=1.2, color=COLB[mach], mfc="white", mec=COLB[mach], mew=1.0, zorder=4, label=f"{mach}, no DRU")
+    bx.plot(xs[:i + 1], d["t_no"][:i + 1], ":", marker=c["mk"], ms=3.2, lw=1.2, color=COLB[mach], mfc="white", mec=COLB[mach], mew=1.0, zorder=4, label=f"{mach}, transpose in shared memory")
     bx.plot(xs[i:], d["t_no"][i:], ":", marker=c["mk"], ms=3.2, lw=1.0, color=COLB[mach], mfc="white", mec=COLB[mach], mew=1.0, alpha=0.8, zorder=4)
     if d["knee"]:
         i0 = max(j for j, n in enumerate(d["chs"]) if n < d["knee"]); kn = d["knee"]
         yk = exp(log(d["t"][i0]) + (log(d["t"][i0 + 1]) - log(d["t"][i0])) * (log(kn) - log(d["chs"][i0])) / (log(d["chs"][i0 + 1]) - log(d["chs"][i0])))
         bx.plot([ADRU(kn)], [yk], "*", ms=9, color=COLB[mach], mec="black", mew=0.5, zorder=8); bx.annotate(f"{kn:.0f}", (ADRU(kn), yk), fontsize=4.4, xytext=(3, 2), textcoords="offset points", zorder=9)
-    bx.axvline(ADRU(c["native"]), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(c["native"]) * 1.06, 1080, f"{mach} Ceiling", fontsize=5.5, color="#c62828", va="top")
+    bx.axvline(ADRU(c["native"]), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(c["native"]) * 1.06, 560, f"{mach} Ceiling", fontsize=5.5, color="#c62828", va="top")
 CHT = [8, 16, 24, 48, 96, 128, 192, 256, 512]; XD = [ADRU(n) for n in CHT]
 bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xticks(XD); bx.set_xticklabels([f"{x:.2f}" for x in XD], fontsize=5.5); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(ADRU(7), ADRU(590))
-bx.set_ylim(28, 700); bx.set_yticks([30, 100, 300, 1000]); bx.set_yticklabels(["30", "100", "300", "1000"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+bx.set_ylim(28, 2000); bx.set_yticks([30, 100, 300, 1000]); bx.set_yticklabels(["30", "100", "300", "1000"], fontsize=6); bx.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
 bx.set_xlabel("DRU area (mm$^2$)", fontsize=7, labelpad=1)
 bx.set_ylabel("Runtime (ms)", fontsize=7)
 topb = bx.secondary_xaxis("top"); topb.set_xscale("log"); topb.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(XD)); topb.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter([str(c) for c in CHT]))
 topb.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); topb.tick_params(labelsize=6); topb.set_xlabel("DRU count (one per channel)", fontsize=7, labelpad=2)
-bx.legend(fontsize=4.6, frameon=True, loc="lower left", handlelength=1.8, ncol=2, columnspacing=0.8, labelspacing=0.2)
+bx.legend(fontsize=4.6, frameon=True, loc="upper center", bbox_to_anchor=(0.56, 0.99), handlelength=1.8, ncol=2, columnspacing=1.2, labelspacing=0.2, borderpad=0.3)
 bx.grid(True, which="major", lw=0.3, color="0.85"); bx.set_axisbelow(True)
 
 fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.02); fig.savefig(OUT.rsplit(".", 1)[0] + ".pdf", bbox_inches="tight", pad_inches=0.02); print("wrote", OUT)
