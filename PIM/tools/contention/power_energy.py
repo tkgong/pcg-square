@@ -20,7 +20,9 @@ with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 mach, pdir, out = sys.argv[1], sys.argv[2], sys.argv[3]; RUN = sys.argv[4] if len(sys.argv) > 4 else "win22"
-SPU_MW, DRU_MW = 30.574, 1.469                      # Table III: per-unit SPU and DRU power (mW)
+# per-unit SPU / DRU power (mW) from the synthesis table at 2.25 GHz (L40S DRAM clock); B200 runs at 2.0 GHz, scaled by 2/2.25
+SPU_MW = {"L40S": 34.391, "B200": 34.391 * 2.0 / 2.25}[mach]
+DRU_MW = {"L40S": 4.994, "B200": 4.994 * 2.0 / 2.25}[mach]
 NSPU, NDRU = {"L40S": 192, "B200": 2048}, {"L40S": 24, "B200": 256}   # 8 SPUs and 1 DRU per channel
 org, des, pcg_ntt = {"L40S": ("l40s", "merge", "merge"), "B200": ("b200", "f4dru", "f4g_sm")}[mach]
 P_PIM = (NSPU[mach] * SPU_MW + NDRU[mach] * DRU_MW) / 1e3
@@ -66,7 +68,7 @@ for clk, tag in (("SPU = DRAM clock", "nom"), ("SPU 1 GHz", "1.0")):
                 v.append(E_base / E_pcg); pw.append(E_pcg / T_pcg); percell.append((c, t, r["logN"], E_base / E_pcg, E_base, E_pcg))
             per.append(gm(v)); cells += v
         lines.append(f"{clk:16s} {lab:8s}: energy ratio baseline/PCG^2 per (c,t) " + " ".join(f"{x:.2f}" for x in per)
-                     + f" | up to {max(per):.2f} geomean {gm(cells):.2f} | PCG^2 mean system power {sum(pw)/len(pw):.0f} W")
+                     + f" | up to {max(per):.2f} geomean {gm(cells):.2f} max cell {max(cells):.2f} | PCG^2 mean system power {sum(pw)/len(pw):.0f} W")
         for (c, t) in CFG:
             pc = [x for x in percell if x[0] == c and x[1] == t]
             if pc: lines.append(f"    ({c},{t}): " + "  ".join(f"2^{lg} {ratio:.2f} ({eb/1e3:.1f}/{ep/1e3:.2f} J)" for _, _, lg, ratio, eb, ep in pc) + f"  | geomean {gm(x[3] for x in pc):.2f}")
