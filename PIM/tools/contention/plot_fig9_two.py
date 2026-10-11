@@ -95,8 +95,7 @@ CHT = [8, 16, 24, 48, 96, 128, 192, 256, 512]; XD = [ADRU(n) for n in CHT]; LO, 
 bx.axhline(1.0, ls=":", lw=1.3, color="0.25", zorder=4, label="transpose in shared memory (real card)")
 for mach, c in CARD.items():
     d = B[mach]; xs = [ADRU(n) for n in d["chs"]]; i = d["chs"].index(c["native"]); ys = [t / d["t_no"][0] for t in d["t"]]
-    bx.plot(xs[:i + 1], ys[:i + 1], "-", marker=c["mk"], ms=3.2, lw=1.3, color=COLB[mach], mec="black", mew=0.35, zorder=5, label=f"{mach}, with DRU")
-    bx.plot(xs[i:], ys[i:], "--", marker=c["mk"], ms=3.2, lw=1.1, color=COLB[mach], mec="black", mew=0.35, alpha=0.8, zorder=5)
+    bx.plot(xs, ys, "-", marker=c["mk"], ms=3.2, lw=1.3, color=COLB[mach], mec="black", mew=0.35, zorder=5, label=f"{mach}, with DRU")
     if d["knee"]:
         kn = d["knee"]; bx.plot([ADRU(kn)], [1.0], "*", ms=9, color=COLB[mach], mec="black", mew=0.5, zorder=8); bx.annotate(f"{kn:.0f}", (ADRU(kn), 1.0), fontsize=4.4, xytext=(3, 3), textcoords="offset points", zorder=9)
     bx.axvline(ADRU(c["native"]), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(c["native"]) * 1.06, 1.09, f"{mach} Ceiling", fontsize=5.0, color="#c62828", va="top")
