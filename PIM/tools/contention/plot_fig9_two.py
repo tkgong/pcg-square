@@ -100,8 +100,6 @@ for mach, c in CARD.items():
     if d["knee"]:
         kn = d["knee"]; bx.plot([ADRU(kn)], [1.0], "*", ms=9, color=COLB[mach], mec="black", mew=0.5, zorder=8); bx.annotate(f"{kn:.0f}", (ADRU(kn), 1.0), fontsize=4.4, xytext=(3, 3), textcoords="offset points", zorder=9)
     bx.axvline(ADRU(c["native"]), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(c["native"]) * 1.06, 1.09, f"{mach} Ceiling", fontsize=5.0, color="#c62828", va="top")
-    for x, y in zip(xs, ys):
-        if y > HI: bx.annotate(f"{y:.2f}", (x, HI), fontsize=4.2, xytext=(0, -7 if mach == "B200" else -14), textcoords="offset points", ha="center", color=COLB[mach], zorder=9)
 bx.set_xscale("log"); bx.set_xticks(XD); bx.set_xticklabels([f"{x:.2f}" for x in XD], fontsize=5.5); bx.xaxis.set_minor_locator(matplotlib.ticker.NullLocator()); bx.set_xlim(ADRU(7), ADRU(590))
 bx.set_ylim(LO, HI); bx.set_yticks([0.9, 1.0, 1.1, 1.2, 1.3]); bx.tick_params(axis="y", labelsize=6)
 bx.set_xlabel("DRU area (mm$^2$)", fontsize=7, labelpad=1); bx.set_ylabel("Normalized runtime", fontsize=7)
