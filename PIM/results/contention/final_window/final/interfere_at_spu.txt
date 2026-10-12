@@ -1,0 +1,16 @@
+L40S merge: SPU column-command occupancy 10%-15%; silicon points in [7%,18%]:
+   occupancy  8.5%: silicon 1.083  sim 1.111  error +0.027 (+2.5%)
+   occupancy  9.8%: silicon 1.148  sim 1.136  error -0.011 (-1.0%)
+   occupancy 12.2%: silicon 1.179  sim 1.181  error +0.002 (+0.2%)
+   occupancy 16.1%: silicon 1.209  sim 1.262  error +0.054 (+4.4%)
+   at the SPU's level: mean |error| 0.024; over all points <=25%: rms 0.049
+L40S f4dru: SPU column-command occupancy 10%-15%; silicon points in [7%,18%]:
+   occupancy  8.0%: silicon 1.064  sim 1.078  error +0.014 (+1.3%)
+   occupancy  8.7%: silicon 1.100  sim 1.090  error -0.010 (-0.9%)
+   occupancy 11.3%: silicon 1.127  sim 1.133  error +0.006 (+0.6%)
+   occupancy 15.5%: silicon 1.167  sim 1.224  error +0.057 (+4.9%)
+   at the SPU's level: mean |error| 0.022; over all points <=25%: rms 0.037
+B200 merge: SPU column-command occupancy 16%-21%; silicon points in [13%,24%]:
+   occupancy 20.1%: silicon 1.006  sim 1.000  error -0.006 (-0.6%)
+   at the SPU's level: mean |error| 0.006; over all points <=25%: rms 0.003
+b200 f4dru no silicon points
