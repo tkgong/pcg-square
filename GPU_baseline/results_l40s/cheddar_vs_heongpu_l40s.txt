@@ -1,0 +1,34 @@
+Forward NTT, 1 GB of 64-bit polynomials, prime 2^62-3*2^25+1; 0 of 204 Cheddar configs fail the CPU reference check
+logN | GPU-NTT merge ms (kernels) | Cheddar, its own 2^16 rule (9 row stages) | Cheddar, best two-kernel config (col+row stages, smem KB) | merge/best
+  16 | 0.0032 (2) | 0.0032 | 0.0032 (7+9, 16/4) | 1.00x
+  17 | 0.0091 (3) | 0.0065 | 0.0063 (4+13, 2/64) | 1.44x
+  18 | 0.0192 (3) | 0.0129 | 0.0127 (5+13, 4/64) | 1.51x
+  19 | 0.0384 (3) | infeasible | 0.0257 (6+13, 4/64) | 1.49x
+  20 | 0.0773 (3) | infeasible | 0.0524 (10+10, 64/8) | 1.48x
+  21 | 0.1563 (3) | infeasible | 0.1064 (10+11, 64/16) | 1.47x
+  22 | 0.3528 (3) | infeasible | 0.2184 (9+13, 64/64) | 1.62x
+  23 | 0.7370 (3) | infeasible | 0.4393 (10+13, 64/64) | 1.68x
+  24 | 1.4649 (3) | infeasible | 1.0680 (11+13, 64/64) | 1.37x
+
+Negacyclic multiply per polynomial (2 forward + pointwise + 1 inverse), ms; 0 mismatching elements vs the merge product over 45 runs
+logN batch | merge | Cheddar best (col+row) | merge/Cheddar | four-step, transposes on SMs (e2e table) | that/Cheddar
+  20   4 | 0.1180 | 0.1044 (8+12) | 1.13x | 0.1917 | 1.84x
+  20  16 | 0.2739 | 0.1964 (7+13) | 1.39x | 0.3371 | 1.72x
+  20  64 | 0.2687 | 0.1964 (10+10) | 1.37x | 0.3339 | 1.70x
+  21   4 | 0.3630 | 0.2895 (10+11) | 1.25x | 0.5658 | 1.95x
+  21  16 | 0.5491 | 0.3983 (10+11) | 1.38x | 0.8196 | 2.06x
+  21  64 | 0.5418 | 0.3976 (10+11) | 1.36x | 0.8153 | 2.05x
+  22   4 | 1.2175 | 0.8163 (9+13) | 1.49x | 1.7620 | 2.16x
+  22  16 | 1.2043 | 0.8173 (9+13) | 1.47x | 1.7650 | 2.16x
+  22  64 | 1.1904 | 0.8053 (9+13) | 1.48x | 1.7598 | 2.19x
+  23   4 | 2.5062 | 1.6612 (10+13) | 1.51x | 3.6011 | 2.17x
+  23  16 | 2.5169 | 1.6450 (10+13) | 1.53x | 3.5932 | 2.18x
+  23  64 | 2.4724 | 1.6347 (10+13) | 1.51x | 3.6006 | 2.20x
+  24   4 | 5.0651 | 3.8257 (11+13) | 1.32x | 7.3155 | 1.91x
+  24  16 | 4.9419 | 3.8076 (11+13) | 1.30x | 7.3104 | 1.92x
+  24  64 | 4.9444 | 3.8049 (11+13) | 1.30x | 7.3397 | 1.93x
+  geomean merge/Cheddar over the 15 (logN, batch): 1.38x
+
+L40S end-to-end (final accounting; PCG^2 uses its SM NTT = merge on L40S), with Cheddar's NTT on both sides:
+  40 Gbps: GPU baseline 601.7 -> 584.9 ms; PCG^2 speedup geomean 2.48 -> 2.42 (max cell 3.17 -> 3.02)
+  400 Mbps: GPU baseline 661.1 -> 642.8 ms; PCG^2 speedup geomean 2.13 -> 2.07 (max cell 3.17 -> 3.02)

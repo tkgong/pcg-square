@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Cheddar vs GPU-NTT merge (HEonGPU's NTT) on one card: forward NTT per size, whole multiply at PCG's (logN, batch), the
+four-step NTT with transposes on the SMs from the e2e model's table, and the L40S end-to-end effect of using Cheddar's NTT on
+both sides (GPU baseline and PCG^2's SM NTT lane, the latter scaled by the per-(logN, batch) multiply ratio).
+Usage (from the repo root): python3 GPU_baseline/cheddar/summarize.py [TAG=l40s]"""
+import csv, io, contextlib, json, os, sys
+from math import exp, log
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TAG = sys.argv[1] if len(sys.argv) > 1 else "l40s"; RES = os.path.join(ROOT, f"GPU_baseline/results_{TAG}")
+gm = lambda v: (lambda l: exp(sum(map(log, l)) / len(l)))(list(v))
+rd = lambda p: list(csv.DictReader(l for l in open(p) if not l.startswith("#")))
+out = []
+S, M = rd(f"{RES}/cheddar_ntt_sweep_{TAG}.csv"), {int(r["logN"]): r for r in rd(f"{RES}/merge_scale_16_24_{TAG}.csv")}
+out.append(f"Forward NTT, 1 GB of 64-bit polynomials, prime 2^62-3*2^25+1; {sum(r['ok'] != '1' for r in S)} of {len(S)} Cheddar configs fail the CPU reference check")
+out.append("logN | GPU-NTT merge ms (kernels) | Cheddar, its own 2^16 rule (9 row stages) | Cheddar, best two-kernel config (col+row stages, smem KB) | merge/best")
+for L in range(16, 25):
+    rr = [r for r in S if int(r["logN"]) == L and r["ok"] == "1"]; b = min(rr, key=lambda r: float(r["ms_per_transform"]))
+    own = [r for r in rr if (r["P2"], r["M1"], r["B1"]) == ("9", "4", "4")]; m = float(M[L]["merge_ms_per_transform"])
+    out.append(f"  {L} | {m:.4f} ({M[L]['merge_kernels']}) | {float(own[0]['ms_per_transform']):.4f}" if own else f"  {L} | {m:.4f} ({M[L]['merge_kernels']}) | infeasible")
+    out[-1] += f" | {float(b['ms_per_transform']):.4f} ({b['P1']}+{b['P2']}, {b['smem1_KB']}/{b['smem2_KB']}) | {m / float(b['ms_per_transform']):.2f}x"
+P = rd(f"{RES}/cheddar_polymul_{TAG}.csv"); best = {}
+for r in P:
+    k = (int(r["logN"]), int(r["batch"])); t = float(r["cheddar_ms_per_poly"])
+    if k not in best or t < best[k][1]: best[k] = (float(r["merge_ms_per_poly"]), t, f"{r['cheddar_P1']}+{r['P2']}")
+out += ["", f"Negacyclic multiply per polynomial (2 forward + pointwise + 1 inverse), ms; {sum(int(r['mismatches']) for r in P)} mismatching elements vs the merge product over {len(P)} runs"]
+T = {}
+if TAG == "l40s":
+    for r in rd(os.path.join(ROOT, "PIM/tools/contention/ntt_l40s_fused4.csv")):
+        if r["gpu"] == "gpu": continue
+        k = (int(r["logN"]), int(r["batch"])); T[k] = min(T.get(k, 1e9), float(r["f4g_full_ms_mul"]))
+out.append("logN batch | merge | Cheddar best (col+row) | merge/Cheddar" + (" | four-step, transposes on SMs (e2e table) | that/Cheddar" if T else ""))
+for k in sorted(best):
+    m, c, cfg = best[k]
+    out.append(f"  {k[0]} {k[1]:3d} | {m:.4f} | {c:.4f} ({cfg}) | {m / c:.2f}x" + (f" | {T[k]:.4f} | {T[k] / c:.2f}x" if T else ""))
+out.append(f"  geomean merge/Cheddar over the {len(best)} (logN, batch): {gm(m / c for m, c, _ in best.values()):.2f}x")
+if TAG == "l40s":
+    sys.path.insert(0, os.path.join(ROOT, "PIM/tools/contention/e2e"))
+    with contextlib.redirect_stdout(io.StringIO()):
+        from reproduce import L_
+    R = json.load(open(os.path.join(ROOT, "PIM/results/contention/final_window/win22/e2e_nom.json"))); LN = L_("L40S")
+    out += ["", "L40S end-to-end (final accounting; PCG^2 uses its SM NTT = merge on L40S), with Cheddar's NTT on both sides:"]
+    for tier, lab in (("fast", "40 Gbps"), ("slow", "400 Mbps")):
+        s0, s1, b0, b1 = [], [], [], []
+        for r in R:
+            if not (r["org"] == "l40s" and r["design"] == "merge" and r["tier"] == tier): continue
+            c, lg = r["c"], r["logN"]; m, ch, _ = best[(lg, c * c)]; f = ch / m; L = LN[(c, r["t"], lg)]
+            base0 = r["base_overlap_ms"]; base1 = max(L["gpu_dpf_g"] + (r["gpu_ms"] - L["gpu_dpf_g"]) * f, r["nic_ms"])
+            pcg0 = r["pcg_ms"]; pcg1 = max(r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"] * f, r["nic_ms"])
+            s0.append(base0 / pcg0); s1.append(base1 / pcg1); b0.append(base0); b1.append(base1)
+        out.append(f"  {lab}: GPU baseline {gm(b0):.1f} -> {gm(b1):.1f} ms; PCG^2 speedup geomean {gm(s0):.2f} -> {gm(s1):.2f} (max cell {max(s0):.2f} -> {max(s1):.2f})")
+s = "\n".join(out); print(s); open(f"{RES}/cheddar_vs_heongpu_{TAG}.txt", "w").write(s + "\n")
