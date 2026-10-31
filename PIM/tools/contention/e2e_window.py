@@ -17,7 +17,7 @@ Usage: e2e_window.py --sim BIN --out DIR [--clock nom|1.0|0.5] [--gather --spu-p
 import argparse, concurrent.futures as cf, io, contextlib, json, math, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "e2e"))
-from ntt_jobs import DEV, base, mul_ms, ntt_table, phases, write_jobs
+from ntt_jobs import DEV, base, mul_ms, ntt_table, cheddar_table, phases, write_jobs
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, LOGN, alpha_bw, gm
     from fig8 import BETA
@@ -160,10 +160,12 @@ def main():
         spu_slow = x["pim_done_cycles"] / TS[org]
         ntt_slow = x["pipe0_finish_max"] / (R[f"{org}_{c}_{t}_{lg}_{d}_splitalone"] if a.dpf_split else y)["pipe0_finish_max"]
         mm = ntt_table(org)[(lg, c * c)][0]
+        mc = cheddar_table(org).get((lg, c * c), (float("nan"),))[0]          # Cheddar's NTT as the GPU baseline's NTT
         xs = 1.0; sm_slow = ntt_slow
         for tier in ("fast", "slow"):
             nic = (cd["L"]["n"] + 2) * alpha_bw(c, t, BETA[tier])
             gpu = cd["L"]["gpu_dpf_g"] + mm * 2 * c * c
+            gpu_ch = cd["L"]["gpu_dpf_g"] + mc * 2 * c * c
             if a.dpf_split:
                 # window: SM lane = NTT + (1-x0) DPF share; its co-run slowdown applies to both parts
                 x0 = X0[(org, c, t, lg, d)]; Tg = cd["L"]["gpu_dpf_g"]; Ts = cd["spu_ms"]
@@ -179,6 +181,7 @@ def main():
                              pcg_ms=pcg, pcg_nocont_ms=max(cd["spu_ms"], ntt_lane, nic), gpu_ms=gpu,
                              spu_share=xs, sm_slow=sm_slow,
                              base_serial_ms=gpu + nic, base_overlap_ms=max(gpu, nic),
+                             gpu_cheddar_ms=gpu_ch, base_overlap_cheddar_ms=max(gpu_ch, nic),
                              base_paper_ms=cd["L"]["gpu_dpf_g"] + cd["L"]["ntt_dev"] + nic))
     json.dump(rows, open(os.path.join(a.out, "e2e.json"), "w"), indent=1)
     print(f"clock={a.clock}  (best (c,t) / geomean over all cells; GPU baseline = DPF + merge NTT, network co-scheduled)")

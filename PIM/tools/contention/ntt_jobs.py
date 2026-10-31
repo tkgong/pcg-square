@@ -52,7 +52,25 @@ def ntt_table(dev):
 # interference curve of GPU_baseline/fused4 interfere_ntt, both with this kernel model.
 #   merge : W=48 R=16 -> standalone +5.2% (logN 22) / +2.7% (24), interference rms 0.053
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
-PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16)}
+PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16),
+           "cheddar": (48, 16), "f4c": (48, 16), "f4csm": (48, 16)}
+
+
+# Cheddar's NTT kernels (scale-snu/cheddar-fhe 8df8b26, GPU_baseline/cheddar), measured per multiply, best config per
+# (logN, batch), min over configs: cheddar = Cheddar's own two-kernel NTT on the SMs (2 passes per transform);
+# f4c = four-step on Cheddar's kernels, both passes contiguous, SM lane only (the transposes on the DRU);
+# f4csm = the same four-step with the six transposes on the SMs.
+_CH = {}
+def cheddar_table(dev):
+    dev = base(dev)
+    if dev in _CH: return _CH[dev]
+    path = os.path.abspath(os.path.join(HERE, "..", "..", "..", "GPU_baseline", f"results_{dev}", f"cheddar_f4dru_{dev}.csv"))
+    t = {}
+    for r in csv.DictReader(l for l in open(path) if not l.startswith("#")):
+        if r["design"] not in ("cheddar", "f4c_sm", "f4c_full") or int(r["mismatches"]) != 0: continue
+        k = (int(r["logN"]), int(r["batch"])); i = ("cheddar", "f4c_sm", "f4c_full").index(r["design"])
+        v = list(t.get(k, (1e9, 1e9, 1e9))); v[i] = min(v[i], float(r["ms_per_poly"])); t[k] = tuple(v)
+    _CH[dev] = t; return t
 
 
 # The submission's own NTT: the square four-step (poly_mul_gpuntt_square.cu, standalone bit-reversal), measured per
@@ -75,6 +93,7 @@ def sq_table(dev):
 def mul_ms(dev, design, logN, batch):
     """measured per-multiply NTT time the lane is sized from (sqdru: the SM side only, the DRU runs in parallel)"""
     if design in ("merge", "f4dru", "f4sm"): return ntt_table(dev)[(logN, batch)][{"merge": 0, "f4dru": 1, "f4sm": 2}[design]]
+    if design in ("cheddar", "f4c", "f4csm"): return cheddar_table(dev)[(logN, batch)][{"cheddar": 0, "f4c": 1, "f4csm": 2}[design]]
     if design == "sqdruh": design = "sqdru"
     tot, st = sq_table(dev)[(logN, batch)]; ssum = sum(st.values())
     return tot * (1.0 if design == "sq" else (ssum - st["transpose"] - st["brev"]) / ssum)
@@ -114,6 +133,22 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
         MK = lambda: (0, 1, by(16), 0.5, window, gap, run, 16384, ck(tm * 16 / 168))
         MPW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tm * 24 / 168))
         return [MK(), MK(), MK(), MK(), MK(), MK(), MPW, MK(), MK(), MK()]
+    if design == "cheddar":
+        # Cheddar: 2 kernels per transform (8N rd + 8N wr each); poly-mul = fwd a, fwd b, pointwise, inverse -> 7 kernels, 120N B
+        tc = cheddar_table(dev)[(logN, batch)][0]
+        CK = lambda: (0, 1, by(16), 0.5, window, gap, run, 16384, ck(tc * 16 / 120))
+        return [CK(), CK(), CK(), CK(), (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tc * 24 / 120)), CK(), CK()]
+    if design in ("f4c", "f4csm"):
+        # four-step on Cheddar's kernels: per mul  T K T K (a) | T K T K (b) | PW | K T K T; SM kernels 6 x 16N + PW 24N = 120N B,
+        # 6 transposes x 16N B on the DRU (f4c) or on the SMs (f4csm, floor = measured f4c_full - f4c_sm)
+        _, tc, tf = cheddar_table(dev)[(logN, batch)]
+        K = lambda: (0, 1, by(16), 0.5, window, gap, run, 16384, ck(tc * 16 / 120))
+        if design == "f4csm":
+            T = lambda: (0, 1, byd(16), 0.5, window, gap, run, 32768, ck((tf - tc) / 6))
+        else:
+            T = lambda: (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768, 0)
+        PW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tc * 24 / 120))
+        return [T(), K(), T(), K(), T(), K(), T(), K(), PW, K(), T(), K(), T()]
     K = lambda: (0, 1, by(20), 0.6, window, gap, run, 16384, ck(ts * 20 / 144))
     if design == "f4sm":
         # the same four-step with the six transposes on the SMs: measured f4g_full - f4g_sm is their SM time

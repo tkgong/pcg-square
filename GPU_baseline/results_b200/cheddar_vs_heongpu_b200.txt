@@ -1,4 +1,4 @@
-Forward NTT, 1 GB of 64-bit polynomials, prime 2^62-3*2^25+1; 17 of 221 Cheddar configs fail the CPU reference check
+Forward NTT, 1 GB of 64-bit polynomials, prime 2^62-3*2^25+1; 17 of 221 Cheddar configs fail the CPU reference check (all with first-kernel shape M1 = 4 at 1024 threads: these exceed the per-block register file and never launch; the bench now skips such configs; the tables use ok = 1 rows only)
 logN | GPU-NTT merge ms (kernels) | Cheddar, its own 2^16 rule (9 row stages) | Cheddar, best two-kernel config (col+row stages, smem KB) | merge/best
   16 | 0.0019 (2) | 0.0015 | 0.0015 (7+9, 16/4) | 1.27x
   17 | 0.0042 (3) | 0.0031 | 0.0031 (8+9, 32/4) | 1.35x

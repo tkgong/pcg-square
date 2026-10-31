@@ -42,7 +42,7 @@ static void ref_ntt(std::vector<u64> &a, const std::vector<u64> &psi_rev) {   //
     }
   }
 }
-struct Ctx { int L, batch; i64 *x; u64 *primes, *tw, *twm; i64 *qinv; std::vector<u64> in0, inL, ref0, refL; int iters; int max_smem; };
+struct Ctx { int L, batch; i64 *x; u64 *primes, *tw, *twm; i64 *qinv; std::vector<u64> in0, inL, ref0, refL; int iters; int max_smem, max_regs; };
 template <int L, int P2, int M1, int B1> static void run_cfg(Ctx &c) {
   constexpr int P1 = L - P2, M2 = 3;
   if constexpr (P1 < M1 || P1 < 1) return; else {
@@ -53,6 +53,12 @@ template <int L, int P2, int M1, int B1> static void run_cfg(Ctx &c) {
     auto k1 = kernel::NTTPhase1<u64, L, C1>; auto k2 = kernel::NTTPhase2<u64, L, C2>;
     ck(cudaFuncSetAttribute(k1, cudaFuncAttributeMaxDynamicSharedMemorySize, (int) sm1), "attr1");
     ck(cudaFuncSetAttribute(k2, cudaFuncAttributeMaxDynamicSharedMemorySize, (int) sm2), "attr2");
+    // a block also needs threads x registers-per-thread <= the per-block register file, or the launch fails
+    cudaFuncAttributes fa1, fa2; ck(cudaFuncGetAttributes(&fa1, k1), "fattr1"); ck(cudaFuncGetAttributes(&fa2, k2), "fattr2");
+    if (fa1.numRegs * th1 > c.max_regs || fa2.numRegs * th2 > c.max_regs) {
+      fprintf(stderr, "skip logN %d P1 %d P2 %d M1 %d B1 %d: %d x %d / %d x %d registers > %d per block\n", L, P1, P2, M1, B1, th1, fa1.numRegs, th2, fa2.numRegs, c.max_regs);
+      return;
+    }
     const size_t N = 1ull << L, tot = N * c.batch;
     dim3 g1(N / (1 << M1) / th1, c.batch), g2(N / (1 << M2) / th2, c.batch);
     InputPtrList<i64, 1> src; src.ptrs_[0] = c.x;
@@ -61,6 +67,9 @@ template <int L, int P2, int M1, int B1> static void run_cfg(Ctx &c) {
       k2<<<g2, th2, sm2>>>(c.x, c.primes, c.qinv, c.tw, c.twm, 0, c.batch, 0, 0, src);
     };
     fill<<<1024, 256>>>(c.x, tot, 12345); go(); ck(cudaDeviceSynchronize(), "check run");
+    if (cudaError_t e = cudaGetLastError(); e != cudaSuccess) {       // any other launch failure: report, do not time
+      fprintf(stderr, "skip logN %d P1 %d P2 %d M1 %d B1 %d: launch failed (%s)\n", L, P1, P2, M1, B1, cudaGetErrorString(e)); return;
+    }
     std::vector<u64> o0(N), oL(N);
     ck(cudaMemcpy(o0.data(), c.x, N * 8, cudaMemcpyDeviceToHost), "d2h0"); ck(cudaMemcpy(oL.data(), c.x + (tot - N), N * 8, cudaMemcpyDeviceToHost), "d2hL");
     bool ok = o0 == c.ref0 && oL == c.refL;
@@ -72,8 +81,8 @@ template <int L, int P2, int M1, int B1> static void run_cfg(Ctx &c) {
     fflush(stdout); cudaEventDestroy(a); cudaEventDestroy(b);
   }
 }
-template <int L> static void run_L(int iters, int max_smem) {
-  Ctx c; c.L = L; c.batch = 1 << (27 - L); c.iters = iters; c.max_smem = max_smem;
+template <int L> static void run_L(int iters, int max_smem, int max_regs) {
+  Ctx c; c.L = L; c.batch = 1 << (27 - L); c.iters = iters; c.max_smem = max_smem; c.max_regs = max_regs;
   const size_t N = 1ull << L, tot = N * c.batch;
   u64 g = 3; while (powm(g, (Q - 1) / 2) == 1) g++;
   u64 psi = powm(g, (Q - 1) / (2 * N)); if (powm(psi, N) != Q - 1) { fprintf(stderr, "bad psi\n"); exit(1); }
@@ -104,8 +113,9 @@ int main(int argc, char **argv) {
     else if (!strcmp(argv[i], "--iters") && i + 1 < argc) iters = atoi(argv[++i]);
   }
   int dev; cudaGetDevice(&dev); int max_smem; cudaDeviceGetAttribute(&max_smem, cudaDevAttrMaxSharedMemoryPerBlockOptin, dev);
+  int max_regs; cudaDeviceGetAttribute(&max_regs, cudaDevAttrMaxRegistersPerBlock, dev);
   cudaDeviceProp p; cudaGetDeviceProperties(&p, dev); fprintf(stderr, "%s, max opt-in shared memory per block %d B\n", p.name, max_smem);
   printf("logN,batch,P1,P2,M1,B1,threads1,smem1_KB,threads2,smem2_KB,ok,ms_per_transform,ps_per_elem_per_pass\n");
-  for (int L : lgs) cfor<16, 25>([&](auto LL) { if (LL == L) run_L<LL>(iters, max_smem); });
+  for (int L : lgs) cfor<16, 25>([&](auto LL) { if (LL == L) run_L<LL>(iters, max_smem, max_regs); });
   return 0;
 }

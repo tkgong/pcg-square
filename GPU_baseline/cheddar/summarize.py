@@ -11,7 +11,10 @@ gm = lambda v: (lambda l: exp(sum(map(log, l)) / len(l)))(list(v))
 rd = lambda p: list(csv.DictReader(l for l in open(p) if not l.startswith("#")))
 out = []
 S, M = rd(f"{RES}/cheddar_ntt_sweep_{TAG}.csv"), {int(r["logN"]): r for r in rd(f"{RES}/merge_scale_16_24_{TAG}.csv")}
-out.append(f"Forward NTT, 1 GB of 64-bit polynomials, prime 2^62-3*2^25+1; {sum(r['ok'] != '1' for r in S)} of {len(S)} Cheddar configs fail the CPU reference check")
+bad = [r for r in S if r["ok"] != "1"]
+out.append(f"Forward NTT, 1 GB of 64-bit polynomials, prime 2^62-3*2^25+1; {len(bad)} of {len(S)} Cheddar configs fail the CPU reference check"
+           + (" (all with first-kernel shape " + ", ".join(sorted({f"M1 = {r['M1']} at {r['threads1']} threads" for r in bad}))
+              + ": these exceed the per-block register file and never launch; the bench now skips such configs; the tables use ok = 1 rows only)" if bad else ""))
 out.append("logN | GPU-NTT merge ms (kernels) | Cheddar, its own 2^16 rule (9 row stages) | Cheddar, best two-kernel config (col+row stages, smem KB) | merge/best")
 for L in range(16, 25):
     rr = [r for r in S if int(r["logN"]) == L and r["ok"] == "1"]; b = min(rr, key=lambda r: float(r["ms_per_transform"]))
