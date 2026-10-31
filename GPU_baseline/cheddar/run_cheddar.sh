@@ -24,3 +24,8 @@ FLAGS=(-O3 -std=c++17 -arch="$ARCH" --expt-relaxed-constexpr -diag-suppress 177 
 python3 gen_cfgs.py "$OUT/cheddar_ntt_sweep_$TAG.csv" gen/cfgs.h
 "$NVCC" "${FLAGS[@]}" -I.. -I"$GPUNTT_INC" cheddar_polymul_bench.cu -L"$GPUNTT_LIB" -lntt-1.0 -o "bin/cheddar_polymul_bench_$ARCH"
 "./bin/cheddar_polymul_bench_$ARCH" --iters 5 | tee "$OUT/cheddar_polymul_$TAG.csv"
+# 5. four-step NTT on Cheddar's kernels (column kernel with contiguous addressing, extract_contig.sh): SM lane with the six
+#    transposes on the DRU, and the same with the transposes on the SMs; vs Cheddar and merge in the same run, products checked.
+./extract_contig.sh gen/cheddar_ntt_kernels.cuh gen/cheddar_ntt_contig.cuh
+"$NVCC" "${FLAGS[@]}" -I.. -I"$GPUNTT_INC" cheddar_f4dru_bench.cu -L"$GPUNTT_LIB" -lntt-1.0 -o "bin/cheddar_f4dru_bench_$ARCH"
+"./bin/cheddar_f4dru_bench_$ARCH" --iters 5 | tee "$OUT/cheddar_f4dru_$TAG.csv"

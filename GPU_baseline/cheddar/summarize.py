@@ -48,4 +48,21 @@ if TAG == "l40s":
             pcg0 = r["pcg_ms"]; pcg1 = max(r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"] * f, r["nic_ms"])
             s0.append(base0 / pcg0); s1.append(base1 / pcg1); b0.append(base0); b1.append(base1)
         out.append(f"  {lab}: GPU baseline {gm(b0):.1f} -> {gm(b1):.1f} ms; PCG^2 speedup geomean {gm(s0):.2f} -> {gm(s1):.2f} (max cell {max(s0):.2f} -> {max(s1):.2f})")
+
+F = f"{RES}/cheddar_f4dru_{TAG}.csv"
+if os.path.exists(F):
+    Q = [r for r in rd(F) if len(r) > 3 and r["design"] != "OOM"]
+    out += ["", f"Four-step NTT on Cheddar's kernels, transposes on the DRU (SM lane = SM kernels + pointwise, DRU fully overlapped), per polynomial multiply, ms; "
+            f"{sum(int(r['mismatches']) for r in Q if r['design'] in ('f4c_full', 'cheddar'))} mismatching elements vs the merge product"]
+    out.append("logN batch | merge | Cheddar best | four-step SM lane best (col+row) | Cheddar/SM lane | merge/SM lane | four-step with transposes on the SMs | DRAM bound with DRU traffic (216N B at peak) / Cheddar")
+    PEAK = {"l40s": 864e9, "b200": 8.0e12}[TAG]; rc, rm = [], []
+    for L in range(20, 25):
+        for b in (4, 16, 64):
+            rr = [r for r in Q if int(r["logN"]) == L and int(r["batch"]) == b]
+            if not rr: continue
+            g = lambda d: min(rr, key=lambda r: float(r["ms_per_poly"]) if r["design"] == d else 1e9)
+            m = float(g("merge")["ms_per_poly"]); c = float(g("cheddar")["ms_per_poly"]); s_ = g("f4c_sm"); sv = float(s_["ms_per_poly"]); fv = float(g("f4c_full")["ms_per_poly"])
+            rc.append(c / sv); rm.append(m / sv); lb = 216 * (1 << L) / PEAK * 1e3
+            out.append(f"  {L} {b:3d} | {m:.4f} | {c:.4f} | {sv:.4f} ({s_['P1']}+{s_['P2']}) | {c / sv:.2f}x | {m / sv:.2f}x | {fv:.4f} | {lb / c:.2f}")
+    out.append(f"  geomean Cheddar/SM lane {gm(rc):.2f}x (range {min(rc):.2f}-{max(rc):.2f}); merge/SM lane {gm(rm):.2f}x")
 s = "\n".join(out); print(s); open(f"{RES}/cheddar_vs_heongpu_{TAG}.txt", "w").write(s + "\n")

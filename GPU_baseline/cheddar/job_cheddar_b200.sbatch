@@ -1,11 +1,11 @@
 #!/bin/bash
-# B200: Cheddar's NTT vs GPU-NTT merge (HEonGPU's NTT) at PCG's sizes (run_cheddar.sh). Submit from GPU_baseline/cheddar: sbatch job_cheddar_b200.sbatch
+# B200: Cheddar's NTT vs GPU-NTT merge (HEonGPU's NTT), and the four-step NTT on Cheddar's kernels with the transposes on the DRU (run_cheddar.sh). Submit from GPU_baseline/cheddar: sbatch job_cheddar_b200.sbatch
 #SBATCH -p b200-batch
 #SBATCH -N 1
 #SBATCH --gres=gpu:b200:1
 #SBATCH -c 16
 #SBATCH --mem=160G
-#SBATCH -t 01:30:00
+#SBATCH -t 03:00:00
 #SBATCH -J cheddar-b200
 #SBATCH -o cheddar_b200_%j.out
 set -eu
