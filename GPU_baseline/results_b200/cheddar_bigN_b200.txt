@@ -1,0 +1,31 @@
+b200: per negacyclic multiply, ms per polynomial, best valid config per design; 0 of 607 timed rows have mismatches (excluded)
+logN batch | merge | Cheddar best (col+row, M col/row, B) | four-step SM lane best | four-step, transposes on SMs | Cheddar/SM lane | merge/SM lane | Cheddar/(transposes on SMs)
+  24   4 | 2.4101 | 2.1145 (11+13 M3/3 B2) | 1.9262 (12+12 M3/3) | 2.1668 | 1.10x | 1.25x | 0.98x
+  24  16 | 2.4019 | 2.0898 (11+13 M3/3 B2) | 1.9130 (12+12 M3/3) | 2.1504 | 1.09x | 1.26x | 0.97x
+  24  64 | 2.4015 | 2.0859 (11+13 M3/3 B2) | 1.9110 (12+12 M3/3) | 2.1477 | 1.09x | 1.26x | 0.97x
+  25   4 | 5.0011 | 4.6494 (12+13 M3/3 B1) | 4.1695 (12+13 M3/3) | 4.6532 | 1.12x | 1.20x | 1.00x
+  25  16 | 4.9939 | 4.6304 (12+13 M3/3 B1) | 4.1466 (12+13 M3/3) | 4.6264 | 1.12x | 1.20x | 1.00x
+  25  64 | 4.9904 | 4.6248 (12+13 M3/3 B1) | 4.1390 (12+13 M3/3) | 4.6171 | 1.12x | 1.21x | 1.00x
+  26   4 | 10.3960 | 10.5850 (13+13 M3/3 B0) | 8.9734 (13+13 M3/3) | 9.9522 | 1.18x | 1.16x | 1.06x
+  26  16 | 10.3863 | 10.5603 (13+13 M3/3 B0) | 8.9448 (13+13 M3/3) | 9.9148 | 1.18x | 1.16x | 1.07x
+  26  64 | 10.3829 | 10.5545 (13+13 M3/3 B0) | 8.9351 (13+13 M3/3) | 9.9055 | 1.18x | 1.16x | 1.07x
+  27   4 | 21.9577 | nan (-) | nan (-) | nan | nanx | nanx | nanx
+  27  16 | 21.9484 | nan (-) | nan (-) | nan | nanx | nanx | nanx
+  28   4 | 49.1667 | nan (-) | nan (-) | nan | nanx | nanx | nanx
+  28  16 | 49.1422 | nan (-) | nan (-) | nan | nanx | nanx | nanx
+
+cost per butterfly, ms / (N log N), relative to 2^24 at the same batch:
+logN batch | merge | Cheddar | four-step SM lane
+  24   4 | 1.00 | 1.00 | 1.00
+  24  16 | 1.00 | 1.00 | 1.00
+  24  64 | 1.00 | 1.00 | 1.00
+  25   4 | 1.00 | 1.06 | 1.04
+  25  16 | 1.00 | 1.06 | 1.04
+  25  64 | 1.00 | 1.06 | 1.04
+  26   4 | 1.00 | 1.16 | 1.08
+  26  16 | 1.00 | 1.17 | 1.08
+  26  64 | 1.00 | 1.17 | 1.08
+  27   4 | 1.01 | nan | nan
+  27  16 | 1.02 | nan | nan
+  28   4 | 1.09 | nan | nan
+  28  16 | 1.10 | nan | nan
