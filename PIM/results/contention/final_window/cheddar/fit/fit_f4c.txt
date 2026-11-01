@@ -1,0 +1,11 @@
+f4c: silicon interference points [(0.053, 1.079), (0.063, 1.087), (0.099, 1.115), (0.107, 1.18), (0.127, 1.19), (0.184, 1.252), (0.225, 1.364)]
+  W= 48 R=16  standalone err logN22 +0.4%  logN24 +0.2%   interference rms 0.027
+  W= 64 R=24  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.050
+  W= 32 R= 4  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.052
+  W=128 R=64  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.056
+  W= 64 R=32  standalone err logN22 +1.9%  logN24 +1.9%   interference rms 0.022
+  W= 32 R= 8  standalone err logN22 +0.5%  logN24 +0.4%   interference rms 0.054
+  W= 48 R= 8  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.085
+  W= 64 R=16  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.095
+  W= 96 R=64  standalone err logN22 +3.9%  logN24 +3.8%   interference rms 0.026
+  W= 48 R=24  standalone err logN22 +4.1%  logN24 +4.3%   interference rms 0.024

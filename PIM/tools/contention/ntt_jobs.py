@@ -53,7 +53,7 @@ def ntt_table(dev):
 #   merge : W=48 R=16 -> standalone +5.2% (logN 22) / +2.7% (24), interference rms 0.053
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
 PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16),
-           "cheddar": (48, 16), "f4c": (48, 16), "f4csm": (48, 16)}
+           "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16)}   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
 
 
 # Cheddar's NTT kernels (scale-snu/cheddar-fhe 8df8b26, GPU_baseline/cheddar), measured per multiply, best config per
@@ -64,7 +64,12 @@ _CH = {}
 def cheddar_table(dev):
     dev = base(dev)
     if dev in _CH: return _CH[dev]
-    path = os.path.abspath(os.path.join(HERE, "..", "..", "..", "GPU_baseline", f"results_{dev}", f"cheddar_f4dru_{dev}.csv"))
+    # cheddar_bigN_<dev>.csv once it covers logN 20..24: both designs swept over the same configs (column M1 3..5, row M2
+    # 3..5, register caps); cheddar_f4dru_<dev>.csv swept the four-step's column kernel at M1 = 3 only
+    res = os.path.abspath(os.path.join(HERE, "..", "..", "..", "GPU_baseline", f"results_{dev}"))
+    path = os.path.join(res, f"cheddar_bigN_{dev}.csv")
+    if not os.path.exists(path) or not {20, 21, 22, 23, 24} <= {int(r["logN"]) for r in csv.DictReader(open(path)) if r["design"] == "f4c_sm"}:
+        path = os.path.join(res, f"cheddar_f4dru_{dev}.csv")
     t = {}
     for r in csv.DictReader(l for l in open(path) if not l.startswith("#")):
         if r["design"] not in ("cheddar", "f4c_sm", "f4c_full") or int(r["mismatches"]) != 0: continue

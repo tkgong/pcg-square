@@ -1,0 +1,11 @@
+cheddar: silicon interference points [(0.048, 1.057), (0.062, 1.074), (0.098, 1.121), (0.099, 1.108), (0.126, 1.157), (0.184, 1.23), (0.213, 1.294)]
+  W= 64 R=24  standalone err logN22 +0.1%  logN24 +0.0%   interference rms 0.022
+  W=128 R=64  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.033
+  W= 48 R= 8  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.053
+  W= 48 R=16  standalone err logN22 +0.4%  logN24 +0.0%   interference rms 0.049
+  W= 64 R=16  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.062
+  W= 64 R=32  standalone err logN22 +2.0%  logN24 +0.0%   interference rms 0.030
+  W= 32 R= 4  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.074
+  W= 32 R= 8  standalone err logN22 +0.5%  logN24 +0.0%   interference rms 0.076
+  W= 48 R= 4  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.095
+  W= 96 R=32  standalone err logN22 +0.0%  logN24 +0.0%   interference rms 0.101

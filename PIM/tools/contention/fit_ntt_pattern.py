@@ -2,19 +2,20 @@
 """Joint fit of an NTT's DRAM access pattern (reads in flight W, columns per row
 visit R) to silicon on BOTH (1) standalone per-mul time (host_jobs kernels with
 measured compute floors) and (2) the interference curve (calib_ntt_patterns.py).
-Usage: fit_ntt_pattern.py --sim BIN --out DIR --silicon interfere_ntt_L40S_22.csv --design merge|f4dru"""
+Usage: fit_ntt_pattern.py --sim BIN --out DIR --silicon interfere_ntt_L40S_22.csv --design merge|f4dru
+       fit_ntt_pattern.py ... --silicon GPU_baseline/results_l40s/cheddar_interfere_l40s.csv --design cheddar|f4c   (rows at logN 22)"""
 import argparse, concurrent.futures as cf, csv, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-from ntt_jobs import DEV, ntt_table, phases, write_jobs
+from ntt_jobs import DEV, ntt_table, mul_ms, phases, write_jobs
 PIM = os.path.dirname(os.path.dirname(HERE))
 YAML = os.path.join(PIM, "sim/test/gddr6_dpf_24ch.yaml")
 ap = argparse.ArgumentParser(); ap.add_argument("--sim", required=True); ap.add_argument("--out", required=True)
 ap.add_argument("--silicon", required=True); ap.add_argument("--design", default="merge"); ap.add_argument("--jobs", type=int, default=80)
 a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
 eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
-VIC = {"merge": "merge", "f4dru": "f4g_sm"}[a.design]
-RD = {"merge": 88 / 168, "f4dru": 88 / 144}[a.design]
-rows = list(csv.DictReader(open(a.silicon)))
+VIC = {"merge": "merge", "f4dru": "f4g_sm", "cheddar": "cheddar", "f4c": "f4c_sm"}[a.design]
+SM_ONLY = a.design in ("f4dru", "f4c")   # SM lane only (L40S has no DRU)
+rows = [r for r in csv.DictReader(open(a.silicon)) if r.get("logN", "22") == "22"]
 ctrl = {(r["victim"], r["blocks"]): float(r["victim_ms"]) for r in rows if r["mode"] == "sleep_only"}
 SIL = sorted((float(r["agg_GBps"]) / 864.0, float(r["victim_ms"]) / ctrl[(r["victim"], r["blocks"])])
              for r in rows if r["mode"] == "stream" and r["victim"] == VIC and float(r["agg_GBps"]) / 864 <= 0.25)
@@ -28,11 +29,10 @@ def sim(args, out):
 def standalone(W, R):   # per-mul ms at logN 22 / 24, batch 16 vs silicon
     err = []
     for lg in (22, 24):
-        tm, ts = ntt_table("l40s")[(lg, 16)][:2]
-        target = tm if a.design == "merge" else ts
+        target = mul_ms("l40s", a.design, lg, 16)
         muls = 8; sc = 1.5e6 / (muls * target * 1e6 / DEV["l40s"]["tck"])
         ph = phases("l40s", a.design, lg, 16, scale=sc, window=W, run=R)
-        if a.design == "f4dru": ph = [p for p in ph if p[0] == 0]      # SM lane only (L40S has no DRU)
+        if SM_ONLY: ph = [p for p in ph if p[0] == 0]
         jp = os.path.join(a.out, f"sa_{W}_{R}_{lg}.jobs"); write_jobs(jp, [(muls, 0, ph)])
         d = sim(["-p", f"MemorySystem.host_jobs={jp}"], os.path.join(a.out, f"sa_{W}_{R}_{lg}.out"))
         err.append(d["pipe0_finish_max"] * DEV["l40s"]["tck"] / 1e6 / muls / sc / target - 1)
@@ -42,10 +42,10 @@ def curve(W, R):
     """Victim = the same kernel pipeline (with compute floors) as the standalone check,
     next to the aggressor stream; slowdown vs its own standalone time, x = aggressor
     bandwidth while the victim ran."""
-    lg = 22; tm, ts = ntt_table("l40s")[(lg, 16)][:2]; target = tm if a.design == "merge" else ts
+    lg = 22; target = mul_ms("l40s", a.design, lg, 16)
     muls = 8; sc = 1.5e6 / (muls * target * 1e6 / DEV["l40s"]["tck"])
     ph = phases("l40s", a.design, lg, 16, scale=sc, window=W, run=R)
-    if a.design == "f4dru": ph = [p for p in ph if p[0] == 0]
+    if SM_ONLY: ph = [p for p in ph if p[0] == 0]
     jp = os.path.join(a.out, f"cv_{W}_{R}.jobs"); write_jobs(jp, [(muls, 0, ph)])
     base = sim(["-p", f"MemorySystem.host_jobs={jp}"], os.path.join(a.out, f"sa_{W}_{R}_{lg}.out"))["pipe0_finish_max"]
     pts = []

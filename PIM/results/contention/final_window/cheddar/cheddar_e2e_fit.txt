@@ -1,0 +1,28 @@
+Cheddar's NTT in the final accounting (22-multiply window, contention included). Geomean over the suite's cells.
+
+1. NTT lane (gather + kernels, x co-run slowdown), ms geomean; ratios > 1 mean f4c is faster:
+  B200: merge 19.50 | Cheddar 15.81 | f4c (DRU) 15.84 | f4csm (SM transposes) 18.38  ->  merge/f4c 1.231, Cheddar/f4c 0.998 (range 0.89-1.12), f4csm/f4c 1.161
+        standalone sim lane / measured SM time: Cheddar 1.063, f4c 1.098  (f4c/Cheddar 1.033: the DRU's 96N B cost the lane that much over its SM kernels)
+        co-run NTT slowdown: Cheddar 1.02-1.15, f4c 1.02-1.13; SPU slowdown with Cheddar 1.012, with f4c 1.014
+        Cheddar/f4c lane per logN: 2^20 0.965, 2^21 0.973, 2^22 0.975, 2^23 1.014, 2^24 1.067
+        NTT-bound cells (Cheddar lane >= SPU lane): 10/25
+        merge rows reproduce the final run: max |diff| 0.00% over 25 cells
+  L40S: merge 55.36 | Cheddar 42.20 | f4c (DRU) 51.88 | f4csm (SM transposes) 80.49  ->  merge/f4c 1.067, Cheddar/f4c 0.814 (range 0.71-0.95), f4csm/f4c 1.551
+        standalone sim lane / measured SM time: Cheddar 1.084, f4c 1.625  (f4c/Cheddar 1.499: the DRU's 96N B cost the lane that much over its SM kernels)
+        co-run NTT slowdown: Cheddar 1.38-2.80, f4c 1.30-1.92; SPU slowdown with Cheddar 1.014, with f4c 1.030
+        Cheddar/f4c lane per logN: 2^20 0.775, 2^21 0.785, 2^22 0.811, 2^23 0.829, 2^24 0.917
+        NTT-bound cells (Cheddar lane >= SPU lane): 0/22
+        merge rows reproduce the final run: max |diff| 0.00% over 22 cells
+
+2. End-to-end speedup, up to (best (c,t)) / geomean:
+        network         |  current (merge base; final NTT) |  Cheddar base, PCG^2 Cheddar NTT |  Cheddar base, PCG^2 f4c (DRU) | f4c/Cheddar e2e
+  B200  alpha = 500 us  |            8.70 /  7.29          |            8.63 /  7.73          |          8.81 /  7.79          | 1.008 (range 0.99-1.07)
+  B200  40 Gbps         |            9.71 /  7.59          |            9.58 /  8.05          |          9.56 /  8.11          | 1.008 (range 0.99-1.07)
+  B200  400 Mbps        |            5.28 /  2.73          |            5.98 /  2.84          |          6.11 /  2.86          | 1.008 (range 1.00-1.07)
+  L40S  alpha = 500 us  |            3.03 /  2.48          |            2.88 /  2.43          |          2.75 /  2.39          | 0.984 (range 0.95-1.00)
+  L40S  40 Gbps         |            3.03 /  2.48          |            2.88 /  2.43          |          2.75 /  2.39          | 0.984 (range 0.95-1.00)
+  L40S  400 Mbps        |            3.03 /  2.13          |            2.88 /  2.08          |          2.75 /  2.04          | 0.984 (range 0.95-1.00)
+
+GPU baseline geomean ms (DPF + NTT), merge vs Cheddar NTT:
+  B200: 304.9 -> 299.5
+  L40S: 601.7 -> 584.9
