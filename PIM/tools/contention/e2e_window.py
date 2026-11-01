@@ -56,6 +56,10 @@ def main():
     ap.add_argument("--dru-clock", default="nom", help="DRU clock in GHz or 'nom' (= DRAM clock): the DRU tap takes 2*f_DRAM/f_DRU bus cycles per column")
     ap.add_argument("--win-inst", type=int, default=4, help="window: DPF instances per SPU in the simulated SPU trace")
     ap.add_argument("--win-depth", type=int, default=12, help="window: GGM tree depth of each simulated instance (2^depth leaves)")
+    ap.add_argument("--sub-batch", action="store_true",
+                    help="NTT lane as 2c^2/g jobs of g polynomials (g in 4, 16, 64 up to c^2, measured per-mul time at batch g), "
+                         "each design at the g of its fastest co-run lane: the DRU transposes one sub-batch while the SMs run "
+                         "another; default: the lane is n identical jobs sized only for kernel length (n = 1 serialises the DRU)")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
@@ -85,18 +89,18 @@ def main():
         TR[org], TS[org] = spu_trace(org, f, "clk")
         CLK[org] = TS[org] / spu_trace(org, FNOM[base(org)], "nom")[1]          # SPU lane scale vs the anchor clock
 
-    def build(org, d, lg, c, t, r):
-        """kernel pipeline for the window; returns (jobs file, n muls, scale)"""
-        tm = mul_ms(org, d, lg, c * c)
+    def build(org, d, lg, c, t, r, g=None):
+        """kernel pipeline for the window; returns (jobs file, n muls, scale). g: sub-batch (n = 2c^2/g jobs)"""
+        tm = mul_ms(org, d, lg, g or c * c)
         mul_ck = tm * 1e6 / DEV[org]["tck"]                                  # real per-mul CK
-        n = max(1, int(r * TS[org] / (10 * KERNEL_MIN_CK)))
+        n = 2 * c * c // g if g else max(1, int(r * TS[org] / (10 * KERNEL_MIN_CK)))
         s = r * TS[org] / (n * mul_ck)
-        ph = phases(org, d, lg, c * c, scale=s)
+        ph = phases(org, d, lg, g or c * c, scale=s)
         if a.gather:
             m = max(1, min(t, (c * c * t * t) // NSPU[org])) if a.spu_presum else 1
             gb = int(round(8 * (2 * (1 << lg) * t) / 2 / m / DEV[org]["ch"] * s))
             ph = [(0, 1, gb, 1.0, 48, 0, 16, 20000, 0)] + ph
-        jp = os.path.join(a.out, f"{org}_{c}_{t}_{lg}_{d}.jobs")
+        jp = os.path.join(a.out, f"{org}_{c}_{t}_{lg}_{d}{f'_g{g}' if g else ''}.jobs")
         write_jobs(jp, [(n, 0, ph)])                                  # NTT-only pipeline (the NTT lane)
         if a.dpf_split:
             # SM lane = NTT kernels + a (1-x0) share of the DPF (measured GPU expand+convert kernel),
@@ -138,11 +142,13 @@ def main():
                 else:
                     spu_ms = L["spu"] * CLK[org]
                 SPU_MS[(org, c, t, lg)] = spu_ms
-                for d in a.designs.split(","):
-                    tm = mul_ms(org, d, lg, c * c)
+                for d, g in [(d, g) for d in a.designs.split(",")
+                             for g in ([g for g in (4, 16, 64) if g <= c * c and (lg, g) in ntt_table(org)] if a.sub_batch else [None])]:
+                    tm = mul_ms(org, d, lg, g or c * c)
                     r = tm * 2 * c * c / spu_ms                                   # real lane ratio (pre-gather)
-                    jp, n, s = build(org, d, lg, c, t, r)
-                    cells[(org, c, t, lg, d)] = dict(L=L, spu_ms=spu_ms, n=n, s=s, tm=tm)
+                    jp, n, s = build(org, d, lg, c, t, r, g)
+                    d = f"{d}_g{g}" if g else d
+                    cells[(org, c, t, lg, d)] = dict(L=L, spu_ms=spu_ms, n=n, s=s, tm=tm, g=g)
                     work += [(f"{org}_{c}_{t}_{lg}_{d}_alone", eoc, jp, org)]
                     if a.dpf_split:
                         js = jp[:-5] + "_split.jobs"
@@ -182,7 +188,13 @@ def main():
                              spu_share=xs, sm_slow=sm_slow,
                              base_serial_ms=gpu + nic, base_overlap_ms=max(gpu, nic),
                              gpu_cheddar_ms=gpu_ch, base_overlap_cheddar_ms=max(gpu_ch, nic),
-                             base_paper_ms=cd["L"]["gpu_dpf_g"] + cd["L"]["ntt_dev"] + nic))
+                             base_paper_ms=cd["L"]["gpu_dpf_g"] + cd["L"]["ntt_dev"] + nic, g=cd["g"], n=cd["n"]))
+    if a.sub_batch:   # each design at the sub-batch of its fastest co-run NTT lane
+        best = {}
+        for r in rows:
+            k = (r["org"], r["c"], r["t"], r["logN"], r["tier"], r["design"].rsplit("_g", 1)[0])
+            if k not in best or r["ntt_ms"] * r["ntt_slow"] < best[k]["ntt_ms"] * best[k]["ntt_slow"]: best[k] = r
+        rows = [dict(r, design=k[-1]) for k, r in best.items()]
     json.dump(rows, open(os.path.join(a.out, "e2e.json"), "w"), indent=1)
     print(f"clock={a.clock}  (best (c,t) / geomean over all cells; GPU baseline = DPF + merge NTT, network co-scheduled)")
     for org in orgs:
