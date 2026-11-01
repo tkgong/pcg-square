@@ -21,7 +21,7 @@
 #define BIGN_MAXRREG 0
 #endif
 #ifndef BIGN_LOGN
-#error "compile with -DBIGN_LOGN=<24..28>"
+#error "compile with -DBIGN_LOGN=<20..28>"
 #endif
 #include <cstring>
 #include <vector>
@@ -183,6 +183,7 @@ template <int L, int P1, int M1, int M2> static void run_f4c(Ctx &c) {
     printf("%d,%d,f4c_full,%d,%d,%d,0,%d,%d,%.4f,%llu\n%d,%d,f4c_sm,%d,%d,%d,0,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, M2, BIGN_MAXRREG, tf, bad, L, batch, P1, P2, M1, M2, BIGN_MAXRREG, ts, bad); fflush(stdout);
   }
 }
+#ifndef BIGN_NO_MAIN   // cheddar_interfere.cu reuses everything above
 int main(int argc, char **argv) {
   constexpr int L = BIGN_LOGN; std::vector<int> batches = {4, 16, 64}; int iters = L >= 27 ? 3 : 5;
   for (int i = 1; i < argc; i++) {
@@ -216,3 +217,4 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
+#endif
