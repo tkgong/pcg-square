@@ -13,4 +13,4 @@
 set -eu
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 nvidia-smi
-ARCH=sm_100 OUT=../results_b200 TAG=b200 BLOCKS=8,16,32,64,128,256,512 NVCC="${NVCC:-$HOME/opt/cuda-13.0/bin/nvcc}" GPUNTT_LIB="${GPUNTT_LIB:-$HOME/.local/lib64}" ./run_cheddar_interfere.sh
+ARCH=sm_100 OUT=../results_b200 TAG=b200 BLOCKS=8,16,32,64,96,128 NVCC="${NVCC:-$HOME/opt/cuda-13.0/bin/nvcc}" GPUNTT_LIB="${GPUNTT_LIB:-$HOME/.local/lib64}" ./run_cheddar_interfere.sh

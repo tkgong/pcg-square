@@ -1,0 +1,33 @@
+l40s: silicon interference, batch 16, ms per polynomial multiply; 0 of 720 rows have mismatches
+net slowdown = victim beside aggressor / victim beside sleep-only control (same blocks), interpolated at the SPUs' share 10%-15% of 864 GB/s
+
+logN victim    alone ms | stream @SPU    | row burst @SPU | max measured aggressor share
+  20  merge      0.2734 | 1.148-1.187    | 1.112-1.175    | 67%
+  20  cheddar    0.1954 | 1.134-1.160    | 1.132-1.178    | 69%
+  20  f4c_sm     0.1880 | 1.117-1.123    | 1.117-1.142    | 68%
+  20  f4c_full   0.3412 | 1.150-1.200    | 1.151-1.183    | 66%
+  21  merge      0.5487 | 1.138-1.196    | 1.138-1.182    | 68%
+  21  cheddar    0.3986 | 1.204-1.254    | 1.158-1.253    | 67%
+  21  f4c_sm     0.3685 | 1.155-1.198    | 1.112-1.190    | 68%
+  21  f4c_full   0.6885 | 1.110-1.206    | 1.155-1.196    | 66%
+  22  merge      1.2019 | 1.137-1.191    | 1.130-1.219    | 68%
+  22  cheddar    0.8147 | 1.109-1.187    | 1.120-1.185    | 68%
+  22  f4c_sm     0.7337 | 1.125-1.215    | 1.165-1.217    | 68%
+  22  f4c_full   1.3864 | 1.164-1.221    | 1.158-1.229    | 65%
+  23  merge      2.5144 | 1.170-1.249    | 1.158-1.280    | 69%
+  23  cheddar    1.6464 | 1.146-1.243    | 1.154-1.246    | 69%
+  23  f4c_sm     1.4669 | 1.158-1.232    | 1.165-1.238    | 69%
+  23  f4c_full   2.7861 | 1.163-1.236    | 1.161-1.234    | 67%
+  24  merge      4.9550 | 1.177-1.276    | 1.182-1.274    | 68%
+  24  cheddar    3.8493 | 1.156-1.236    | 1.149-1.239    | 70%
+  24  f4c_sm     3.0612 | 1.137-1.224    | 1.138-1.227    | 69%
+  24  f4c_full   5.6985 | 1.149-1.229    | 1.147-1.215    | 67%
+
+four-step SM lane with the DRU's 96 N B per multiply added as streaming bandwidth (fixed point on the lane's co-run time);
+lane ratio Cheddar / four-step on silicon (> 1: four-step faster), Cheddar under the SPU aggressor alone:
+logN | DRU share of peak | f4c_sm slowdown (SPU+DRU) | Cheddar slowdown (SPU) | alone ratio | co-run ratio (stream) | co-run ratio (row burst SPU + stream DRU)
+  20 |  44.9% | 1.380 | 1.157 | 1.039 | 0.871 | 0.743
+  21 |  45.3% | 1.396 | 1.150 | 1.082 | 0.891 | 0.744
+  22 |  45.8% | 1.387 | 1.155 | 1.110 | 0.924 | 0.805
+  23 |  45.6% | 1.394 | 1.197 | 1.122 | 0.964 | 0.857
+  24 |  44.6% | 1.365 | 1.176 | 1.257 | 1.084 | 1.057

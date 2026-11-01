@@ -1,10 +1,11 @@
 #!/bin/bash
 # Silicon interference sweep of Cheddar's NTT and the four-step on Cheddar's kernels (cheddar_interfere.cu) at logN 20..24,
 # batch 16, each design at its best config in cheddar_f4dru_<tag>.csv (row M2 = 3, the config the co-simulation uses).
-# Usage: ARCH=sm_100 OUT=../results_b200 TAG=b200 ./run_cheddar_interfere.sh    (after run_cheddar.sh has produced the csv)
+# Each logN gets 15 min (an aggressor of 128 blocks once hung the L40S at 2^20); BLOCKS 8..64 reach ~70% of L40S peak.
+# Usage: ARCH=sm_100 OUT=../results_b200 TAG=b200 BLOCKS=8,16,32,64,96,128 ./run_cheddar_interfere.sh  (needs cheddar_f4dru_<tag>.csv)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; cd "$HERE"
-ARCH="${ARCH:-sm_89}"; OUT="${OUT:-../results_l40s}"; TAG="${TAG:-l40s}"; LOGNS="${LOGNS:-20 21 22 23 24}"; BLOCKS="${BLOCKS:-8,16,32,64,128}"
+ARCH="${ARCH:-sm_89}"; OUT="${OUT:-../results_l40s}"; TAG="${TAG:-l40s}"; LOGNS="${LOGNS:-20 21 22 23 24}"; BLOCKS="${BLOCKS:-8,16,32,48,64}"
 NVCC="${NVCC:-/usr/local/cuda-12.6/bin/nvcc}"
 GPUNTT_INC="${GPUNTT_INC:-$HOME/.local/include/GPUNTT-1.0}"; GPUNTT_LIB="${GPUNTT_LIB:-$HOME/.local/lib}"
 [ -d cheddar-fhe ] || git clone -q https://github.com/scale-snu/cheddar-fhe.git cheddar-fhe
@@ -28,6 +29,7 @@ PY
 CSV="$OUT/cheddar_interfere_$TAG.csv"; : > "$CSV"
 for L in $LOGNS; do
   C=$(best $L cheddar); F=$(best $L f4c_sm)
-  "./bin/cheddar_interfere_${L}_$ARCH" --batch 16 --cheddar "$C" --f4c "$F" --blocks "$BLOCKS" --iters 10 > "bin/interfere_$L.csv" || echo "logN $L: bench exited with $?" >&2
+  timeout 900 "./bin/cheddar_interfere_${L}_$ARCH" --batch 16 --cheddar "$C" --f4c "$F" --blocks "$BLOCKS" --iters 10 > "bin/interfere_$L.csv" || echo "logN $L: bench exited with $?" >&2
   if [ -s "$CSV" ]; then tail -n +2 "bin/interfere_$L.csv"; else cat "bin/interfere_$L.csv"; fi | tee -a "$CSV"
 done
+python3 interfere_summary.py "$TAG"

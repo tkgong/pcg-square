@@ -68,7 +68,7 @@ struct Bufs { u64 *a, *b, *a0, *b0, *tmp; size_t tot; int batch; };
 using Mul = std::function<void()>;
 template <int L> static bool make_cheddar(int p1, int m1, int b1, const Tables &t, Bufs &x, Mul &out) {   // Cheddar, row M2 = 3
   bool found = false;
-  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) {
+  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<0, 5>([&](auto B1) {
     constexpr int P2 = L - P1;
     if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && thr_ok(P1 - M1 + B1) && thr_ok(P2 - 3)) {
       if (P1 == p1 && M1 == m1 && B1 == b1) {
