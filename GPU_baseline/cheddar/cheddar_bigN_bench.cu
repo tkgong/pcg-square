@@ -9,11 +9,17 @@
 //   * the reference product is computed one polynomial at a time with GPU-NTT merge (its 32-bit addressing overflows at
 //     batch x N > 2^32 elements); the batched merge product is checked against it too (merge row's mismatch column).
 //   * Cheddar's per-polynomial offset is 64-bit (extract.sh), so batch x N > 2^31 is addressed correctly.
-// Output: logN,batch,design,P1,P2,M1,B1,M2,ms_per_poly,mismatches
+//   * a 14-stage pass (needed at 2^27, 2^28) needs 70..96 registers per thread at M 4 (1024 threads) and 122..228 at M 5
+//     (512 threads), over the 64K-register file of a block; -DBIGN_MAXRREG=64 / 128 (nvcc -maxrregcount) builds a variant that
+//     caps every kernel of the binary (spilling to local memory), recorded in the maxrreg column (0 = no cap).
+// Output: logN,batch,design,P1,P2,M1,B1,M2,maxrreg,ms_per_poly,mismatches
 #include "fused4/fused4_ntt.cuh"   // -I.. (GPU_baseline)
 #include "gpuntt/common/nttparameters.cuh"
 #include "gen/cheddar_ntt_contig.cuh"
 #include <cstdio>
+#ifndef BIGN_MAXRREG
+#define BIGN_MAXRREG 0
+#endif
 #ifndef BIGN_LOGN
 #error "compile with -DBIGN_LOGN=<24..28>"
 #endif
@@ -155,7 +161,7 @@ template <int L, int P2, int M1, int B1, int M2> static void run_cheddar(Ctx &c)
     auto mul = [&] { CC::fwd(t, c.a, batch); RC::fwd(t, c.a, batch); CC::fwd(t, c.b, batch); RC::fwd(t, c.b, batch);
       fused4::pointwise_kernel<<<static_cast<unsigned>((c.tot + 255) / 256), 256>>>(c.a, c.b, c.mp->modulus, c.tot); RC::inv(t, c.a, batch); CC::inv(t, c.a, batch); };
     c.refill(); mul(); if (!launched("cheddar", P1, P2, M1, B1, M2)) return; const unsigned long long bad = diff(c);
-    printf("%d,%d,cheddar,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, time_ms(mul, c.iters) / batch, bad); fflush(stdout);
+    printf("%d,%d,cheddar,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(mul, c.iters) / batch, bad); fflush(stdout);
   }
 }
 template <int L, int P1, int M1, int M2> static void run_f4c(Ctx &c) {
@@ -174,7 +180,7 @@ template <int L, int P1, int M1, int M2> static void run_f4c(Ctx &c) {
     };
     c.refill(); full(); if (!launched("f4c", P1, P2, M1, 0, M2)) return; const unsigned long long bad = diff(c);
     const double tf = time_ms(full, c.iters) / batch, ts = time_ms(sm, c.iters) / batch;
-    printf("%d,%d,f4c_full,%d,%d,%d,0,%d,%.4f,%llu\n%d,%d,f4c_sm,%d,%d,%d,0,%d,%.4f,%llu\n", L, batch, P1, P2, M1, M2, tf, bad, L, batch, P1, P2, M1, M2, ts, bad); fflush(stdout);
+    printf("%d,%d,f4c_full,%d,%d,%d,0,%d,%d,%.4f,%llu\n%d,%d,f4c_sm,%d,%d,%d,0,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, M2, BIGN_MAXRREG, tf, bad, L, batch, P1, P2, M1, M2, BIGN_MAXRREG, ts, bad); fflush(stdout);
   }
 }
 int main(int argc, char **argv) {
@@ -184,15 +190,15 @@ int main(int argc, char **argv) {
     else if (!strcmp(argv[i], "--batch") && i + 1 < argc) { batches.clear(); for (char *p = argv[++i]; *p;) { batches.push_back(atoi(p)); while (*p && *p != ',') p++; if (*p) p++; } }
   }
   int dev, maxs; cudaGetDevice(&dev); cudaDeviceGetAttribute(&maxs, cudaDevAttrMaxSharedMemoryPerBlockOptin, dev);
-  cudaDeviceProp p; cudaGetDeviceProperties(&p, dev); fprintf(stderr, "%s, L2 %d B, logN %d\n", p.name, p.l2CacheSize, L);
-  printf("logN,batch,design,P1,P2,M1,B1,M2,ms_per_poly,mismatches\n"); fflush(stdout);
+  cudaDeviceProp p; cudaGetDeviceProperties(&p, dev); fprintf(stderr, "%s, L2 %d B, logN %d, maxrregcount %d\n", p.name, p.l2CacheSize, L, BIGN_MAXRREG);
+  printf("logN,batch,design,P1,P2,M1,B1,M2,maxrreg,ms_per_poly,mismatches\n"); fflush(stdout);
   MergePlan mp(L); int maxb = 1; for (int b : batches) maxb = b > maxb ? b : maxb;
   Tables t(L, maxb);
   for (int batch : batches) {
     Ctx c; c.batch = batch; c.iters = iters; c.maxs = maxs; c.tot = (1ull << L) * batch; c.mp = &mp; c.t = &t; c.a = c.b = c.r = c.tmp = nullptr;
     auto release = [&] { cudaFree(c.a); cudaFree(c.b); cudaFree(c.r); cudaFree(c.tmp); c.a = c.b = c.r = c.tmp = nullptr; };
     if (cudaMalloc(&c.a, c.tot * 8) || cudaMalloc(&c.b, c.tot * 8) || cudaMalloc(&c.r, c.tot * 8) || cudaMalloc(&c.tmp, c.tot * 8)) {
-      printf("%d,%d,OOM,0,0,0,0,0,0,0\n", L, batch); fflush(stdout); cudaGetLastError(); release(); continue; }
+      printf("%d,%d,OOM,0,0,0,0,0,%d,0,0\n", L, batch, BIGN_MAXRREG); fflush(stdout); cudaGetLastError(); release(); continue; }
     ck(cudaMalloc(&c.cnt, 8), "cnt");
     c.refill = [&] { fill<<<4096, 256>>>(c.a, c.tot, 111 + L * 7 + batch); fill<<<4096, 256>>>(c.b, c.tot, 999 + L * 13 + batch); };
     // reference: merge one polynomial at a time
@@ -200,7 +206,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < batch; i++) mp.multiply(c.a + i * N, c.b + i * N, 1);
     ck(cudaDeviceSynchronize(), "ref"); ck(cudaMemcpy(c.r, c.a, c.tot * 8, cudaMemcpyDeviceToDevice), "ref copy");
     c.refill(); mp.multiply(c.a, c.b, batch); ck(cudaDeviceSynchronize(), "merge batched"); const unsigned long long mbad = diff(c);
-    printf("%d,%d,merge,0,0,0,0,0,%.4f,%llu\n", L, batch, time_ms([&] { mp.multiply(c.a, c.b, batch); }, iters) / batch, mbad); fflush(stdout);
+    printf("%d,%d,merge,0,0,0,0,0,%d,%.4f,%llu\n", L, batch, BIGN_MAXRREG, time_ms([&] { mp.multiply(c.a, c.b, batch); }, iters) / batch, mbad); fflush(stdout);
     // Cheddar: P2 in [L-14, 14], M1, B1, M2
     cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) {
       run_cheddar<L, P2, M1, B1, M2>(c); }); }); }); });
