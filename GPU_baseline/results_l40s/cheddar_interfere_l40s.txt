@@ -1,33 +1,73 @@
-l40s: silicon interference, batch 16, ms per polynomial multiply; 0 of 720 rows have mismatches
-net slowdown = victim beside aggressor / victim beside sleep-only control (same blocks), interpolated at the SPUs' share 10%-15% of 864 GB/s
+l40s: silicon interference, ms per polynomial multiply; 0 of 2016 rows have mismatches
+net slowdown = victim beside aggressor / victim beside sleep-only control (same blocks), at the SPUs' share of 864 GB/s: 15.0%
+co-run ms = alone ms x row-burst net slowdown
 
-logN victim    alone ms | stream @SPU    | row burst @SPU | max measured aggressor share
-  20  merge      0.2734 | 1.148-1.187    | 1.112-1.175    | 67%
-  20  cheddar    0.1954 | 1.134-1.160    | 1.132-1.178    | 69%
-  20  f4c_sm     0.1880 | 1.117-1.123    | 1.117-1.142    | 68%
-  20  f4c_full   0.3412 | 1.150-1.200    | 1.151-1.183    | 66%
-  21  merge      0.5487 | 1.138-1.196    | 1.138-1.182    | 68%
-  21  cheddar    0.3986 | 1.204-1.254    | 1.158-1.253    | 67%
-  21  f4c_sm     0.3685 | 1.155-1.198    | 1.112-1.190    | 68%
-  21  f4c_full   0.6885 | 1.110-1.206    | 1.155-1.196    | 66%
-  22  merge      1.2019 | 1.137-1.191    | 1.130-1.219    | 68%
-  22  cheddar    0.8147 | 1.109-1.187    | 1.120-1.185    | 68%
-  22  f4c_sm     0.7337 | 1.125-1.215    | 1.165-1.217    | 68%
-  22  f4c_full   1.3864 | 1.164-1.221    | 1.158-1.229    | 65%
-  23  merge      2.5144 | 1.170-1.249    | 1.158-1.280    | 69%
-  23  cheddar    1.6464 | 1.146-1.243    | 1.154-1.246    | 69%
-  23  f4c_sm     1.4669 | 1.158-1.232    | 1.165-1.238    | 69%
-  23  f4c_full   2.7861 | 1.163-1.236    | 1.161-1.234    | 67%
-  24  merge      4.9550 | 1.177-1.276    | 1.182-1.274    | 68%
-  24  cheddar    3.8493 | 1.156-1.236    | 1.149-1.239    | 70%
-  24  f4c_sm     3.0612 | 1.137-1.224    | 1.138-1.227    | 69%
-  24  f4c_full   5.6985 | 1.149-1.229    | 1.147-1.215    | 67%
+logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown | stream slowdown | co-run ms (row burst)
+  20  16 | merge    -                        |   0.2733 | 1.174 | 1.180 | 0.3209
+  20  16 | cheddar  8+ M3 B3 M2 3 R128       |   0.1939 | 1.200 | 1.175 | 0.2327
+  20  16 | cheddar  9+ M4 B3 M2 3 R128       |   0.1958 | 1.202 | 1.161 | 0.2354
+  20  16 | cheddar  8+ M5 B3 M2 3 R128       |   0.2014 | 1.217 | 1.206 | 0.2451
+  20  16 | f4c_sm   9+ M3 B0 M2 3 R128       |   0.1874 | 1.151 | 1.092 | 0.2158
+  20  16 | f4c_sm   9+ M4 B0 M2 3 R128       |   0.1895 | 1.150 | 1.187 | 0.2179
+  20  16 | f4c_sm   10+ M5 B0 M2 3 R0        |   0.2060 | 1.118 | 1.141 | 0.2303
+  20  16 | f4c_full 9+ M3 B0 M2 3 R128       |   0.3425 | 1.174 | 1.201 | 0.4020
+  21  16 | merge    -                        |   0.5479 | 1.182 | 1.185 | 0.6474
+  21  16 | cheddar  9+ M3 B3 M2 3 R128       |   0.3921 | 1.234 | 1.244 | 0.4838
+  21  16 | cheddar  10+ M5 B3 M2 3 R0        |   0.3953 | 1.104 | 1.100 | 0.4365
+  21  16 | cheddar  9+ M4 B3 M2 3 R128       |   0.3998 | 1.245 | 1.242 | 0.4976
+  21  16 | f4c_sm   10+ M3 B0 M2 3 R128      |   0.3641 | 1.188 | 1.194 | 0.4327
+  21  16 | f4c_sm   9+ M4 B0 M2 3 R128       |   0.3771 | 1.155 | 1.160 | 0.4354
+  21  16 | f4c_sm   10+ M5 B0 M2 3 R0        |   0.3995 | 1.149 | 1.160 | 0.4591
+  21  16 | f4c_full 10+ M3 B0 M2 3 R128      |   0.6824 | 1.199 | 1.203 | 0.8180
+  22  16 | merge    -                        |   1.2100 | 1.221 | 1.189 | 1.4777
+  22  16 | cheddar  10+ M5 B3 M2 3 R0        |   0.7866 | 1.122 | 1.119 | 0.8829
+  22  16 | cheddar  9+ M3 B3 M2 3 R0         |   0.8208 | 1.225 | 1.221 | 1.0052
+  22  16 | cheddar  10+ M4 B3 M2 3 R128      |   0.8300 | 1.235 | 1.235 | 1.0247
+  22  16 | f4c_sm   11+ M3 B0 M2 3 R128      |   0.7240 | 1.220 | 1.217 | 0.8833
+  22  16 | f4c_sm   9+ M4 B0 M2 3 R0         |   0.7571 | 1.158 | 1.165 | 0.8769
+  22  16 | f4c_sm   10+ M5 B0 M2 3 R0        |   0.7887 | 1.182 | 1.187 | 0.9326
+  22  16 | f4c_full 11+ M3 B0 M2 3 R128      |   1.3773 | 1.227 | 1.224 | 1.6906
+  23  16 | merge    -                        |   2.5163 | 1.276 | 1.261 | 3.2102
+  23  16 | cheddar  10+ M5 B3 M2 3 R0        |   1.5590 | 1.102 | 1.102 | 1.7187
+  23  16 | cheddar  10+ M3 B3 M2 3 R0        |   1.6493 | 1.251 | 1.246 | 2.0630
+  23  16 | cheddar  10+ M4 B3 M2 3 R0        |   1.6675 | 1.244 | 1.243 | 2.0739
+  23  16 | f4c_sm   11+ M3 B0 M2 3 R64       |   1.4650 | 1.229 | 1.228 | 1.8008
+  23  16 | f4c_sm   10+ M4 B0 M2 3 R0        |   1.5103 | 1.171 | 1.170 | 1.7685
+  23  16 | f4c_sm   10+ M5 B0 M2 3 R0        |   1.5513 | 1.154 | 1.156 | 1.7895
+  23  16 | f4c_full 11+ M3 B0 M2 3 R64       |   2.7850 | 1.235 | 1.240 | 3.4403
+  24  16 | merge    -                        |   4.9753 | 1.273 | 1.279 | 6.3339
+  24  16 | cheddar  11+ M5 B2 M2 3 R0        |   3.7192 | 1.036 | 1.049 | 3.8546
+  24  16 | cheddar  11+ M3 B2 M2 3 R0        |   3.8473 | 1.250 | 1.250 | 4.8094
+  24  16 | cheddar  11+ M4 B2 M2 3 R0        |   4.0135 | 1.256 | 1.256 | 5.0426
+  24  16 | f4c_sm   12+ M3 B0 M2 3 R64       |   3.0499 | 1.215 | 1.217 | 3.7048
+  24  16 | f4c_sm   11+ M4 B0 M2 3 R0        |   3.1181 | 1.158 | 1.154 | 3.6095
+  24  16 | f4c_sm   11+ M5 B0 M2 3 R0        |   3.2940 | 1.080 | 1.067 | 3.5565
+  24  16 | f4c_full 12+ M3 B0 M2 3 R64       |   5.7002 | 1.210 | 1.226 | 6.8949
+  25  16 | merge    -                        |   9.9206 | 1.290 | 1.302 | 12.7985
+  25  16 | cheddar  12+ M3 B1 M2 3 R64       |   8.7325 | 1.124 | 1.122 | 9.8175
+  25  16 | cheddar  12+ M4 B1 M2 3 R0        |   9.4497 | 1.104 | 1.104 | 10.4332
+  25  16 | cheddar  12+ M5 B1 M2 3 R0        |   9.5972 | 1.099 | 1.111 | 10.5511
+  25  16 | f4c_sm   12+ M3 B0 M2 3 R64       |   6.0977 | 1.185 | 1.181 | 7.2264
+  25  16 | f4c_sm   12+ M4 B0 M2 3 R0        |   6.2803 | 1.120 | 1.108 | 7.0370
+  25  16 | f4c_sm   12+ M5 B0 M2 3 R0        |   6.6618 | 1.077 | 1.074 | 7.1740
+  25  16 | f4c_full 12+ M3 B0 M2 3 R64       |  11.4789 | 1.191 | 1.217 | 13.6703
+  26   4 | merge    -                        |  20.2041 | 1.302 | 1.298 | 26.3077
+  26   4 | cheddar  13+ M3 B0 M2 3 R64       |  20.7924 | 1.159 | 1.159 | 24.0892
+  26   4 | cheddar  13+ M5 B0 M2 3 R0        |  23.0541 | 1.147 | 1.154 | 26.4464
+  26   4 | cheddar  13+ M4 B0 M2 3 R0        |  23.3111 | 1.143 | 1.145 | 26.6359
+  26   4 | f4c_sm   13+ M3 B0 M2 3 R0        |  12.2906 | 1.112 | 1.103 | 13.6728
+  26   4 | f4c_sm   13+ M4 B0 M2 3 R0        |  13.4778 | 1.061 | 1.073 | 14.3056
+  26   4 | f4c_sm   13+ M5 B0 M2 3 R0        |  15.4966 | 1.058 | 1.070 | 16.3952
+  26   4 | f4c_full 13+ M3 B0 M2 3 R0        |  23.0913 | 1.174 | 1.184 | 27.0995
 
-four-step SM lane with the DRU's 96 N B per multiply added as streaming bandwidth (fixed point on the lane's co-run time);
-lane ratio Cheddar / four-step on silicon (> 1: four-step faster), Cheddar under the SPU aggressor alone:
-logN | DRU share of peak | f4c_sm slowdown (SPU+DRU) | Cheddar slowdown (SPU) | alone ratio | co-run ratio (stream) | co-run ratio (row burst SPU + stream DRU)
-  20 |  44.9% | 1.380 | 1.157 | 1.039 | 0.871 | 0.743
-  21 |  45.3% | 1.396 | 1.150 | 1.082 | 0.891 | 0.744
-  22 |  45.8% | 1.387 | 1.155 | 1.110 | 0.924 | 0.805
-  23 |  45.6% | 1.394 | 1.197 | 1.122 | 0.964 | 0.857
-  24 |  44.6% | 1.365 | 1.176 | 1.257 | 1.084 | 1.057
+four-step SM lane (transposes on the DRU) vs Cheddar, each design at its fastest measured config:
+time saved = 1 - four-step / Cheddar; alone = best standalone configs; co-run = best co-run configs beside the SPU-like
+row-burst aggressor at each share
+logN batch | Cheddar alone | four-step alone | saved alone | saved co-run @15.0%
+  20  16 | 0.1939 | 0.1874 | +3.4% | +7.3% (0.2327 vs 0.2158)
+  21  16 | 0.3921 | 0.3641 | +7.1% | +0.9% (0.4365 vs 0.4327)
+  22  16 | 0.7866 | 0.7240 | +8.0% | +0.7% (0.8829 vs 0.8769)
+  23  16 | 1.5590 | 1.4650 | +6.0% | -2.9% (1.7187 vs 1.7685)
+  24  16 | 3.7192 | 3.0499 | +18.0% | +7.7% (3.8546 vs 3.5565)
+  25  16 | 8.7325 | 6.0977 | +30.2% | +28.3% (9.8175 vs 7.0370)
+  26   4 | 20.7924 | 12.2906 | +40.9% | +43.2% (24.0892 vs 13.6728)

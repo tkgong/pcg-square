@@ -7,7 +7,8 @@
 // net slowdown = victim(stream | rowburst) / victim(control at the same blocks).  Every victim's product is checked once
 // against merge computed one polynomial at a time (the SM lane through f4c_full, whose kernels it runs).
 //   nvcc -DBIGN_LOGN=24 ...;  ./cheddar_interfere --batch 16 --cheddar P1,M1,B1,M2 --f4c P1,M1,M2 --victims merge,cheddar,f4c --blocks 8,16,32,64,128
-//   (--victims f4c runs the SM lane and the full four-step, whose product checks the SM lane's kernels)
+//   (--victims f4c times the SM lane and the full four-step, whose product checks the SM lane's kernels; f4csm times the SM
+//   lane only and runs the full four-step once for the check)
 // CSV: gpu,victim,logN,batch,P1,M1,B1,M2,maxrreg,blocks,sleep_ns,mode,agg_GBps,victim_ms,slowdown_raw,mismatches
 #define BIGN_NO_MAIN
 #include "cheddar_bigN_bench.cu"
@@ -135,10 +136,11 @@ int main(int argc, char **argv) {
     if (make_cheddar<L>(ch[0], ch[1], ch[2], ch[3], t, x, m)) vs.push_back({"cheddar", ch[0], ch[1], ch[2], ch[3], m});
     else fprintf(stderr, "cheddar P1 %d M1 %d B1 %d M2 %d: not instantiated or cannot launch\n", ch[0], ch[1], ch[2], ch[3]);
   }
-  if (want("f4c")) {
+  Mul check_full;   // --victims f4csm: the SM lane is timed, the full four-step only checks its kernels' product
+  if (want("f4c") || want("f4csm")) {
     if (make_f4c<L>(fc[0], fc[1], fc[2], false, t, x, m)) vs.push_back({"f4c_sm", fc[0], fc[1], 0, fc[2], m});
     else fprintf(stderr, "f4c P1 %d M1 %d M2 %d: not instantiated or cannot launch\n", fc[0], fc[1], fc[2]);
-    if (make_f4c<L>(fc[0], fc[1], fc[2], true, t, x, m)) vs.push_back({"f4c_full", fc[0], fc[1], 0, fc[2], m});
+    if (make_f4c<L>(fc[0], fc[1], fc[2], true, t, x, m)) { if (want("f4c")) vs.push_back({"f4c_full", fc[0], fc[1], 0, fc[2], m}); else check_full = m; }
   }
   Agg agg(1ull << 30);
   auto victim_ms = [&](const Mul &mul) {   // per polynomial; operand reload outside the timed region
@@ -152,7 +154,9 @@ int main(int argc, char **argv) {
     load(); v.mul(); ck(cudaDeviceSynchronize(), v.name); cudaMemset(cnt, 0, 8); count_diff<<<4096, 256>>>(x.a, ref, x.tot, cnt);
     unsigned long long b; cudaMemcpy(&b, cnt, 8, cudaMemcpyDeviceToHost); bads.push_back(b);
   }
-  for (size_t i = 0; i < vs.size(); i++) if (!strcmp(vs[i].name, "f4c_sm")) bads[i] = i + 1 < vs.size() ? bads[i + 1] : ~0ull;
+  unsigned long long full_bad = ~0ull;
+  if (check_full) { load(); check_full(); ck(cudaDeviceSynchronize(), "f4c_full check"); cudaMemset(cnt, 0, 8); count_diff<<<4096, 256>>>(x.a, ref, x.tot, cnt); cudaMemcpy(&full_bad, cnt, 8, cudaMemcpyDeviceToHost); }
+  for (size_t i = 0; i < vs.size(); i++) if (!strcmp(vs[i].name, "f4c_sm")) bads[i] = i + 1 < vs.size() && !strcmp(vs[i + 1].name, "f4c_full") ? bads[i + 1] : full_bad;
   for (size_t vi = 0; vi < vs.size(); vi++) {
     auto &v = vs[vi]; const unsigned long long bad = bads[vi];
     const double base = victim_ms(v.mul);
