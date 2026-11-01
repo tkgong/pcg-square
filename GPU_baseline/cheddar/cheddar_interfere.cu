@@ -1,13 +1,14 @@
 // cheddar_interfere: DRAM-interference sensitivity, measured on silicon, of Cheddar's two-kernel NTT and of the four-step
 // on Cheddar's kernels (SM lane = transposes left to the DRU; full = transposes on the SMs), next to GPU-NTT merge, per
-// negacyclic multiply. Same victims and kernels as cheddar_f4dru_bench.cu / cheddar_bigN_bench.cu (row kernel M2 = 3, the
-// config of cheddar_f4dru_<tag>.csv chosen on the command line); same aggressor and protocol as ../fused4/interfere_ntt.cu:
+// negacyclic multiply. Same victims and kernels as cheddar_bigN_bench.cu, each at the config given on the command line (the
+// best of cheddar_bigN_<tag>.csv, register cap = this build's -DBIGN_MAXRREG); same aggressor and protocol as ../fused4/interfere_ntt.cu:
 // a persistent aggressor beside the victim, streaming (16 B read + write per step), SPU-like row burst (random 8 KB chunk,
 // contiguous) or a sleep-only control with the same grid (SM occupancy), blocks x sleep sweeping its bandwidth.
 // net slowdown = victim(stream | rowburst) / victim(control at the same blocks).  Every victim's product is checked once
 // against merge computed one polynomial at a time (the SM lane through f4c_full, whose kernels it runs).
-//   nvcc -DBIGN_LOGN=24 ...;  ./cheddar_interfere --batch 16 --cheddar P1,M1,B1 --f4c P1,M1 --blocks 8,16,32,64,128
-// CSV: gpu,victim,logN,batch,P1,M1,B1,blocks,sleep_ns,mode,agg_GBps,victim_ms,slowdown_raw,mismatches
+//   nvcc -DBIGN_LOGN=24 ...;  ./cheddar_interfere --batch 16 --cheddar P1,M1,B1,M2 --f4c P1,M1,M2 --victims merge,cheddar,f4c --blocks 8,16,32,64,128
+//   (--victims f4c runs the SM lane and the full four-step, whose product checks the SM lane's kernels)
+// CSV: gpu,victim,logN,batch,P1,M1,B1,M2,maxrreg,blocks,sleep_ns,mode,agg_GBps,victim_ms,slowdown_raw,mismatches
 #define BIGN_NO_MAIN
 #include "cheddar_bigN_bench.cu"
 #include <chrono>
@@ -66,28 +67,28 @@ struct Agg {
 };
 struct Bufs { u64 *a, *b, *a0, *b0, *tmp; size_t tot; int batch; };
 using Mul = std::function<void()>;
-template <int L> static bool make_cheddar(int p1, int m1, int b1, const Tables &t, Bufs &x, Mul &out) {   // Cheddar, row M2 = 3
+template <int L> static bool make_cheddar(int p1, int m1, int b1, int m2, const Tables &t, Bufs &x, Mul &out) {   // Cheddar
   bool found = false;
-  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<0, 5>([&](auto B1) {
+  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 6>([&](auto M2) {
     constexpr int P2 = L - P1;
-    if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && thr_ok(P1 - M1 + B1) && thr_ok(P2 - 3)) {
-      if (P1 == p1 && M1 == m1 && B1 == b1) {
-        using CC = Cols<L, P1, M1, B1>; using RC = Rows<L, P2, 3>;
+    if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && P2 >= M2 && thr_ok(P1 - M1 + B1) && thr_ok(P2 - M2)) {
+      if (P1 == p1 && M1 == m1 && B1 == b1 && M2 == m2) {
+        using CC = Cols<L, P1, M1, B1>; using RC = Rows<L, P2, M2>;
         if (!CC::setup(1 << 30) || !RC::setup(1 << 30)) return;
         found = true; const Tables *tp = &t; Bufs *bp = &x;
         out = [tp, bp] { const Tables &t = *tp; Bufs &x = *bp; CC::fwd(t, x.a, x.batch); RC::fwd(t, x.a, x.batch); CC::fwd(t, x.b, x.batch); RC::fwd(t, x.b, x.batch);
           fused4::pointwise_kernel<<<static_cast<unsigned>((x.tot + 255) / 256), 256>>>(x.a, x.b, Modulus<Data64>(P), x.tot); RC::inv(t, x.a, x.batch); CC::inv(t, x.a, x.batch); };
       }
-    } }); }); });
+    } }); }); }); });
   return found;
 }
-template <int L> static bool make_f4c(int p1, int m1, bool full, const Tables &t, Bufs &x, Mul &out) {   // four-step, row M2 = 3
+template <int L> static bool make_f4c(int p1, int m1, int m2, bool full, const Tables &t, Bufs &x, Mul &out) {   // four-step
   bool found = false;
-  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) {
+  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<3, 6>([&](auto M2) {
     constexpr int P2 = L - P1;
-    if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && thr_ok(P1 - M1) && thr_ok(P2 - 3)) {
-      if (P1 == p1 && M1 == m1) {
-        using CC = ColsContig<L, P1, M1>; using RC = Rows<L, P2, 3>;
+    if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && P2 >= M2 && thr_ok(P1 - M1) && thr_ok(P2 - M2)) {
+      if (P1 == p1 && M1 == m1 && M2 == m2) {
+        using CC = ColsContig<L, P1, M1>; using RC = Rows<L, P2, M2>;
         if (!CC::setup(1 << 30) || !RC::setup(1 << 30)) return;
         found = true; const Tables *tp = &t; Bufs *bp = &x; constexpr int R = 1 << P1, Cn = 1 << P2;
         if (full) out = [tp, bp] { const Tables &t = *tp; Bufs &x = *bp;
@@ -99,12 +100,13 @@ template <int L> static bool make_f4c(int p1, int m1, bool full, const Tables &t
           fused4::pointwise_kernel<<<static_cast<unsigned>((x.tot + 255) / 256), 256>>>(x.a, x.b, Modulus<Data64>(P), x.tot);
           RC::inv(t, x.a, x.batch); CC::inv(t, x.a, x.batch); };
       }
-    } }); });
+    } }); }); });
   return found;
 }
 static std::vector<int> ints(const char *s) { std::vector<int> v; for (const char *p = s; *p;) { v.push_back(atoi(p)); while (*p && *p != ',') p++; if (*p) p++; } return v; }
 int main(int argc, char **argv) {
-  constexpr int L = BIGN_LOGN; int batch = 16, iters = 10; std::vector<int> ch = {L / 2, 3, 0}, fc = {L / 2, 3}, blocks = {8, 16, 32, 64, 128};
+  constexpr int L = BIGN_LOGN; int batch = 16, iters = 10; std::vector<int> ch = {L / 2, 3, 0, 3}, fc = {L / 2, 3, 3}, blocks = {8, 16, 32, 64, 128};
+  std::string victims = "merge,cheddar,f4c";
   std::vector<unsigned> sleeps = {0, 10000, 30000};
   for (int i = 1; i + 1 < argc; i++) {
     if (!strcmp(argv[i], "--batch")) batch = atoi(argv[++i]);
@@ -112,7 +114,11 @@ int main(int argc, char **argv) {
     else if (!strcmp(argv[i], "--cheddar")) ch = ints(argv[++i]);
     else if (!strcmp(argv[i], "--f4c")) fc = ints(argv[++i]);
     else if (!strcmp(argv[i], "--blocks")) blocks = ints(argv[++i]);
+    else if (!strcmp(argv[i], "--victims")) victims = argv[++i];
   }
+  if (ch.size() < 4) ch.push_back(3);
+  if (fc.size() < 3) fc.push_back(3);
+  auto want = [&](const char *v) { return ("," + victims + ",").find("," + std::string(v) + ",") != std::string::npos; };
   cudaDeviceProp prop; cudaGetDeviceProperties(&prop, 0); std::string gpu = prop.name; for (auto &c : gpu) if (c == ' ') c = '_';
   const size_t N = 1ull << L; Bufs x; x.batch = batch; x.tot = N * batch;
   for (u64 **p : {&x.a, &x.b, &x.a0, &x.b0, &x.tmp}) ck(cudaMalloc(p, x.tot * 8), "buf");
@@ -122,21 +128,25 @@ int main(int argc, char **argv) {
   auto load = [&] { cudaMemcpyAsync(x.a, x.a0, x.tot * 8, cudaMemcpyDeviceToDevice, 0); cudaMemcpyAsync(x.b, x.b0, x.tot * 8, cudaMemcpyDeviceToDevice, 0); };
   load(); for (int i = 0; i < batch; i++) mp.multiply(x.a + i * N, x.b + i * N, 1);
   ck(cudaDeviceSynchronize(), "ref"); cudaMemcpy(ref, x.a, x.tot * 8, cudaMemcpyDeviceToDevice);
-  struct V { const char *name; int p1, m1, b1; Mul mul; };
+  struct V { const char *name; int p1, m1, b1, m2; Mul mul; };
   std::vector<V> vs; Mul m;
-  vs.push_back({"merge", 0, 0, 0, [&] { mp.multiply(x.a, x.b, batch); }});
-  if (make_cheddar<L>(ch[0], ch[1], ch[2], t, x, m)) vs.push_back({"cheddar", ch[0], ch[1], ch[2], m});
-  else fprintf(stderr, "cheddar P1 %d M1 %d B1 %d: not instantiated or cannot launch\n", ch[0], ch[1], ch[2]);
-  if (make_f4c<L>(fc[0], fc[1], false, t, x, m)) vs.push_back({"f4c_sm", fc[0], fc[1], 0, m});
-  else fprintf(stderr, "f4c P1 %d M1 %d: not instantiated or cannot launch\n", fc[0], fc[1]);
-  if (make_f4c<L>(fc[0], fc[1], true, t, x, m)) vs.push_back({"f4c_full", fc[0], fc[1], 0, m});
+  if (want("merge")) vs.push_back({"merge", 0, 0, 0, 0, [&] { mp.multiply(x.a, x.b, batch); }});
+  if (want("cheddar")) {
+    if (make_cheddar<L>(ch[0], ch[1], ch[2], ch[3], t, x, m)) vs.push_back({"cheddar", ch[0], ch[1], ch[2], ch[3], m});
+    else fprintf(stderr, "cheddar P1 %d M1 %d B1 %d M2 %d: not instantiated or cannot launch\n", ch[0], ch[1], ch[2], ch[3]);
+  }
+  if (want("f4c")) {
+    if (make_f4c<L>(fc[0], fc[1], fc[2], false, t, x, m)) vs.push_back({"f4c_sm", fc[0], fc[1], 0, fc[2], m});
+    else fprintf(stderr, "f4c P1 %d M1 %d M2 %d: not instantiated or cannot launch\n", fc[0], fc[1], fc[2]);
+    if (make_f4c<L>(fc[0], fc[1], fc[2], true, t, x, m)) vs.push_back({"f4c_full", fc[0], fc[1], 0, fc[2], m});
+  }
   Agg agg(1ull << 30);
   auto victim_ms = [&](const Mul &mul) {   // per polynomial; operand reload outside the timed region
     cudaEvent_t c1, e; cudaEventCreate(&c1); cudaEventCreate(&e); load(); mul(); float tot = 0;
     for (int i = 0; i < iters; ++i) { load(); cudaEventRecord(c1, 0); mul(); cudaEventRecord(e, 0); cudaEventSynchronize(e); float a = 0; cudaEventElapsedTime(&a, c1, e); tot += a; }
     cudaEventDestroy(c1); cudaEventDestroy(e); return tot / iters / batch;
   };
-  printf("gpu,victim,logN,batch,P1,M1,B1,blocks,sleep_ns,mode,agg_GBps,victim_ms,slowdown_raw,mismatches\n");
+  printf("gpu,victim,logN,batch,P1,M1,B1,M2,maxrreg,blocks,sleep_ns,mode,agg_GBps,victim_ms,slowdown_raw,mismatches\n");
   std::vector<unsigned long long> bads;
   for (auto &v : vs) {   // the SM lane alone leaves the product in four-step order: it is checked through f4c_full (same kernels)
     load(); v.mul(); ck(cudaDeviceSynchronize(), v.name); cudaMemset(cnt, 0, 8); count_diff<<<4096, 256>>>(x.a, ref, x.tot, cnt);
@@ -146,12 +156,12 @@ int main(int argc, char **argv) {
   for (size_t vi = 0; vi < vs.size(); vi++) {
     auto &v = vs[vi]; const unsigned long long bad = bads[vi];
     const double base = victim_ms(v.mul);
-    printf("%s,%s,%d,%d,%d,%d,%d,0,-,none,0,%.4f,1.000,%llu\n", gpu.c_str(), v.name, L, batch, v.p1, v.m1, v.b1, base, bad);
+    printf("%s,%s,%d,%d,%d,%d,%d,%d,%d,0,-,none,0,%.4f,1.000,%llu\n", gpu.c_str(), v.name, L, batch, v.p1, v.m1, v.b1, v.m2, BIGN_MAXRREG, base, bad);
     for (int b : blocks) for (int mode : {1, 0, 3}) for (unsigned sl : sleeps) {
       if (mode == 1 && sl != 0) continue;
       agg.start(b, sl, mode); std::this_thread::sleep_for(std::chrono::milliseconds(20));
       const double tm = victim_ms(v.mul), bw = agg.stop_GBps();
-      printf("%s,%s,%d,%d,%d,%d,%d,%d,%u,%s,%.1f,%.4f,%.3f,%llu\n", gpu.c_str(), v.name, L, batch, v.p1, v.m1, v.b1, b, sl,
+      printf("%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%u,%s,%.1f,%.4f,%.3f,%llu\n", gpu.c_str(), v.name, L, batch, v.p1, v.m1, v.b1, v.m2, BIGN_MAXRREG, b, sl,
              mode == 0 ? "stream" : mode == 3 ? "rowburst" : "sleep_only", bw, tm, tm / base, bad);
       fflush(stdout);
     }
