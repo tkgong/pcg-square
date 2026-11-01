@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
+# Usage: plot_cosched_e2e.py COSCHED_SWEEP_JSON OUT_PNG
 # End-to-end runtime vs network bandwidth, 10 points from 40 Gbps to 40 Mbps, both co-scheduled:
-# GPU baseline (DPF + HEonGPU merge NTT, network overlapped) and PCG^2. Geomean over the suite, ms.
-import sys
+# GPU baseline (DPF + Cheddar NTT, network overlapped) and PCG^2. Geomean over the suite, ms.
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
-OUT = sys.argv[1] if len(sys.argv) > 1 else "fig_cosched_e2e.png"
+import json, sys
+OUT = sys.argv[2] if len(sys.argv) > 2 else "fig_cosched_e2e.png"
 BW = [40e9, 20e9, 10e9, 4e9, 2e9, 1e9, 400e6, 200e6, 100e6, 40e6]
-D = {
-"L40S": {"gpu": [601.7, 601.7, 601.7, 601.7, 601.7, 607.2, 661.1, 761.9, 930.8, 1378.8],
-         "pcg": [242.2, 242.2, 242.2, 242.2, 245.0, 260.0, 310.9, 385.3, 526.6, 931.9]},
-"B200": {"gpu": [304.9, 304.9, 304.9, 304.9, 309.4, 329.1, 393.5, 494.6, 685.8, 1211.0],
-         "pcg": [40.2, 40.5, 42.6, 49.7, 61.3, 83.7, 144.0, 236.6, 417.2, 957.6]},
-}
+T = {(r["mach"], r["beta"]): r for r in json.load(open(sys.argv[1]))["table"]}   # cosched_sweep.py JSON (geomean ms per bandwidth)
+row = lambda m, b: T[(m, b)]
+D = {m: {"gpu": [row(m, b)["t_gpu_cos"] for b in BW], "pcg": [row(m, b)["t_pcg_cos"] for b in BW]} for m in ("L40S", "B200")}
 COL = {"L40S": "#C8322B", "B200": "#C9950F"}; MK = {"L40S": "o", "B200": "s"}
 fig, ax = plt.subplots(figsize=(3.5, 2.7), gridspec_kw=dict(left=0.14, right=0.98, top=0.84, bottom=0.16))
 for mach in ("L40S", "B200"):

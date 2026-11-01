@@ -10,7 +10,8 @@ submission's DPF + merge NTT with the network co-scheduled: max(T_GPU, T_net).
 import io, contextlib, json, os, sys
 from math import exp, log
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "e2e")); sys.path.insert(0, os.path.dirname(HERE))
+sys.path.insert(0, os.path.join(HERE, "e2e")); sys.path.insert(0, os.path.dirname(HERE)); sys.path.insert(0, HERE)
+import final_design as FD
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_
 import plot_bw_bars as P
@@ -25,12 +26,12 @@ def data(path):
     D, GEO = {}, {}
     for tier in ("fast", "slow"):
         D[tier], GEO[tier] = {}, {}
-        for M, org, des in (("L40S", "l40s", "merge"), ("B200", "b200", "f4dru")):
+        for M, org, des in ((M, o, FD.des(o, os.path.dirname(os.path.abspath(path)))) for o, M in FD.MACH.items()):
             cells, allsp = [], []
             for (c, t) in P.CFG:
                 rr = [r for r in R if r["org"] == org and r["design"] == des and r["tier"] == tier and r["c"] == c and r["t"] == t]
                 pcg = [r["pcg_ms"] for r in rr]
-                base = [max(r["gpu_ms"], r["nic_ms"]) for r in rr]
+                base = [max(r[FD.GPU_KEY], r["nic_ms"]) for r in rr]
                 sp = [b / p for b, p in zip(base, pcg)]
                 cells.append((round(gm(base), 1), round(gm(pcg), 1), round(gm(sp), 2)))
                 allsp += sp

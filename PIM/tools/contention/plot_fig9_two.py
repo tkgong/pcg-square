@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fig. 9 combined: (top) end-to-end runtime vs SPU budget under six network latencies, memory system fixed (as in the
-submission, regenerated from the final accounting); (bottom) on the same x axis, the DRU's gain when the memory grows
-with the budget (8 SPUs + 1 DRU per channel, 48..512 channels on B200-class HBM3e) and the knee where the runtime
-enables the DRU.    Usage: plot_fig9_two.py FINAL_WINDOW_DIR OUT_PNG"""
+submission, regenerated from the final accounting); (bottom) on the same x axis, the butterfly DRU design when the memory grows
+with the budget (8 SPUs + 1 DRU per channel, 8..512 channels of each card's DRAM) against the real card with Cheddar's NTT
+on the SMs, and the crossover where the runtime enables it.    Usage: plot_fig9_two.py RUN_DIR OUT_PNG"""
 import io, contextlib, json, os, sys
 from math import ceil, exp, log
 import matplotlib
@@ -10,18 +10,20 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e"))
+sys.path.insert(0, HERE)
+import final_design as FD
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_
 W, OUT = sys.argv[1], sys.argv[2]
 def gm(v): v = list(v); return exp(sum(map(log, v)) / len(v))
 def load(p): return json.load(open(p)) if os.path.exists(p) else []
-AREA = lambda n: n * 0.253970 + (n / 8) * 0.024924
+AREA = lambda n: FD.area_mm2(n, W)
 # ---------------- top: runtime vs SPU budget (memory fixed) ----------------
-DES = {"L40S": ("l40s", "merge", 192), "B200": ("b200", "f4dru", 2048)}
+DES = {M: (o, FD.des(o, W), FD.NSPU[o]) for o, M in FD.MACH.items()}
 NS = [8, 16, 32, 64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192]
 ALPHA = [(100, "100 µs"), (500, "500 µs"), (10000, "10 ms"), (20000, "20 ms"), (30000, "30 ms"), (60000, "60 ms")]
 COL = {100: "#1f3a93", 500: "#6a1b9a", 10000: "#e6a700", 20000: "#2e8b57", 30000: "#e8641b", 60000: "#c62828"}
-R = load(f"{W}/win22/e2e_nom.json"); curves = {}
+R = load(f"{W}/e2e_nom.json"); curves = {}
 for mach, (org, des, ceil_n) in DES.items():
     LN = L_(mach); rows = [r for r in R if r["org"] == org and r["design"] == des and r["tier"] == "fast"]
     for a_us, lab in ALPHA:
@@ -34,41 +36,29 @@ for mach, (org, des, ceil_n) in DES.items():
                 v.append(max(t_inst * ceil(I / N) * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"], (n + 2) * a_us / 1000.0))
             ys.append(gm(v))
         curves[(mach, a_us)] = (ys, next(N for N, y in zip(NS, ys) if y <= 1.02 * ys[-1]))
-# ---------------- bottom: DRU gain vs channel count (memory scaled) ----------------
+# ---------------- bottom: the DRU design vs channel count (memory scaled), both cards ----------------
+# channel count (= DRU count, bandwidth = count x per-channel), SPU array fixed per card: end-to-end runtime (alpha = 500 us)
+# of the butterfly-DRU design (f4b) at each channel count vs the real card with Cheddar's NTT on the SMs (flat baseline)
 def cells(rows, org, des): return {(r["c"], r["t"], r["logN"]): r for r in rows if r["org"] == org and r["design"] == des and r["tier"] == "fast"}
-lane = lambda r: r["ntt_ms"] * r["ntt_slow"]
-MF = load(f"{W}/channel_sweep/e2e.json") + load(f"{W}/win22/e2e_nom.json"); SQ = load(f"{W}/fourstep_dru/e2e_chsweep_conservative_dru.json") + load(f"{W}/fourstep_dru/e2e_nom_conservative_dru.json")
-CH = [48, 96, 128, 192, 256, 512]; gain, ratio = [], []
-for ch in CH:
-    org = "b200" if ch == 256 else f"b200_ch{ch}"; m, d, s = cells(MF, org, "merge"), cells(MF, org, "f4dru"), cells(SQ, org, "sq"); ks = sorted(d)
-    gain.append(gm(s[k]["pcg_ms"] / d[k]["pcg_ms"] for k in ks)); ratio.append(gm(lane(m[k]) / lane(d[k]) for k in ks))
-knee = next(exp(log(CH[i]) + (1 - ratio[i]) / (ratio[i + 1] - ratio[i]) * (log(CH[i + 1]) - log(CH[i]))) for i in range(len(CH) - 1) if ratio[i] < 1 <= ratio[i + 1])
-CSTAR = 240 * (1 << 24) / 2.2766e-3 / (8.2e12 / 256 * (1 - 0.21))
-
-# ---------------- bottom data: channel count (= DRU count, bandwidth = count x per-channel), SPU array fixed per card ----------------
 A500 = 500
-SQ_ALL = load(f"{W}/fourstep_dru/e2e_chsweep_conservative_dru.json") + load(f"{W}/fourstep_dru/e2e_nom_conservative_dru.json")
-CARD = {"B200": dict(org="b200", native=256, chs=[8, 16, 32, 48, 96, 128, 192, 256, 512], mk="s",
-                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/win22/e2e_f4sm.json") + load(f"{W}/channel_sweep/e2e.json") + load(f"{W}/channel_sweep/e2e_f4sm.json") + load(f"{W}/channel_sweep/e2e_b200_low.json") + load(f"{W}/channel_sweep/e2e_f4sm_b200_low.json")),
-        "L40S": dict(org="l40s", native=24, chs=[8, 16, 24, 48, 96, 128, 192, 256, 512], mk="o",
-                     rows=load(f"{W}/win22/e2e_nom.json") + load(f"{W}/win22/e2e_f4sm.json") + load(f"{W}/channel_sweep/e2e_l40s.json") + load(f"{W}/channel_sweep/e2e_l40s_low.json") + load(f"{W}/channel_sweep/e2e_f4sm_l40s.json"))}
-ADRU = lambda n: n * 0.024924
+ALL = load(f"{W}/e2e_nom.json") + load(f"{W}/channel_sweep.json")
+CARD = {"B200": dict(org="b200", native=256, chs=[8, 16, 32, 48, 96, 128, 192, 256, 512], mk="s"), "L40S": dict(org="l40s", native=24, chs=[8, 16, 24, 48, 96, 128, 192, 256, 512], mk="o")}
+ADRU = lambda n, org="b200": n * FD.dru_mm2(org, run_dir=W)
 B = {}
 for mach, c in CARD.items():
-    LNm = L_(mach); nat = cells(c["rows"], c["org"], "f4dru"); SPU_FIX = {k: r["spu_ms"] * r["spu_slow"] for k, r in nat.items()}
+    LNm = L_(mach); nat = cells(ALL, c["org"], FD.SM_NTT); SPU_FIX = {k: r["spu_ms"] * r["spu_slow"] for k, r in nat.items()}
     def rt(rowsd): return gm(max(SPU_FIX[k], r["ntt_ms"] * r["ntt_slow"], (LNm[k]["n"] + 2) * A500 / 1000.0) for k, r in rowsd.items() if k in SPU_FIX)
     chs, t_dru, t_no, ratio = [], [], [], []
     for ch in c["chs"]:
         org = c["org"] if ch == c["native"] else f"{c['org']}_ch{ch}"
-        d, m, q = cells(c["rows"], org, "f4dru"), cells(c["rows"], org, "merge"), cells(c["rows"], org, "f4sm")   # no DRU = same four-step kernels, transposes on the SMs (shared-memory tile transpose)
+        d = cells(ALL, org, "f4b")
         if not d: continue
-        sm = cells(c["rows"], c["org"], "f4sm")   # end-to-end: DRU design at this channel count vs the real card with the transposes in shared memory (flat baseline)
-        chs.append(ch); t_dru.append(rt(d)); t_no.append(rt(sm)); ratio.append(t_no[-1] / t_dru[-1])
+        chs.append(ch); t_dru.append(rt(d)); t_no.append(rt(nat)); ratio.append(t_no[-1] / t_dru[-1])
     kn = None
     for i in range(len(chs) - 1):
         if ratio[i] < 1 <= ratio[i + 1]: kn = exp(log(chs[i]) + (1 - ratio[i]) / (ratio[i + 1] - ratio[i]) * (log(chs[i + 1]) - log(chs[i]))); break
     B[mach] = dict(chs=chs, t=t_dru, t_no=t_no, ratio=ratio, knee=kn)
-    print(mach, "channels", chs, "with DRU", [round(x, 1) for x in t_dru], "no DRU", [round(x, 1) for x in t_no], "SM-transpose/DRU lane", [round(x, 3) for x in ratio], "crossover at", kn)
+    print(mach, "channels", chs, "with butterfly DRU", [round(x, 1) for x in t_dru], "Cheddar on the SMs (real card)", [round(x, 1) for x in t_no], "ratio", [round(x, 3) for x in ratio], "crossover at", kn)
 fig, (ax, bx) = plt.subplots(2, 1, figsize=(4.2, 3.3), gridspec_kw=dict(height_ratios=[1.75, 1.0], hspace=0.62, left=0.14, right=0.98, top=0.9, bottom=0.11))
 for mach, mk in (("L40S", "o"), ("B200", "s")):
     ceil_n = DES[mach][2]
@@ -92,10 +82,12 @@ ax.legend(h + extra, l + ["L40S", "B200", "Past the ceiling", "Card ceiling", "O
 COLB = {"B200": "#C9950F", "L40S": "#C8322B"}
 CHT = [8, 16, 24, 48, 96, 128, 192, 256, 512]; XD = [ADRU(n) for n in CHT]; LO, HI = 0.86, 1.30
 # one panel, both cards: end-to-end runtime with the DRU normalized to the real card with the transposes in shared memory (= 1)
-bx.axhline(1.0, ls=":", lw=1.3, color="0.25", zorder=4, label="transpose in shared memory (real card)")
+bx.axhline(1.0, ls=":", lw=1.3, color="0.25", zorder=4, label="Cheddar NTT on the SMs (real card)")
 for mach, c in CARD.items():
-    d = B[mach]; xs = [ADRU(n) for n in d["chs"]]; i = d["chs"].index(c["native"]); ys = [t / d["t_no"][0] for t in d["t"]]
-    bx.plot(xs, ys, "-", marker=c["mk"], ms=3.2, lw=1.3, color=COLB[mach], mec="black", mew=0.35, zorder=5, label=f"{mach}, with DRU")
+    d = B[mach]
+    if not d["chs"]: continue
+    xs = [ADRU(n, c["org"]) for n in d["chs"]]; ys = [t / d["t_no"][0] for t in d["t"]]
+    bx.plot(xs, ys, "-", marker=c["mk"], ms=3.2, lw=1.3, color=COLB[mach], mec="black", mew=0.35, zorder=5, label=f"{mach}, butterfly DRU")
     if d["knee"]:
         kn = d["knee"]; bx.plot([ADRU(kn)], [1.0], "*", ms=9, color=COLB[mach], mec="black", mew=0.5, zorder=8); bx.annotate(f"{kn:.0f}", (ADRU(kn), 1.0), fontsize=4.4, xytext=(3, 3), textcoords="offset points", zorder=9)
     bx.axvline(ADRU(c["native"]), color="#c62828", ls="--", lw=0.8, zorder=1); bx.text(ADRU(c["native"]) * 1.06, 1.09, f"{mach} Ceiling", fontsize=5.0, color="#c62828", va="top")

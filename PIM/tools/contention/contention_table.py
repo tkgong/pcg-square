@@ -2,8 +2,10 @@
 """Per-channel contention table (Q4) from an e2e_window.py run directory: data-bus occupancy of
 each unit over its own active span, GPU queueing (arrival -> first command) and read latency,
 SPU queueing vs alone, GPU row conflicts and the measured slowdowns, for SPU-only / GPU-only /
-GPU+SPU / GPU+SPU+DRU.  Usage: contention_table.py RUN_DIR [org:cell:label ...]"""
-import json, re, sys
+GPU+SPU / GPU+SPU+DRU (designs from final_design.py; RUN_DIR = a raw e2e_window run dir with e2e.json).  Usage: contention_table.py RUN_DIR [org:cell:label ...]"""
+import json, os, re, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import final_design as FD
 
 
 def parse(p):
@@ -16,7 +18,7 @@ CELLS = [a.split(":") for a in sys.argv[2:]] or [("b200", "4_16_24", "B200 (4,16
 if sys.argv[2:] == ["all"]:   # every cell of the suite, compact one-line form
     CELLS = []
     for r in json.load(open(f"{W}/e2e.json")):
-        if r["tier"] == "fast" and r["design"] == "merge": CELLS.append((r["org"], f'{r["c"]}_{r["t"]}_{r["logN"]}', f'{r["org"].upper()} ({r["c"]},{r["t"]}) 2^{r["logN"]}'))
+        if r["tier"] == "fast" and r["design"] == FD.SM_NTT: CELLS.append((r["org"], f'{r["c"]}_{r["t"]}_{r["logN"]}', f'{r["org"].upper()} ({r["c"]},{r["t"]}) 2^{r["logN"]}'))
     CELLS.sort()
 
 
@@ -28,12 +30,12 @@ def cols(d):
 
 COMPACT = sys.argv[2:] == ["all"]
 if COMPACT:
-    print("Every cell, final design (B200 four-step + DRU, L40S merge). Bus occupancy GPU-only -> co-run: GPU | SPU | DRU; GPU queueing p99 alone -> co-run (ns); slowdowns; which lane bounds PCG^2")
+    print("Every cell, final design (" + ", ".join(f"{FD.MACH[o]} {FD.des(o, W)}" for o in FD.MACH) + "). Bus occupancy GPU-only -> co-run: GPU | SPU | DRU; GPU queueing p99 alone -> co-run (ns); slowdowns; which lane bounds PCG^2")
     print(f"  {'cell':20s} {'GPU bus':>13s} {'SPU':>5s} {'DRU':>5s} | {'GPU q p99':>13s} | {'SPU x':>6s} {'NTT x':>6s} | bound")
 for org, cell, lab in CELLS:
     tck = TCK[org]
     if COMPACT:
-        des = "f4dru" if org == "b200" else "merge"
+        des = FD.des(org, W)
         R = {r["design"]: r for r in json.load(open(f"{W}/e2e.json")) if r["org"] == org and r["tier"] == "fast" and f'{r["c"]}_{r["t"]}_{r["logN"]}' == cell}
         A = parse(f"{W}/{org}_{cell}_{des}_alone.out"); C = parse(f"{W}/{org}_{cell}_{des}.out"); r = R[des]
         g, _, u = cols(A); ga, ua = g / A["pipe0_finish_max"], u / A["pipe0_finish_max"]
@@ -53,10 +55,10 @@ for org, cell, lab in CELLS:
               f"{d.get('CH0_gpu_rdlat_mean',0)*tck:7.0f}/{d.get('CH0_gpu_rdlat_p99',0)*tck:6.0f}      | {pq:>14} | {rc:>17} | {sl}")
 
     pr("SPU only", spu, 0, spu["pim_done_cycles"], pq="+0 ns")
-    for des, nm in (("merge", "GPU merge NTT only"), ("f4dru", "GPU 4-step NTT + DRU only")):
+    for des, nm in ((FD.SM_NTT, "GPU Cheddar NTT only"), (FD.dru_ntt(org, W), f"GPU {FD.dru_ntt(org, W)} + DRU only")):
         d = parse(f"{W}/{org}_{cell}_{des}_alone.out")
         pr(nm, d, d["pipe0_finish_max"], 0, rc=f"{d.get('CH0_gpu_row_conflict',0):.0f}/{d.get('CH0_gpu_q_count',0):.0f}")
-    for des, nm in (("merge", "GPU merge + SPU"), ("f4dru", "GPU 4-step + SPU + DRU")):
+    for des, nm in ((FD.SM_NTT, "GPU Cheddar + SPU"), (FD.dru_ntt(org, W), f"GPU {FD.dru_ntt(org, W)} + SPU + DRU")):
         d = parse(f"{W}/{org}_{cell}_{des}.out"); r = R[des]
         pr(nm, d, d["pipe0_finish_max"], d["pim_done_cycles"], f"SPU x{r['spu_slow']:.3f}  NTT x{r['ntt_slow']:.3f}",
            pq=f"{d['CH0_pim_q_mean']*tck - pq0:+.0f} ns", rc=f"{d.get('CH0_gpu_row_conflict',0):.0f}/{d.get('CH0_gpu_q_count',0):.0f}")

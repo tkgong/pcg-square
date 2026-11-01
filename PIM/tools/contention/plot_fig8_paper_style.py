@@ -12,6 +12,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.dirname(HERE))
+sys.path.insert(0, HERE)
+import final_design as FD
 from plot_bw_bars import CFG, LOGN, ALPHA, TIER
 
 
@@ -23,11 +25,11 @@ def data(path):
     R = json.load(open(path)); D = {}
     for tier in ("fast", "slow"):
         D[tier] = {}
-        for M, org, des in (("L40S", "l40s", "merge"), ("B200", "b200", "f4dru")):
-            cells = []
+        for org, M in FD.MACH.items():
+            des = FD.des(org, os.path.dirname(os.path.abspath(path))); cells = []
             for (c, t) in CFG:
                 rr = [r for r in R if r["org"] == org and r["design"] == des and r["tier"] == tier and r["c"] == c and r["t"] == t]
-                base = [max(r["gpu_ms"], r["nic_ms"]) for r in rr]; pcg = [r["pcg_ms"] for r in rr]
+                base = [max(r[FD.GPU_KEY], r["nic_ms"]) for r in rr]; pcg = [r["pcg_ms"] for r in rr]
                 cells.append((gm(base), gm(pcg), gm(b / p for b, p in zip(base, pcg))))
             D[tier][M] = cells
     return D

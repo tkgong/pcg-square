@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
+# Usage: plot_cosched_norm.py COSCHED_SWEEP_JSON OUT_PNG
 # Normalized to the serial GPU baseline (= 1): GPU co-scheduled (its own co-scheduling gain) and PCG^2 co-scheduled
 # (total speedup over serial GPU) vs network bandwidth, 40 Mbps .. 40 Gbps; the ratio of the two curves is the fair
 # headline speedup. Geomean over the suite.
-import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
-OUT = sys.argv[1] if len(sys.argv) > 1 else "fig_cosched_norm.png"
+import json, sys
+OUT = sys.argv[2] if len(sys.argv) > 2 else "fig_cosched_norm.png"
 BW = [40e9, 20e9, 10e9, 4e9, 2e9, 1e9, 400e6, 200e6, 100e6, 40e6]
-D = {
-"L40S": {"gpu_cos": [1.004, 1.009, 1.018, 1.043, 1.082, 1.142, 1.211, 1.245, 1.286, 1.316],
-         "pcg_cos": [2.50, 2.51, 2.53, 2.59, 2.66, 2.67, 2.58, 2.46, 2.27, 1.95]},
-"B200": {"gpu_cos": [1.010, 1.020, 1.039, 1.092, 1.155, 1.214, 1.283, 1.318, 1.321, 1.300],
-         "pcg_cos": [7.67, 7.68, 7.44, 6.71, 5.83, 4.78, 3.51, 2.75, 2.17, 1.64]},
-}
+T = {(r["mach"], r["beta"]): r for r in json.load(open(sys.argv[1]))["table"]}   # cosched_sweep.py JSON (geomean ms per bandwidth)
+row = lambda m, b: T[(m, b)]
+D = {m: {"gpu_cos": [row(m, b)["t_gpu_ser"] / row(m, b)["t_gpu_cos"] for b in BW], "pcg_cos": [row(m, b)["t_gpu_ser"] / row(m, b)["t_pcg_cos"] for b in BW]} for m in ("L40S", "B200")}
 COL = {"L40S": "#C8322B", "B200": "#C9950F"}; MK = {"L40S": "o", "B200": "s"}
 fig, ax = plt.subplots(figsize=(3.5, 2.7), gridspec_kw=dict(left=0.13, right=0.98, top=0.84, bottom=0.16))
 ax.axhline(1.0, color="0.35", lw=1.0, ls=":", label="GPU serial (reference)")

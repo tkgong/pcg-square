@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """Network co-scheduling ablation: how much hiding the network buys the GPU baseline and PCG^2 as a function of
 the network bandwidth, from the final co-sim rows (e2e_nom.json; the network is a separate lane, so no re-simulation).
-Per cell:  T_c(GPU) = DPF (two-pass H') + merge NTT;  T_c(PCG^2) = max(SPU lane x slowdown, NTT lane x slowdown);
+Per cell:  T_c(GPU) = DPF (two-pass H') + Cheddar NTT;  T_c(PCG^2) = max(SPU lane x slowdown, NTT lane x slowdown);
            T_n(beta) = (n + 2) exchanges x alpha(c, t, beta)
            serial = T_c + T_n;  co-scheduled = max(T_c, T_n);  gain = serial / co-scheduled  (<= 2, peaks at T_c = T_n)
 Writes the table (geomean over the suite) and the sweep rows.    Usage: cosched_sweep.py WIN22_DIR OUT_TXT [OUT_JSON]"""
 import io, contextlib, json, os, sys
 from math import exp, log, log10
-HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e"))
+HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e")); sys.path.insert(0, HERE)
+import final_design as FD
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
     from lanes import alpha_bw
 W, OUT = sys.argv[1], sys.argv[2]; OUTJ = sys.argv[3] if len(sys.argv) > 3 else None
-DES = {"L40S": ("l40s", "merge"), "B200": ("b200", "f4dru")}
+DES = FD.DES(W)
 R = json.load(open(os.path.join(W, "e2e_nom.json")))
 LN = {m: L_(m) for m in DES}
-BETAS = [100e9, 40e9, 10e9, 4e9, 1e9, 400e6, 100e6, 40e6, 10e6]
+BETAS = [100e9, 40e9, 20e9, 10e9, 4e9, 2e9, 1e9, 400e6, 200e6, 100e6, 40e6, 10e6]
 GRID = [10 ** (x / 8) for x in range(8 * 7, 8 * 11 + 1)]        # 10 Mbps .. 100 Gbps, 8 points per decade
 
 
@@ -28,7 +29,7 @@ def cells(mach):
     for r in R:
         if r["org"] != org or r["design"] != des or r["tier"] != "fast": continue
         k = (r["c"], r["t"], r["logN"])
-        out.append(dict(k=k, n=LN[mach][k]["n"], tg=r["gpu_ms"], tp=max(r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"])))
+        out.append(dict(k=k, n=LN[mach][k]["n"], tg=r[FD.GPU_KEY], tp=max(r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"])))
     return out
 
 
@@ -38,7 +39,7 @@ def evaluate(mach, beta):
     for cl in cells(mach):
         c, t, lg = cl["k"]; tn = (cl["n"] + 2) * alpha_bw(c, t, beta)
         gs, gc = cl["tg"] + tn, max(cl["tg"], tn); ps, pc = cl["tp"] + tn, max(cl["tp"], tn)
-        v.append(dict(k=cl["k"], gain_gpu=gs / gc, gain_pcg=ps / pc, sp_both=gc / pc, sp_none=gs / ps, sp_pcg_only=gs / pc,
+        v.append(dict(k=cl["k"], gain_gpu=gs / gc, gain_pcg=ps / pc, sp_both=gc / pc, sp_none=gs / ps, sp_pcg_only=gs / pc, gs=gs, gc=gc, ps=ps, pc=pc,
                       nb_gpu=tn > cl["tg"], nb_pcg=tn > cl["tp"], fn_gpu=tn / gs, fn_pcg=tn / ps))
     return v
 
@@ -56,7 +57,8 @@ for mach in ("L40S", "B200"):
         row = dict(mach=mach, beta=b, gain_gpu=gm(x["gain_gpu"] for x in v), gain_pcg=gm(x["gain_pcg"] for x in v),
                    share_gpu=sum(x["fn_gpu"] for x in v) / n, share_pcg=sum(x["fn_pcg"] for x in v) / n,
                    nb_gpu=sum(x["nb_gpu"] for x in v), nb_pcg=sum(x["nb_pcg"] for x in v), ncell=n,
-                   sp_both=gm(x["sp_both"] for x in v), sp_none=gm(x["sp_none"] for x in v), sp_pcg_only=gm(x["sp_pcg_only"] for x in v), tg=tg, tp=tp, tn=tn)
+                   sp_both=gm(x["sp_both"] for x in v), sp_none=gm(x["sp_none"] for x in v), sp_pcg_only=gm(x["sp_pcg_only"] for x in v), tg=tg, tp=tp, tn=tn,
+                   t_gpu_ser=gm(x["gs"] for x in v), t_gpu_cos=gm(x["gc"] for x in v), t_pcg_ser=gm(x["ps"] for x in v), t_pcg_cos=gm(x["pc"] for x in v))
         rows.append(row)
         L.append(f"      {fmt_b(b):>10s} | {row['gain_gpu']:8.3f} {row['share_gpu']:9.1%} {row['nb_gpu']:5d}/{n:<3d} | {row['gain_pcg']:9.3f} {row['share_pcg']:9.1%} {row['nb_pcg']:5d}/{n:<3d} | {tg:8.1f} {tp:8.1f} {tn:8.1f} | {row['sp_both']:.2f} / {row['sp_none']:.2f} / {row['sp_pcg_only']:.2f}")
     L.append("")
