@@ -104,9 +104,32 @@ template <int L> static bool make_f4c(int p1, int m1, int b1, int m2, bool full,
     } }); }); }); });
   return found;
 }
+template <int L> static bool make_f4b(int p1, int m2, const Tables &t, Bufs &x, Mul &out, Mul &check) {   // butterfly DRU: SM lane = row kernel only
+  // check = Cheddar's product with Cols on the SMs standing in for the DRU's column pass (first column config that launches)
+  bool found = false;
+  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M2) {
+    constexpr int P2 = L - P1;
+    if constexpr (P2 >= 7 && P2 <= 14 && P2 >= M2 && thr_ok(P2 - M2)) {
+      if (P1 == p1 && M2 == m2) {
+        using RC = Rows<L, P2, M2>;
+        if (!RC::setup(1 << 30)) return;
+        const Tables *tp = &t; Bufs *bp = &x;
+        out = [tp, bp] { const Tables &t = *tp; Bufs &x = *bp; RC::fwd(t, x.a, x.batch); RC::fwd(t, x.b, x.batch);
+          fused4::pointwise_kernel<<<static_cast<unsigned>((x.tot + 255) / 256), 256>>>(x.a, x.b, Modulus<Data64>(P), x.tot); RC::inv(t, x.a, x.batch); };
+        cfor<3, 6>([&](auto M1) { cfor<0, 5>([&](auto B1) {
+          if constexpr (P1 >= M1 && thr_ok(P1 - M1 + B1)) {
+            if (found) return; using CC = Cols<L, P1, M1, B1>; if (!CC::setup(1 << 30)) return;
+            found = true;
+            check = [tp, bp] { const Tables &t = *tp; Bufs &x = *bp; CC::fwd(t, x.a, x.batch); RC::fwd(t, x.a, x.batch); CC::fwd(t, x.b, x.batch); RC::fwd(t, x.b, x.batch);
+              fused4::pointwise_kernel<<<static_cast<unsigned>((x.tot + 255) / 256), 256>>>(x.a, x.b, Modulus<Data64>(P), x.tot); RC::inv(t, x.a, x.batch); CC::inv(t, x.a, x.batch); };
+          } }); });
+      }
+    } }); });
+  return found;
+}
 static std::vector<int> ints(const char *s) { std::vector<int> v; for (const char *p = s; *p;) { v.push_back(atoi(p)); while (*p && *p != ',') p++; if (*p) p++; } return v; }
 int main(int argc, char **argv) {
-  constexpr int L = BIGN_LOGN; int batch = 16, iters = 10; std::vector<int> ch = {L / 2, 3, 0, 3}, fc = {L / 2, 3, 0, 3}, blocks = {8, 16, 32, 64, 128};
+  constexpr int L = BIGN_LOGN; int batch = 16, iters = 10; std::vector<int> ch = {L / 2, 3, 0, 3}, fc = {L / 2, 3, 0, 3}, fb = {L / 2, 3}, blocks = {8, 16, 32, 64, 128};
   std::string victims = "merge,cheddar,f4c";
   std::vector<unsigned> sleeps = {0, 10000, 30000};
   for (int i = 1; i + 1 < argc; i++) {
@@ -114,6 +137,7 @@ int main(int argc, char **argv) {
     else if (!strcmp(argv[i], "--iters")) iters = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--cheddar")) ch = ints(argv[++i]);
     else if (!strcmp(argv[i], "--f4c")) fc = ints(argv[++i]);
+    else if (!strcmp(argv[i], "--f4b")) fb = ints(argv[++i]);   // P1,M2 (row kernel only; "-" = default)
     else if (!strcmp(argv[i], "--blocks")) blocks = ints(argv[++i]);
     else if (!strcmp(argv[i], "--victims")) victims = argv[++i];
   }
@@ -130,18 +154,22 @@ int main(int argc, char **argv) {
   auto load = [&] { cudaMemcpyAsync(x.a, x.a0, x.tot * 8, cudaMemcpyDeviceToDevice, 0); cudaMemcpyAsync(x.b, x.b0, x.tot * 8, cudaMemcpyDeviceToDevice, 0); };
   load(); for (int i = 0; i < batch; i++) mp.multiply(x.a + i * N, x.b + i * N, 1);
   ck(cudaDeviceSynchronize(), "ref"); cudaMemcpy(ref, x.a, x.tot * 8, cudaMemcpyDeviceToDevice);
-  struct V { const char *name; int p1, m1, b1, m2; Mul mul; };
-  std::vector<V> vs; Mul m;
-  if (want("merge")) vs.push_back({"merge", 0, 0, 0, 0, [&] { mp.multiply(x.a, x.b, batch); }});
+  struct V { const char *name; int p1, m1, b1, m2; Mul mul; Mul check; };   // check: the product that validates mul's kernels (empty = mul itself)
+  std::vector<V> vs; Mul m, mf;
+  if (want("merge")) vs.push_back({"merge", 0, 0, 0, 0, [&] { mp.multiply(x.a, x.b, batch); }, {}});
   if (want("cheddar")) {
-    if (make_cheddar<L>(ch[0], ch[1], ch[2], ch[3], t, x, m)) vs.push_back({"cheddar", ch[0], ch[1], ch[2], ch[3], m});
+    if (make_cheddar<L>(ch[0], ch[1], ch[2], ch[3], t, x, m)) vs.push_back({"cheddar", ch[0], ch[1], ch[2], ch[3], m, {}});
     else fprintf(stderr, "cheddar P1 %d M1 %d B1 %d M2 %d: not instantiated or cannot launch\n", ch[0], ch[1], ch[2], ch[3]);
   }
-  Mul check_full;   // --victims f4csm: the SM lane is timed, the full four-step only checks its kernels' product
-  if (want("f4c") || want("f4csm")) {
-    if (make_f4c<L>(fc[0], fc[1], fc[2], fc[3], false, t, x, m)) vs.push_back({"f4c_sm", fc[0], fc[1], fc[2], fc[3], m});
+  if (want("f4c") || want("f4csm")) {   // the SM lane is timed; the full four-step (transposes on the SMs) checks its kernels' product
+    const bool sm_ok = make_f4c<L>(fc[0], fc[1], fc[2], fc[3], false, t, x, m), full_ok = make_f4c<L>(fc[0], fc[1], fc[2], fc[3], true, t, x, mf);
+    if (sm_ok) vs.push_back({"f4c_sm", fc[0], fc[1], fc[2], fc[3], m, full_ok ? mf : Mul{}});
     else fprintf(stderr, "f4c P1 %d M1 %d B1 %d M2 %d: not instantiated or cannot launch\n", fc[0], fc[1], fc[2], fc[3]);
-    if (make_f4c<L>(fc[0], fc[1], fc[2], fc[3], true, t, x, m)) { if (want("f4c")) vs.push_back({"f4c_full", fc[0], fc[1], fc[2], fc[3], m}); else check_full = m; }
+    if (full_ok && want("f4c")) vs.push_back({"f4c_full", fc[0], fc[1], fc[2], fc[3], mf, {}});
+  }
+  if (want("f4b") && fb.size() >= 2) {   // butterfly DRU: row kernel only on the SMs, checked through Cheddar's product
+    if (make_f4b<L>(fb[0], fb[1], t, x, m, mf)) vs.push_back({"f4b_sm", fb[0], 0, 0, fb[1], m, mf});
+    else fprintf(stderr, "f4b P1 %d M2 %d: not instantiated or cannot launch\n", fb[0], fb[1]);
   }
   Agg agg(1ull << 30);
   auto victim_ms = [&](const Mul &mul) {   // per polynomial; operand reload outside the timed region
@@ -151,13 +179,12 @@ int main(int argc, char **argv) {
   };
   printf("gpu,victim,logN,batch,P1,M1,B1,M2,maxrreg,blocks,sleep_ns,mode,agg_GBps,victim_ms,slowdown_raw,mismatches\n");
   std::vector<unsigned long long> bads;
-  for (auto &v : vs) {   // the SM lane alone leaves the product in four-step order: it is checked through f4c_full (same kernels)
-    load(); v.mul(); ck(cudaDeviceSynchronize(), v.name); cudaMemset(cnt, 0, 8); count_diff<<<4096, 256>>>(x.a, ref, x.tot, cnt);
-    unsigned long long b; cudaMemcpy(&b, cnt, 8, cudaMemcpyDeviceToHost); bads.push_back(b);
+  for (auto &v : vs) {   // an SM lane alone leaves the product incomplete: it is checked through its check product (same kernels)
+    load(); v.mul(); ck(cudaDeviceSynchronize(), v.name);
+    if (v.check) { load(); v.check(); ck(cudaDeviceSynchronize(), v.name); }
+    cudaMemset(cnt, 0, 8); count_diff<<<4096, 256>>>(x.a, ref, x.tot, cnt);
+    unsigned long long b; cudaMemcpy(&b, cnt, 8, cudaMemcpyDeviceToHost); bads.push_back(v.check || strcmp(v.name, "f4c_sm") ? b : ~0ull);
   }
-  unsigned long long full_bad = ~0ull;
-  if (check_full) { load(); check_full(); ck(cudaDeviceSynchronize(), "f4c_full check"); cudaMemset(cnt, 0, 8); count_diff<<<4096, 256>>>(x.a, ref, x.tot, cnt); cudaMemcpy(&full_bad, cnt, 8, cudaMemcpyDeviceToHost); }
-  for (size_t i = 0; i < vs.size(); i++) if (!strcmp(vs[i].name, "f4c_sm")) bads[i] = i + 1 < vs.size() && !strcmp(vs[i + 1].name, "f4c_full") ? bads[i + 1] : full_bad;
   for (size_t vi = 0; vi < vs.size(); vi++) {
     auto &v = vs[vi]; const unsigned long long bad = bads[vi];
     const double base = victim_ms(v.mul);

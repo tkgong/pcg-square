@@ -9,6 +9,11 @@ Designs
           SM kernels 6 x 20N B + PW 24N B = 144N B (61% reads); 6 transposes x 16N B
           on the DRU (50% reads), issued through the controller's DRU tap (one column per
           nBL on the shared data bus, no ACT/PRE). SM compute floor = measured f4g_sm time split by bytes.
+  cheddar / f4c / f4csm : Cheddar's two-kernel NTT; the four-step on Cheddar's kernels with the transposes on the
+          DRU / on the SMs (GPU_baseline/cheddar).
+  f4b   : four-step whose column pass runs inside the DRU (butterfly DRU, DRU_BF butterfly units per channel):
+          per mul  C Kr (a) | C Kr (b) | PW | Kr C; SMs = Cheddar's row kernel + PW, 72N B; DRU = 3 column passes
+          x 16N B in place, floored by their butterflies.
 Bytes and floors are per real channel (device bytes / channels) times `scale`.
 """
 import csv, os
@@ -53,7 +58,7 @@ def ntt_table(dev):
 #   merge : W=48 R=16 -> standalone +5.2% (logN 22) / +2.7% (24), interference rms 0.053
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
 PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16),
-           "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16)}   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
+           "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16), "f4b": (48, 16)}   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
 
 
 # Cheddar's NTT kernels (scale-snu/cheddar-fhe 8df8b26, GPU_baseline/cheddar), measured per multiply, best config per
@@ -70,12 +75,33 @@ def cheddar_table(dev):
     path = os.path.join(res, f"cheddar_bigN_{dev}.csv")
     if not os.path.exists(path) or not {20, 21, 22, 23, 24} <= {int(r["logN"]) for r in csv.DictReader(open(path)) if r["design"] == "f4c_sm"}:
         path = os.path.join(res, f"cheddar_f4dru_{dev}.csv")
-    t = {}
+    # (cheddar, f4c_sm, f4c_full, f4b_sm) per (logN, batch); f4b_sm = SM lane of the butterfly DRU design (row kernel only), its
+    # best row stage count P2 kept in _CHP2 (the DRU's column pass does P1 = logN - P2 stages). 1e9 = not measured on this card.
+    t, p2 = {}, {}
     for r in csv.DictReader(l for l in open(path) if not l.startswith("#")):
-        if r["design"] not in ("cheddar", "f4c_sm", "f4c_full") or int(r["mismatches"]) != 0: continue
-        k = (int(r["logN"]), int(r["batch"])); i = ("cheddar", "f4c_sm", "f4c_full").index(r["design"])
-        v = list(t.get(k, (1e9, 1e9, 1e9))); v[i] = min(v[i], float(r["ms_per_poly"])); t[k] = tuple(v)
-    _CH[dev] = t; return t
+        if r["design"] not in ("cheddar", "f4c_sm", "f4c_full", "f4b_sm") or int(r["mismatches"]) != 0: continue
+        k = (int(r["logN"]), int(r["batch"])); i = ("cheddar", "f4c_sm", "f4c_full", "f4b_sm").index(r["design"])
+        v = list(t.get(k, (1e9, 1e9, 1e9, 1e9))); ms = float(r["ms_per_poly"])
+        if ms < v[i]:
+            v[i] = ms
+            if i == 3: p2[k] = int(r["P2"])
+        t[k] = tuple(v)
+    if F4C_SM_BOUND:
+        # the four-step's SM kernels are Cheddar's kernels (row kernel as is, column kernel on contiguous columns), same 7
+        # launches, 120N B and butterflies per multiply: Cheddar's measured time bounds them from above, so the port's
+        # launch-shape loss (no warp batching before b1b5653) is not charged; the SM transposes keep their measured extra
+        t = {k: (ch, min(sm, ch), full - sm + min(sm, ch), fb) for k, (ch, sm, full, fb) in t.items()}
+    _CH[dev] = t; _CHP2[dev] = p2; return t
+
+
+_CHP2 = {}
+def cheddar_p2(dev):
+    """row stage count P2 of the best measured f4b_sm config per (logN, batch)"""
+    cheddar_table(dev); return _CHP2[base(dev)]
+
+
+F4C_SM_BOUND = False   # set by e2e_window.py --f4c-sm-bound
+DRU_BF = 1             # butterfly units per channel in the butterfly DRU (e2e_window.py --dru-bf); 1 butterfly / CK each
 
 
 # The submission's own NTT: the square four-step (poly_mul_gpuntt_square.cu, standalone bit-reversal), measured per
@@ -98,7 +124,7 @@ def sq_table(dev):
 def mul_ms(dev, design, logN, batch):
     """measured per-multiply NTT time the lane is sized from (sqdru: the SM side only, the DRU runs in parallel)"""
     if design in ("merge", "f4dru", "f4sm"): return ntt_table(dev)[(logN, batch)][{"merge": 0, "f4dru": 1, "f4sm": 2}[design]]
-    if design in ("cheddar", "f4c", "f4csm"): return cheddar_table(dev)[(logN, batch)][{"cheddar": 0, "f4c": 1, "f4csm": 2}[design]]
+    if design in ("cheddar", "f4c", "f4csm", "f4b"): return cheddar_table(dev)[(logN, batch)][{"cheddar": 0, "f4c": 1, "f4csm": 2, "f4b": 3}[design]]
     if design == "sqdruh": design = "sqdru"
     tot, st = sq_table(dev)[(logN, batch)]; ssum = sum(st.values())
     return tot * (1.0 if design == "sq" else (ssum - st["transpose"] - st["brev"]) / ssum)
@@ -154,6 +180,18 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
             T = lambda: (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768, 0)
         PW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tc * 24 / 120))
         return [T(), K(), T(), K(), T(), K(), T(), K(), PW, K(), T(), K(), T()]
+    if design == "f4b":
+        # four-step with the column pass inside the DRU (butterfly DRU): per mul  C Kr (a) | C Kr (b) | PW | Kr C.
+        # SMs: Cheddar's row kernel x 3 (16N B each) + PW 24N B = 72N B, floor = measured f4b_sm time split by bytes.
+        # DRU: 3 column passes, each reads and writes the N1-point columns in place (16N B, class 2, not in L2) and is floored
+        # by its butterflies: (N/ch)/2 x P1 per channel at DRU_BF butterflies per CK (9-CK pipeline latency not charged:
+        # N1/2 >= 64 independent butterflies per stage); the inverse pass adds N/ch modmuls for the 1/N scaling.
+        tb = cheddar_table(dev)[(logN, batch)][3]; P1 = logN - cheddar_p2(dev)[(logN, batch)]
+        Kr = lambda: (0, 1, by(16), 0.5, window, gap, run, 16384, ck(tb * 16 / 72))
+        PW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tb * 24 / 72))
+        C = lambda inv=False: (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768,
+                               int(round((N / d["ch"] / 2 * P1 + (N / d["ch"] if inv else 0)) / DRU_BF * scale)))
+        return [C(), Kr(), C(), Kr(), PW, Kr(), C(True)]
     K = lambda: (0, 1, by(20), 0.6, window, gap, run, 16384, ck(ts * 20 / 144))
     if design == "f4sm":
         # the same four-step with the six transposes on the SMs: measured f4g_full - f4g_sm is their SM time
