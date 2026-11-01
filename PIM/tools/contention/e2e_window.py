@@ -60,6 +60,11 @@ def main():
                     help="NTT lane as 2c^2/g jobs of g polynomials (g in 4, 16, 64 up to c^2, measured per-mul time at batch g), "
                          "each design at the g of its fastest co-run lane: the DRU transposes one sub-batch while the SMs run "
                          "another; default: the lane is n identical jobs sized only for kernel length (n = 1 serialises the DRU)")
+    ap.add_argument("--dru-stream", action="store_true",
+                    help="steady state of a continuous NTT stream (every cell's and query's NTTs back to back): the DRU's "
+                         "transposes run as their own pipeline beside the SM kernels (always another sub-batch to transpose), "
+                         "sharing the banks with them and the SPUs; the lane ends when both pipelines have finished. "
+                         "Kernel sizes stay as in the default window")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
@@ -101,7 +106,10 @@ def main():
             gb = int(round(8 * (2 * (1 << lg) * t) / 2 / m / DEV[org]["ch"] * s))
             ph = [(0, 1, gb, 1.0, 48, 0, 16, 20000, 0)] + ph
         jp = os.path.join(a.out, f"{org}_{c}_{t}_{lg}_{d}{f'_g{g}' if g else ''}.jobs")
-        write_jobs(jp, [(n, 0, ph)])                                  # NTT-only pipeline (the NTT lane)
+        if a.dru_stream and any(p[0] == 1 for p in ph):
+            write_jobs(jp, [(n, 0, [p for p in ph if p[0] == 0]), (n, 0, [(0,) + p[1:] for p in ph if p[0] == 1])])
+        else:
+            write_jobs(jp, [(n, 0, ph)])                              # NTT-only pipeline (the NTT lane)
         if a.dpf_split:
             # SM lane = NTT kernels + a (1-x0) share of the DPF (measured GPU expand+convert kernel),
             # sequential on the SMs: appended to every job as one phase. ~88 B/leaf of DRAM traffic
@@ -159,12 +167,13 @@ def main():
     with cf.ThreadPoolExecutor(a.jobs) as ex:
         for (tag, *_), d in zip(work, ex.map(lambda w: sim(*w), work)): R[tag] = d
 
+    fin = lambda o: max(o["pipe0_finish_max"], o.get("pipe1_finish_max", 0))   # NTT lane: SM and (--dru-stream) DRU pipelines
     rows = []
     for (org, c, t, lg, d), cd in cells.items():
         tck = DEV[org]["tck"]; x = R[f"{org}_{c}_{t}_{lg}_{d}"]; y = R[f"{org}_{c}_{t}_{lg}_{d}_alone"]
-        ntt_lane = y["pipe0_finish_max"] / cd["s"] / cd["n"] * 2 * c * c * tck / 1e6   # real ms, incl. gather
+        ntt_lane = fin(y) / cd["s"] / cd["n"] * 2 * c * c * tck / 1e6   # real ms, incl. gather
         spu_slow = x["pim_done_cycles"] / TS[org]
-        ntt_slow = x["pipe0_finish_max"] / (R[f"{org}_{c}_{t}_{lg}_{d}_splitalone"] if a.dpf_split else y)["pipe0_finish_max"]
+        ntt_slow = fin(x) / fin(R[f"{org}_{c}_{t}_{lg}_{d}_splitalone"] if a.dpf_split else y)
         mm = ntt_table(org)[(lg, c * c)][0]
         mc = cheddar_table(org).get((lg, c * c), (float("nan"),))[0]          # Cheddar's NTT as the GPU baseline's NTT
         xs = 1.0; sm_slow = ntt_slow
