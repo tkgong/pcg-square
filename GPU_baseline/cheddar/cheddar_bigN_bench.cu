@@ -2,7 +2,7 @@
 // multiply, at one logN (compile with -DBIGN_LOGN=24..28). Same kernels, dataflow and timing as cheddar_f4dru_bench.cu; the
 // differences are only what large N needs:
 //   * configs are swept here (no forward sweep): Cheddar  P2 (row stages) in [logN-14, 14], column M1, warp batching B1, row M2;
-//     four-step  P1 (column stages) in [logN-14, 14], column M1, row M2.  Stage merging M in {3, 4, 5} on both sides (a pass of
+//     four-step  P1 (column stages) in [logN-14, 14], column M1, warp batching B1 (2^B1 contiguous columns per block), row M2.  Stage merging M in {3, 4, 5} on both sides (a pass of
 //     14 stages needs M >= 4 to stay within 1024 threads); the row kernel's M2 is swept for both designs (fixed 3 in the 2^20..2^24 bench).
 //   * a config is skipped when a kernel cannot launch: threads > the kernel's maxThreadsPerBlock (register file) or shared memory
 //     > the opt-in limit; any other launch error is reported on stderr and the config is skipped.
@@ -122,14 +122,14 @@ template <int L, int P2, int M2> struct Rows {   // Cheddar's contiguous row ker
   static void inv(const Tables &t, u64 *x, int batch) { const size_t N = 1ull << L; cheddar::InputPtrList<i64, 1> s; s.ptrs_[0] = (i64 *) x;
     cheddar::kernel::INTTPhase1<u64, L, C><<<dim3(N / (1 << M2) / th, batch), th, sm>>>((i64 *) x, t.primes, t.qinv, t.itw, t.itwm, 0, batch, s); }
 };
-template <int L, int P1, int M1> struct ColsContig {   // column stages on transposed data: one block per contiguous column vector
-  using C = CCfg<P1, M1, 0>; static constexpr int th = 1 << (P1 - M1), sm = th * (1 << M1) * 8;
+template <int L, int P1, int M1, int B1> struct ColsContig {   // column stages on transposed data: 2^B1 contiguous column vectors per block
+  using C = CCfg<P1, M1, B1>; static constexpr int th = 1 << (P1 - M1 + B1), sm = th * (1 << M1) * 8;
   static bool setup(int maxs) { return fits(cheddar::kernel::NTTPhase1Contig<u64, L, C>, th, sm, maxs) &&
                                        fits(cheddar::kernel::INTTPhase2Contig<u64, L, C, cheddar::kernel::MultConst<u64>>, th, sm, maxs); }
   static void fwd(const Tables &t, u64 *x, int batch) { cheddar::InputPtrList<i64, 1> s; s.ptrs_[0] = (i64 *) x;
-    cheddar::kernel::NTTPhase1Contig<u64, L, C><<<dim3(1u << (L - P1), batch), th, sm>>>((i64 *) x, t.primes, t.qinv, t.tw, 0, batch, 0, 0, s, cheddar::InputPtrList<u64, 1>()); }
+    cheddar::kernel::NTTPhase1Contig<u64, L, C><<<dim3(1u << (L - P1 - B1), batch), th, sm>>>((i64 *) x, t.primes, t.qinv, t.tw, 0, batch, 0, 0, s, cheddar::InputPtrList<u64, 1>()); }
   static void inv(const Tables &t, u64 *x, int batch) { cheddar::InputPtrList<i64, 1> s; s.ptrs_[0] = (i64 *) x; cheddar::InputPtrList<u64, 1> c; c.ptrs_[0] = t.ninv;
-    cheddar::kernel::INTTPhase2Contig<u64, L, C, cheddar::kernel::MultConst<u64>><<<dim3(1u << (L - P1), batch), th, sm>>>((i64 *) x, t.primes, t.qinv, t.itw, 0, batch, s, c); }
+    cheddar::kernel::INTTPhase2Contig<u64, L, C, cheddar::kernel::MultConst<u64>><<<dim3(1u << (L - P1 - B1), batch), th, sm>>>((i64 *) x, t.primes, t.qinv, t.itw, 0, batch, s, c); }
 };
 template <int L, int P1, int M1, int B1> struct Cols {   // Cheddar's own strided column kernels (first P1 stages)
   using C = CCfg<P1, M1, B1>; static constexpr int th = 1 << (P1 - M1 + B1), sm = th * (1 << M1) * 8;
@@ -164,11 +164,11 @@ template <int L, int P2, int M1, int B1, int M2> static void run_cheddar(Ctx &c)
     printf("%d,%d,cheddar,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(mul, c.iters) / batch, bad); fflush(stdout);
   }
 }
-template <int L, int P1, int M1, int M2> static void run_f4c(Ctx &c) {
+template <int L, int P1, int M1, int B1, int M2> static void run_f4c(Ctx &c) {
   constexpr int P2 = L - P1;
-  if constexpr (P1 < M1 || P2 < M2 || !thr_ok(P1 - M1) || !thr_ok(P2 - M2)) return; else {
-    using RC = Rows<L, P2, M2>; using CC = ColsContig<L, P1, M1>;
-    if (!CC::setup(c.maxs) || !RC::setup(c.maxs)) { fprintf(stderr, "skip f4c P1 %d P2 %d M1 %d M2 %d: cannot launch (threads x registers or shared memory)\n", P1, P2, M1, M2); return; }
+  if constexpr (P1 < M1 || P2 < M2 || P2 < B1 || !thr_ok(P1 - M1 + B1) || !thr_ok(P2 - M2)) return; else {
+    using RC = Rows<L, P2, M2>; using CC = ColsContig<L, P1, M1, B1>;
+    if (!CC::setup(c.maxs) || !RC::setup(c.maxs)) { fprintf(stderr, "skip f4c P1 %d P2 %d M1 %d B1 %d M2 %d: cannot launch (threads x registers or shared memory)\n", P1, P2, M1, B1, M2); return; }
     const int R = 1 << P1, Cn = 1 << P2, batch = c.batch; const Tables &t = *c.t;
     auto pw = [&] { fused4::pointwise_kernel<<<static_cast<unsigned>((c.tot + 255) / 256), 256>>>(c.a, c.b, c.mp->modulus, c.tot); };
     auto full = [&] {   // transposes on the SMs (functional reference of the DRU dataflow)
@@ -178,9 +178,9 @@ template <int L, int P1, int M1, int M2> static void run_f4c(Ctx &c) {
     auto sm = [&] {     // SM lane: the same kernels, transposes left to the DRU
       CC::fwd(t, c.a, batch); RC::fwd(t, c.a, batch); CC::fwd(t, c.b, batch); RC::fwd(t, c.b, batch); pw(); RC::inv(t, c.a, batch); CC::inv(t, c.a, batch);
     };
-    c.refill(); full(); if (!launched("f4c", P1, P2, M1, 0, M2)) return; const unsigned long long bad = diff(c);
+    c.refill(); full(); if (!launched("f4c", P1, P2, M1, B1, M2)) return; const unsigned long long bad = diff(c);
     const double tf = time_ms(full, c.iters) / batch, ts = time_ms(sm, c.iters) / batch;
-    printf("%d,%d,f4c_full,%d,%d,%d,0,%d,%d,%.4f,%llu\n%d,%d,f4c_sm,%d,%d,%d,0,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, M2, BIGN_MAXRREG, tf, bad, L, batch, P1, P2, M1, M2, BIGN_MAXRREG, ts, bad); fflush(stdout);
+    printf("%d,%d,f4c_full,%d,%d,%d,%d,%d,%d,%.4f,%llu\n%d,%d,f4c_sm,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, tf, bad, L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, ts, bad); fflush(stdout);
   }
 }
 #ifndef BIGN_NO_MAIN   // cheddar_interfere.cu reuses everything above
@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
     cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) {
       run_cheddar<L, P2, M1, B1, M2>(c); }); }); }); });
     // four-step: P1 in [L-14, 14], M1, M2
-    cfor<9, 15>([&](auto P1) { if constexpr (L - P1 >= 7 && L - P1 <= 14) cfor<3, 6>([&](auto M1) { cfor<3, 6>([&](auto M2) { run_f4c<L, P1, M1, M2>(c); }); }); });
+    cfor<9, 15>([&](auto P1) { if constexpr (L - P1 >= 7 && L - P1 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) { run_f4c<L, P1, M1, B1, M2>(c); }); }); }); });
     release(); cudaFree(c.cnt);
   }
   return 0;

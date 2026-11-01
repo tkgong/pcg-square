@@ -38,7 +38,7 @@ for L in map(int, sys.argv[3:]):
             if not M: continue
             r = min(M, key=lambda r: float(r["ms_per_poly"]))
             if d == "cheddar": print(L, b, r["maxrreg"], "cheddar", f"{r['P1']},{r['M1']},{r['B1']},{r['M2']}", "-")
-            else: print(L, b, r["maxrreg"], "f4c" if r is top else "f4csm", "-", f"{r['P1']},{r['M1']},{r['M2']}")
+            else: print(L, b, r["maxrreg"], "f4c" if r is top else "f4csm", "-", f"{r['P1']},{r['M1']},{r['B1']},{r['M2']}")
 PY
 )
 echo "$PLAN"

@@ -6,7 +6,7 @@
 // contiguous) or a sleep-only control with the same grid (SM occupancy), blocks x sleep sweeping its bandwidth.
 // net slowdown = victim(stream | rowburst) / victim(control at the same blocks).  Every victim's product is checked once
 // against merge computed one polynomial at a time (the SM lane through f4c_full, whose kernels it runs).
-//   nvcc -DBIGN_LOGN=24 ...;  ./cheddar_interfere --batch 16 --cheddar P1,M1,B1,M2 --f4c P1,M1,M2 --victims merge,cheddar,f4c --blocks 8,16,32,64,128
+//   nvcc -DBIGN_LOGN=24 ...;  ./cheddar_interfere --batch 16 --cheddar P1,M1,B1,M2 --f4c P1,M1,B1,M2 --victims merge,cheddar,f4c --blocks 8,16,32,64,128
 //   (--victims f4c times the SM lane and the full four-step, whose product checks the SM lane's kernels; f4csm times the SM
 //   lane only and runs the full four-step once for the check)
 // CSV: gpu,victim,logN,batch,P1,M1,B1,M2,maxrreg,blocks,sleep_ns,mode,agg_GBps,victim_ms,slowdown_raw,mismatches
@@ -83,13 +83,13 @@ template <int L> static bool make_cheddar(int p1, int m1, int b1, int m2, const 
     } }); }); }); });
   return found;
 }
-template <int L> static bool make_f4c(int p1, int m1, int m2, bool full, const Tables &t, Bufs &x, Mul &out) {   // four-step
+template <int L> static bool make_f4c(int p1, int m1, int b1, int m2, bool full, const Tables &t, Bufs &x, Mul &out) {   // four-step
   bool found = false;
-  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<3, 6>([&](auto M2) {
+  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 6>([&](auto M2) {
     constexpr int P2 = L - P1;
-    if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && P2 >= M2 && thr_ok(P1 - M1) && thr_ok(P2 - M2)) {
-      if (P1 == p1 && M1 == m1 && M2 == m2) {
-        using CC = ColsContig<L, P1, M1>; using RC = Rows<L, P2, M2>;
+    if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && P2 >= M2 && P2 >= B1 && thr_ok(P1 - M1 + B1) && thr_ok(P2 - M2)) {
+      if (P1 == p1 && M1 == m1 && B1 == b1 && M2 == m2) {
+        using CC = ColsContig<L, P1, M1, B1>; using RC = Rows<L, P2, M2>;
         if (!CC::setup(1 << 30) || !RC::setup(1 << 30)) return;
         found = true; const Tables *tp = &t; Bufs *bp = &x; constexpr int R = 1 << P1, Cn = 1 << P2;
         if (full) out = [tp, bp] { const Tables &t = *tp; Bufs &x = *bp;
@@ -101,12 +101,12 @@ template <int L> static bool make_f4c(int p1, int m1, int m2, bool full, const T
           fused4::pointwise_kernel<<<static_cast<unsigned>((x.tot + 255) / 256), 256>>>(x.a, x.b, Modulus<Data64>(P), x.tot);
           RC::inv(t, x.a, x.batch); CC::inv(t, x.a, x.batch); };
       }
-    } }); }); });
+    } }); }); }); });
   return found;
 }
 static std::vector<int> ints(const char *s) { std::vector<int> v; for (const char *p = s; *p;) { v.push_back(atoi(p)); while (*p && *p != ',') p++; if (*p) p++; } return v; }
 int main(int argc, char **argv) {
-  constexpr int L = BIGN_LOGN; int batch = 16, iters = 10; std::vector<int> ch = {L / 2, 3, 0, 3}, fc = {L / 2, 3, 3}, blocks = {8, 16, 32, 64, 128};
+  constexpr int L = BIGN_LOGN; int batch = 16, iters = 10; std::vector<int> ch = {L / 2, 3, 0, 3}, fc = {L / 2, 3, 0, 3}, blocks = {8, 16, 32, 64, 128};
   std::string victims = "merge,cheddar,f4c";
   std::vector<unsigned> sleeps = {0, 10000, 30000};
   for (int i = 1; i + 1 < argc; i++) {
@@ -118,7 +118,8 @@ int main(int argc, char **argv) {
     else if (!strcmp(argv[i], "--victims")) victims = argv[++i];
   }
   if (ch.size() < 4) ch.push_back(3);
-  if (fc.size() < 3) fc.push_back(3);
+  if (fc.size() == 3) fc.insert(fc.begin() + 2, 0);   // P1,M1,M2 (before B1): B1 = 0
+  if (fc.size() < 4) fc.push_back(3);
   auto want = [&](const char *v) { return ("," + victims + ",").find("," + std::string(v) + ",") != std::string::npos; };
   cudaDeviceProp prop; cudaGetDeviceProperties(&prop, 0); std::string gpu = prop.name; for (auto &c : gpu) if (c == ' ') c = '_';
   const size_t N = 1ull << L; Bufs x; x.batch = batch; x.tot = N * batch;
@@ -138,9 +139,9 @@ int main(int argc, char **argv) {
   }
   Mul check_full;   // --victims f4csm: the SM lane is timed, the full four-step only checks its kernels' product
   if (want("f4c") || want("f4csm")) {
-    if (make_f4c<L>(fc[0], fc[1], fc[2], false, t, x, m)) vs.push_back({"f4c_sm", fc[0], fc[1], 0, fc[2], m});
-    else fprintf(stderr, "f4c P1 %d M1 %d M2 %d: not instantiated or cannot launch\n", fc[0], fc[1], fc[2]);
-    if (make_f4c<L>(fc[0], fc[1], fc[2], true, t, x, m)) { if (want("f4c")) vs.push_back({"f4c_full", fc[0], fc[1], 0, fc[2], m}); else check_full = m; }
+    if (make_f4c<L>(fc[0], fc[1], fc[2], fc[3], false, t, x, m)) vs.push_back({"f4c_sm", fc[0], fc[1], fc[2], fc[3], m});
+    else fprintf(stderr, "f4c P1 %d M1 %d B1 %d M2 %d: not instantiated or cannot launch\n", fc[0], fc[1], fc[2], fc[3]);
+    if (make_f4c<L>(fc[0], fc[1], fc[2], fc[3], true, t, x, m)) { if (want("f4c")) vs.push_back({"f4c_full", fc[0], fc[1], fc[2], fc[3], m}); else check_full = m; }
   }
   Agg agg(1ull << 30);
   auto victim_ms = [&](const Mul &mul) {   // per polynomial; operand reload outside the timed region
