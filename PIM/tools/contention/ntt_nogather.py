@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """NTT lane alone with the DPF->NTT gather phase removed, for the channel-count sweep: re-simulates every *_alone NTT
-pipeline (every design) of the given window directories without its first (gather) phase and
+pipeline (four-step + DRU, four-step on the SMs) of the given window directories without its first (gather) phase and
 rescales the lane: lane_nogather = ntt_ms * finish(no gather) / finish(with gather).
 Usage: ntt_nogather.py OUT_DIR WINDOW_DIR [WINDOW_DIR ...]"""
 import concurrent.futures as cf, glob, os, re, subprocess, sys
@@ -17,6 +17,7 @@ work = []
 for d in sys.argv[2:]:
     for a in glob.glob(os.path.join(d, "*_alone.out")):
         tag = os.path.basename(a)[:-len("_alone.out")]
+        if not tag.endswith(("_f4dru", "_sq")): continue
         jp = os.path.join(d, tag + ".jobs")
         if not os.path.exists(jp): continue
         lines = open(jp).read().splitlines(keepends=True)

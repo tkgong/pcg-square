@@ -2,9 +2,7 @@
 # GPU board power per phase on one idle GPU (L40S or B200), for the system-energy estimate (reviewer D):
 #   idle (no process), idle (CUDA context held), the DPF phase per (c,t) at logN 22 (dpf_real_bench: expand +
 #   conversion, one block), the GPU-NTT merge poly-mul (baseline NTT) and the four-step SM lane f4g_sm (PCG^2's
-#   NTT on B200) at logN 20/22/24 x batch 4/16/64; then, when cheddar/run_cheddar_bigN.sh has run, Cheddar's NTT
-#   (cheddar), the butterfly-DRU SM lane (f4b_sm) and the four-step SM lane on Cheddar's kernels (f4c_sm), each at
-#   its best measured config.
+#   NTT on B200) at logN 20/22/24 x batch 4/16/64.
 # Two independent readings per phase: (1) nvidia-smi samples power.draw (1 s average) and, where the driver has
 # it, power.draw.instant every 100 ms for the whole session -> mean over [start+1 s, end-0.5 s]; (2) the NVML
 # cumulative energy counter (nvmlDeviceGetTotalEnergyConsumption, mJ) read before/after each phase when pynvml
@@ -66,34 +64,5 @@ done
 for what in merge f4g_sm; do for lg in 20 22 24; do for b in 4 16 64; do
   phase "ntt_${what}_lg${lg}_b${b}" "$what poly-mul" "$NP" --what $what --logN $lg --batch $b --secs "$SECS"
 done; done; done
-# Cheddar's kernels (GPU_baseline/cheddar): cheddar = the GPU baseline's NTT, f4b_sm = the butterfly DRU's SM lane (row kernel
-# + pointwise), f4c_sm = the four-step SM lane with the transposes on the DRU; each at its best measured config per
-# (logN, batch) from cheddar_bigN_<tag>.csv (0 mismatches), built with that config's register cap. Needs the big-N sweep first.
-CB="$HERE/cheddar"; CSV="$HERE/results_${TAG}/cheddar_bigN_${TAG}.csv"
-if [ -f "$CSV" ]; then
-  ( cd "$CB"; [ -d cheddar-fhe ] || git clone -q https://github.com/scale-snu/cheddar-fhe.git cheddar-fhe; git -C cheddar-fhe checkout -q 8df8b26
-    mkdir -p gen bin; ./extract.sh cheddar-fhe gen/cheddar_ntt_kernels.cuh; ./extract_contig.sh gen/cheddar_ntt_kernels.cuh gen/cheddar_ntt_contig.cuh )
-  PLAN=$(python3 - "$CSV" <<'PY'
-import csv, sys
-rows = [r for r in csv.DictReader(l for l in open(sys.argv[1]) if not l.startswith("#")) if r["mismatches"] == "0"]
-for what in ("cheddar", "f4c_sm", "f4b_sm"):
-    for lg in (20, 22, 24):
-        for b in (4, 16, 64):
-            R = [r for r in rows if r["design"] == what and int(r["logN"]) == lg and int(r["batch"]) == b]
-            if not R: continue
-            r = min(R, key=lambda r: float(r["ms_per_poly"]))
-            print(what, lg, b, r["maxrreg"], f"{r['P1']},{r['M1']},{r['B1']},{r['M2']}")
-PY
-  )
-  CFL=(-O3 -std=c++17 -arch=$ARCH --expt-relaxed-constexpr -diag-suppress 177 -I"$CB/shim" -I"$CB/cheddar-fhe/include" -I"$CB" -I"$HERE" -I"$GPUNTT_INC")
-  while read -r lg cap; do   # one binary per (logN, register cap)
-    B="$CB/bin/cheddar_power_${lg}_r${cap}_$ARCH"; CAPF=(); [ "$cap" -gt 0 ] && CAPF=(-maxrregcount="$cap")
-    [ -x "$B" ] || "$NVCC" "${CFL[@]}" "${CAPF[@]}" -DBIGN_LOGN=$lg -DBIGN_MAXRREG=$cap "$CB/cheddar_power_bench.cu" -L"$GPUNTT_LIB" -lntt-1.0 -o "$B" &
-  done <<< "$(awk '{print $2, $4}' <<< "$PLAN" | sort -u)"
-  wait
-  while read -r what lg b cap cfg; do
-    phase "ntt_${what}_lg${lg}_b${b}" "$what poly-mul, cfg $cfg R$cap" "$CB/bin/cheddar_power_${lg}_r${cap}_$ARCH" --what $what --cfg "$cfg" --batch $b --secs "$SECS"
-  done <<< "$PLAN"
-else echo "[skip] $CSV not found: no Cheddar / f4b_sm power phases (run GPU_baseline/cheddar/run_cheddar_bigN.sh first)"; fi
 sleep 2; kill $SMI; wait $SMI 2>/dev/null || true
 echo "[done] $OUT"

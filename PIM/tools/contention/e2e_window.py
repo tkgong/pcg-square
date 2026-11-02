@@ -42,7 +42,6 @@ def main():
     ap.add_argument("--f4c-sm-bound", action="store_true",
                     help="four-step SM kernel time = min(measured four-step SM lane, measured Cheddar): same kernels, launches, "
                          "bytes and butterflies, so Cheddar's time bounds it; the SM transposes keep their measured extra")
-    ap.add_argument("--dru-bf", type=int, default=1, help="butterfly DRU (design f4b): butterfly units per channel, 1 butterfly/CK each")
     ap.add_argument("--gather-dru", action="store_true",
                     help="designs with DRU transposes: the DRU's first transpose reads the SPUs' bank-local output directly "
                          "(the t/m pre-summed vectors, summed on the way) and writes the transposed polynomial, so the SM "
@@ -78,7 +77,7 @@ def main():
                          "Kernel sizes stay as in the default window")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
-    import ntt_jobs; ntt_jobs.F4C_SM_BOUND = a.f4c_sm_bound; ntt_jobs.DRU_BF = a.dru_bf
+    import ntt_jobs; ntt_jobs.F4C_SM_BOUND = a.f4c_sm_bound
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
     ctrl = ["-p", f"MemorySystem.Controller.fpu_gate_issue={a.fpu_gate}", "-p", "MemorySystem.Controller.wr_max_age=1000",
             "-p", "MemorySystem.Controller.pim_row_wait=0", "-p", "MemorySystem.Controller.class_priority=0,1,3,2",

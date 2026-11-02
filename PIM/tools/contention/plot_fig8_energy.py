@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fig. 8 with the energy-efficiency improvement added as a second set of lines on the right axis:
 solid lines = speedup (as before), dashed lines with hollow markers = energy efficiency (Table IV accounting,
-per-(c,t) geomean from power_energy.py's energy_<mach>.json).    plot_fig8_energy.py E2E_JSON OUT ENERGY_L40S_JSON ENERGY_B200_JSON"""
+per-(c,t) geomean from energy_l40s.txt / energy_b200.txt).    plot_fig8_energy.py E2E_JSON OUT"""
 import sys
 import matplotlib
 matplotlib.use("Agg")
@@ -9,9 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
 from plot_fig8_paper_style import data, CFG, ALPHA, TIER, COL, LINE, SERIES
-import json
-EL, EB = (json.load(open(p)) for p in sys.argv[3:5])      # energy_l40s.json, energy_b200.json (power_energy.py)
-EE = {tier: {"L40S": EL[tier], "B200": EB[tier]} for tier in ("fast", "slow")}
+EE = {"fast": {"L40S": [2.76, 4.89, 3.85, 7.33, 7.17], "B200": [4.20, 10.67, 6.44, 15.18, 14.93]},
+      "slow": {"L40S": [2.76, 4.89, 3.85, 5.09, 2.83], "B200": [4.20, 5.77, 5.44, 2.93, 1.92]}}
 
 def main(D, outpath):
     fig, axes = plt.subplots(1, 2, figsize=(7.16, 2.35), sharey=True,

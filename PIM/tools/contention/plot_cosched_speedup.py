@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-# Usage: plot_cosched_speedup.py COSCHED_SWEEP_JSON OUT_PNG
 # Speedup over the co-scheduled GPU baseline vs network bandwidth (40 Mbps .. 40 Gbps), PCG^2 serial and co-scheduled,
 # both cards. The gap between the two curves of a card is PCG^2's own co-scheduling gain. Geomean over the suite.
+import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
-import json, sys
-OUT = sys.argv[2] if len(sys.argv) > 2 else "fig_cosched_speedup.png"
+OUT = sys.argv[1] if len(sys.argv) > 1 else "fig_cosched_speedup.png"
 BW = [40e9, 20e9, 10e9, 4e9, 2e9, 1e9, 400e6, 200e6, 100e6, 40e6]
-T = {(r["mach"], r["beta"]): r for r in json.load(open(sys.argv[1]))["table"]}   # cosched_sweep.py JSON (geomean ms per bandwidth)
-row = lambda m, b: T[(m, b)]
-D = {m: {"serial": [row(m, b)["t_gpu_cos"] / row(m, b)["t_pcg_ser"] for b in BW], "cosched": [row(m, b)["t_gpu_cos"] / row(m, b)["t_pcg_cos"] for b in BW]} for m in ("L40S", "B200")}
+D = {
+"L40S": {"serial": [2.46, 2.44, 2.39, 2.28, 2.13, 1.93, 1.67, 1.49, 1.32, 1.13], "cosched": [2.48, 2.48, 2.48, 2.48, 2.46, 2.34, 2.13, 1.98, 1.77, 1.48]},
+"B200": {"serial": [7.03, 6.6, 5.97, 4.81, 3.85, 3.01, 2.15, 1.69, 1.38, 1.12], "cosched": [7.59, 7.53, 7.16, 6.14, 5.04, 3.93, 2.73, 2.09, 1.64, 1.26]},
+}
 COL = {"L40S": "#C8322B", "B200": "#C9950F"}; MK = {"L40S": "o", "B200": "s"}
 fig, ax = plt.subplots(figsize=(3.5, 2.7), gridspec_kw=dict(left=0.13, right=0.98, top=0.84, bottom=0.16))
 for mach in ("L40S", "B200"):

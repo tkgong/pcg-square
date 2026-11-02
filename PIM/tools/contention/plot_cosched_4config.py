@@ -7,14 +7,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
-import os
-HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e")); sys.path.insert(0, HERE)
-import final_design as FD
+sys.path.insert(0, "PIM/tools/contention/e2e")
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, gm
     from lanes import alpha_bw
 W, OUT = sys.argv[1], sys.argv[2]
-R = json.load(open(f"{W}/e2e_nom.json")); DES = FD.DES(W)
+R = json.load(open(f"{W}/e2e_nom.json")); DES = {"L40S": ("l40s", "merge"), "B200": ("b200", "f4dru")}
 GRID = [10 ** (x / 8) for x in range(8 * 7, 8 * 11 + 1)]
 CFG = [("cc", "GPU co-sched / PCG$^2$ co-sched", "-"), ("sc", "GPU serial / PCG$^2$ co-sched", "--"), ("cs", "GPU co-sched / PCG$^2$ serial", "-."), ("ss", "GPU serial / PCG$^2$ serial", ":")]
 COL = {"L40S": "#C8322B", "B200": "#C9950F"}
@@ -26,7 +24,7 @@ for mach, (org, des) in DES.items():
         v = {k: [] for k in curves}
         for r in rows:
             k = (r["c"], r["t"], r["logN"]); tn = (LN[k]["n"] + 2) * alpha_bw(k[0], k[1], b)
-            tg = r[FD.GPU_KEY]; tp = max(r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"])
+            tg = r["gpu_ms"]; tp = max(r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"])
             v["ss"].append((tg + tn) / (tp + tn)); v["cs"].append(max(tg, tn) / (tp + tn)); v["sc"].append((tg + tn) / max(tp, tn)); v["cc"].append(max(tg, tn) / max(tp, tn))
         for k in curves: curves[k].append(gm(v[k]))
     for k, lab, ls in CFG:

@@ -12,9 +12,6 @@
 //   * a 14-stage pass (needed at 2^27, 2^28) needs 70..96 registers per thread at M 4 (1024 threads) and 122..228 at M 5
 //     (512 threads), over the 64K-register file of a block; -DBIGN_MAXRREG=64 / 128 (nvcc -maxrregcount) builds a variant that
 //     caps every kernel of the binary (spilling to local memory), recorded in the maxrreg column (0 = no cap).
-//   * f4b_sm: the SM lane of the four-step whose column pass runs in the DRU (butterfly DRU): Cheddar's row kernel (fwd a,
-//     fwd b), pointwise, inverse row kernel; swept over the same P2, M2 as Cheddar (M1 = B1 = 0 in the row), checked
-//     through Cheddar's product with Cols on the SMs standing in for the DRU's column pass.
 // Output: logN,batch,design,P1,P2,M1,B1,M2,maxrreg,ms_per_poly,mismatches
 #include "fused4/fused4_ntt.cuh"   // -I.. (GPU_baseline)
 #include "gpuntt/common/nttparameters.cuh"
@@ -186,29 +183,6 @@ template <int L, int P1, int M1, int B1, int M2> static void run_f4c(Ctx &c) {
     printf("%d,%d,f4c_full,%d,%d,%d,%d,%d,%d,%.4f,%llu\n%d,%d,f4c_sm,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, tf, bad, L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, ts, bad); fflush(stdout);
   }
 }
-template <int L, int P2, int M2> static void run_f4b(Ctx &c) {   // SM lane of the four-step whose column pass runs in the DRU
-  // (butterfly DRU): the SMs run only Cheddar's row kernel (fwd a, fwd b), the pointwise multiply and the inverse row kernel;
-  // the column stages (Cols) and the 1/N scaling are the DRU's. Checked through Cheddar's own product: Cols on the SMs
-  // standing in for the DRU's column pass (same stages, same twiddles), first column config that launches.
-  constexpr int P1 = L - P2;
-  if constexpr (P2 < M2 || !thr_ok(P2 - M2)) return; else {
-    using RC = Rows<L, P2, M2>;
-    if (!RC::setup(c.maxs)) { fprintf(stderr, "skip f4b P1 %d P2 %d M2 %d: cannot launch (threads x registers or shared memory)\n", P1, P2, M2); return; }
-    const Tables &t = *c.t; const int batch = c.batch;
-    auto pw = [&] { fused4::pointwise_kernel<<<static_cast<unsigned>((c.tot + 255) / 256), 256>>>(c.a, c.b, c.mp->modulus, c.tot); };
-    auto sm = [&] { RC::fwd(t, c.a, batch); RC::fwd(t, c.b, batch); pw(); RC::inv(t, c.a, batch); };
-    unsigned long long bad = ~0ull; bool checked = false;
-    cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) {
-      if constexpr (P1 >= M1 && thr_ok(P1 - M1 + B1)) {
-        if (checked) return; using CC = Cols<L, P1, M1, B1>; if (!CC::setup(c.maxs)) return;
-        auto full = [&] { CC::fwd(t, c.a, batch); RC::fwd(t, c.a, batch); CC::fwd(t, c.b, batch); RC::fwd(t, c.b, batch); pw(); RC::inv(t, c.a, batch); CC::inv(t, c.a, batch); };
-        c.refill(); full(); if (!launched("f4b check", P1, P2, M1, B1, M2)) return; bad = diff(c); checked = true;
-      } }); });
-    if (!checked) { fprintf(stderr, "skip f4b P1 %d P2 %d M2 %d: no column config launches for the check\n", P1, P2, M2); return; }
-    c.refill(); sm(); if (!launched("f4b", P1, P2, 0, 0, M2)) return;
-    printf("%d,%d,f4b_sm,%d,%d,0,0,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M2, BIGN_MAXRREG, time_ms(sm, c.iters) / batch, bad); fflush(stdout);
-  }
-}
 #ifndef BIGN_NO_MAIN   // cheddar_interfere.cu reuses everything above
 int main(int argc, char **argv) {
   constexpr int L = BIGN_LOGN; std::vector<int> batches = {4, 16, 64}; int iters = L >= 27 ? 3 : 5;
@@ -239,8 +213,6 @@ int main(int argc, char **argv) {
       run_cheddar<L, P2, M1, B1, M2>(c); }); }); }); });
     // four-step: P1 in [L-14, 14], M1, M2
     cfor<9, 15>([&](auto P1) { if constexpr (L - P1 >= 7 && L - P1 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) { run_f4c<L, P1, M1, B1, M2>(c); }); }); }); });
-    // butterfly DRU: SM lane = row kernel only; P2 in [L-14, 14] (same row space as Cheddar), M2
-    cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 6>([&](auto M2) { run_f4b<L, P2, M2>(c); }); });
     release(); cudaFree(c.cnt);
   }
   return 0;

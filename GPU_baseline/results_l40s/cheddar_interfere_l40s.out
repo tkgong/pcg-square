@@ -7,9 +7,6 @@ contiguous column kernels written to gen/cheddar_ntt_contig.cuh (all address edi
 20 16 128 f4c - 9,3,0,3 -
 20 16 128 f4csm - 9,4,0,3 -
 20 16 0 f4csm - 9,5,2,3 -
-20 16 128 f4b - - 8,3
-20 16 128 f4b - - 11,4
-20 16 0 f4b - - 10,5
 21 16 0 merge - - -
 21 16 128 cheddar 9,3,3,3 - -
 21 16 128 cheddar 9,4,3,3 - -
@@ -17,9 +14,6 @@ contiguous column kernels written to gen/cheddar_ntt_contig.cuh (all address edi
 21 16 128 f4c - 11,3,0,3 -
 21 16 128 f4csm - 9,4,0,3 -
 21 16 128 f4csm - 9,5,2,3 -
-21 16 128 f4b - - 9,3
-21 16 128 f4b - - 12,4
-21 16 0 f4b - - 11,5
 22 16 0 merge - - -
 22 16 64 cheddar 9,3,3,3 - -
 22 16 128 cheddar 10,4,3,3 - -
@@ -27,9 +21,6 @@ contiguous column kernels written to gen/cheddar_ntt_contig.cuh (all address edi
 22 16 128 f4c - 11,3,0,3 -
 22 16 128 f4csm - 10,4,0,3 -
 22 16 0 f4csm - 9,5,2,3 -
-22 16 64 f4b - - 11,3
-22 16 128 f4b - - 13,4
-22 16 0 f4b - - 12,5
 23 16 0 merge - - -
 23 16 0 cheddar 10,3,3,3 - -
 23 16 0 cheddar 10,4,3,3 - -
@@ -37,9 +28,6 @@ contiguous column kernels written to gen/cheddar_ntt_contig.cuh (all address edi
 23 16 64 f4c - 11,3,0,3 -
 23 16 0 f4csm - 10,4,1,3 -
 23 16 0 f4csm - 10,5,0,3 -
-23 16 128 f4b - - 12,3
-23 16 128 f4b - - 13,4
-23 16 0 f4b - - 13,5
 24 16 0 merge - - -
 24 16 0 cheddar 11,3,2,3 - -
 24 16 0 cheddar 11,4,2,3 - -
@@ -47,9 +35,6 @@ contiguous column kernels written to gen/cheddar_ntt_contig.cuh (all address edi
 24 16 64 f4c - 11,3,0,3 -
 24 16 0 f4csm - 11,4,1,3 -
 24 16 0 f4csm - 11,5,1,3 -
-24 16 128 f4b - - 13,3
-24 16 128 f4b - - 13,4
-24 16 0 f4b - - 13,5
 25 16 0 merge - - -
 25 16 0 cheddar 12,3,1,3 - -
 25 16 0 cheddar 12,4,1,3 - -
@@ -57,9 +42,6 @@ contiguous column kernels written to gen/cheddar_ntt_contig.cuh (all address edi
 25 16 0 f4c - 12,3,0,3 -
 25 16 0 f4csm - 12,4,0,3 -
 25 16 0 f4csm - 12,5,0,3 -
-25 16 0 f4b - - 13,3
-25 16 128 f4b - - 13,4
-25 16 0 f4b - - 13,5
 26 4 0 merge - - -
 26 4 64 cheddar 13,3,0,3 - -
 26 4 0 cheddar 13,4,0,3 - -
@@ -67,9 +49,6 @@ contiguous column kernels written to gen/cheddar_ntt_contig.cuh (all address edi
 26 4 0 f4c - 13,3,0,3 -
 26 4 0 f4csm - 13,4,0,3 -
 26 4 0 f4csm - 13,5,0,3 -
-26 4 0 f4b - - 13,3
-26 4 128 f4b - - 13,4
-26 4 0 f4b - - 13,5
 l40s: silicon interference, ms per polynomial multiply; 0 of 2772 rows have mismatches
 net slowdown = victim beside aggressor / victim beside sleep-only control (same blocks), at the SPUs' share of 864 GB/s: 15.0%
 co-run ms = alone ms x row-burst net slowdown
@@ -83,9 +62,6 @@ logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown 
   20  16 | f4c_sm   9+ M4 B0 M2 3 R128       |   0.1891 | 1.152 | 1.145 | 0.2178
   20  16 | f4c_sm   9+ M5 B2 M2 3 R0         |   0.2013 | 1.158 | 1.193 | 0.2330
   20  16 | f4c_full 9+ M3 B0 M2 3 R128       |   0.3439 | 1.178 | 1.201 | 0.4050
-  20  16 | f4b_sm   8+ M0 B0 M2 3 R128       |   0.1098 | 1.124 | 1.145 | 0.1234
-  20  16 | f4b_sm   11+ M0 B0 M2 4 R128      |   0.2084 | 1.035 | 1.036 | 0.2157
-  20  16 | f4b_sm   10+ M0 B0 M2 5 R0        |   0.2381 | 1.030 | 1.028 | 0.2453
   21  16 | merge    -                        |   0.5491 | 1.181 | 1.178 | 0.6484
   21  16 | cheddar  9+ M3 B3 M2 3 R128       |   0.3891 | 1.228 | 1.241 | 0.4779
   21  16 | cheddar  10+ M5 B3 M2 3 R0        |   0.3958 | 1.105 | 1.099 | 0.4374
@@ -94,9 +70,6 @@ logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown 
   21  16 | f4c_sm   9+ M4 B0 M2 3 R128       |   0.3770 | 1.156 | 1.159 | 0.4360
   21  16 | f4c_sm   9+ M5 B2 M2 3 R128       |   0.3937 | 1.167 | 1.170 | 0.4596
   21  16 | f4c_full 11+ M3 B0 M2 3 R128      |   0.6828 | 1.199 | 1.203 | 0.8185
-  21  16 | f4b_sm   9+ M0 B0 M2 3 R128       |   0.2224 | 1.142 | 1.148 | 0.2539
-  21  16 | f4b_sm   12+ M0 B0 M2 4 R128      |   0.4129 | 1.033 | 1.035 | 0.4267
-  21  16 | f4b_sm   11+ M0 B0 M2 5 R0        |   0.4605 | 1.028 | 1.026 | 0.4734
   22  16 | merge    -                        |   1.2090 | 1.222 | 1.188 | 1.4770
   22  16 | cheddar  10+ M5 B3 M2 3 R0        |   0.7881 | 1.125 | 1.120 | 0.8864
   22  16 | cheddar  9+ M3 B3 M2 3 R64        |   0.8259 | 1.219 | 1.221 | 1.0070
@@ -105,9 +78,6 @@ logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown 
   22  16 | f4c_sm   10+ M4 B0 M2 3 R128      |   0.7615 | 1.171 | 1.172 | 0.8917
   22  16 | f4c_sm   9+ M5 B2 M2 3 R0         |   0.7788 | 1.182 | 1.187 | 0.9207
   22  16 | f4c_full 11+ M3 B0 M2 3 R128      |   1.3762 | 1.230 | 1.225 | 1.6922
-  22  16 | f4b_sm   11+ M0 B0 M2 3 R64       |   0.4509 | 1.188 | 1.190 | 0.5355
-  22  16 | f4b_sm   13+ M0 B0 M2 4 R128      |   0.8262 | 1.036 | 1.035 | 0.8559
-  22  16 | f4b_sm   12+ M0 B0 M2 5 R0        |   0.9094 | 1.029 | 1.027 | 0.9362
   23  16 | merge    -                        |   2.5154 | 1.279 | 1.254 | 3.2172
   23  16 | cheddar  10+ M5 B3 M2 3 R0        |   1.5569 | 1.101 | 1.097 | 1.7136
   23  16 | cheddar  10+ M3 B3 M2 3 R0        |   1.6474 | 1.248 | 1.244 | 2.0559
@@ -116,9 +86,6 @@ logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown 
   23  16 | f4c_sm   10+ M4 B1 M2 3 R0        |   1.5123 | 1.177 | 1.176 | 1.7797
   23  16 | f4c_sm   10+ M5 B0 M2 3 R0        |   1.5513 | 1.155 | 1.158 | 1.7914
   23  16 | f4c_full 11+ M3 B0 M2 3 R64       |   2.7869 | 1.230 | 1.237 | 3.4281
-  23  16 | f4b_sm   12+ M0 B0 M2 3 R128      |   0.8712 | 1.209 | 1.208 | 1.0529
-  23  16 | f4b_sm   13+ M0 B0 M2 4 R128      |   1.7664 | 1.037 | 1.035 | 1.8320
-  23  16 | f4b_sm   13+ M0 B0 M2 5 R0        |   1.8112 | 1.035 | 1.036 | 1.8751
   24  16 | merge    -                        |   4.9701 | 1.270 | 1.274 | 6.3125
   24  16 | cheddar  11+ M5 B2 M2 3 R0        |   3.7189 | 1.038 | 1.051 | 3.8592
   24  16 | cheddar  11+ M3 B2 M2 3 R0        |   3.8390 | 1.248 | 1.245 | 4.7929
@@ -127,9 +94,6 @@ logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown 
   24  16 | f4c_sm   11+ M4 B1 M2 3 R0        |   3.1053 | 1.147 | 1.144 | 3.5613
   24  16 | f4c_sm   11+ M5 B1 M2 3 R0        |   3.2020 | 1.125 | 1.114 | 3.6017
   24  16 | f4c_full 11+ M3 B0 M2 3 R64       |   5.7155 | 1.211 | 1.224 | 6.9200
-  24  16 | f4b_sm   13+ M0 B0 M2 3 R128      |   1.8226 | 1.240 | 1.241 | 2.2593
-  24  16 | f4b_sm   13+ M0 B0 M2 4 R128      |   3.7872 | 1.039 | 1.036 | 3.9352
-  24  16 | f4b_sm   13+ M0 B0 M2 5 R0        |   4.0200 | 1.030 | 1.031 | 4.1395
   25  16 | merge    -                        |   9.9329 | 1.288 | 1.303 | 12.7919
   25  16 | cheddar  12+ M3 B1 M2 3 R0        |   8.6747 | 1.116 | 1.114 | 9.6843
   25  16 | cheddar  12+ M4 B1 M2 3 R0        |   9.4594 | 1.104 | 1.104 | 10.4458
@@ -138,9 +102,6 @@ logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown 
   25  16 | f4c_sm   12+ M4 B0 M2 3 R0        |   6.2961 | 1.113 | 1.099 | 7.0047
   25  16 | f4c_sm   12+ M5 B0 M2 3 R0        |   6.6664 | 1.080 | 1.075 | 7.2003
   25  16 | f4c_full 12+ M3 B0 M2 3 R0        |  11.4342 | 1.195 | 1.224 | 13.6584
-  25  16 | f4b_sm   13+ M0 B0 M2 3 R0        |   3.6709 | 1.222 | 1.234 | 4.4859
-  25  16 | f4b_sm   13+ M0 B0 M2 4 R128      |   8.0115 | 1.037 | 1.033 | 8.3045
-  25  16 | f4b_sm   13+ M0 B0 M2 5 R0        |   8.8334 | 1.025 | 1.029 | 9.0552
   26   4 | merge    -                        |  20.2818 | 1.288 | 1.290 | 26.1325
   26   4 | cheddar  13+ M3 B0 M2 3 R64       |  20.7719 | 1.159 | 1.159 | 24.0726
   26   4 | cheddar  13+ M5 B0 M2 3 R0        |  23.0446 | 1.145 | 1.156 | 26.3814
@@ -149,9 +110,6 @@ logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown 
   26   4 | f4c_sm   13+ M4 B0 M2 3 R0        |  13.4233 | 1.062 | 1.073 | 14.2570
   26   4 | f4c_sm   13+ M5 B0 M2 3 R0        |  15.5121 | 1.056 | 1.071 | 16.3808
   26   4 | f4c_full 13+ M3 B0 M2 3 R0        |  23.0746 | 1.173 | 1.182 | 27.0563
-  26   4 | f4b_sm   13+ M0 B0 M2 3 R0        |   7.5094 | 1.185 | 1.180 | 8.8949
-  26   4 | f4b_sm   13+ M0 B0 M2 4 R128      |  18.2810 | 1.035 | 1.032 | 18.9132
-  26   4 | f4b_sm   13+ M0 B0 M2 5 R0        |  18.5669 | 1.031 | 1.036 | 19.1469
 
 four-step SM lane (transposes on the DRU) vs Cheddar, each design at its fastest measured config:
 time saved = 1 - f4c_sm / Cheddar; alone = best standalone configs; co-run = best co-run configs beside the SPU-like
@@ -166,9 +124,7 @@ logN batch | Cheddar alone | f4c_sm alone | saved alone | saved co-run @15.0%
   26   4 | 20.7719 | 12.2898 | +40.8% | +43.3% (24.0726 vs 13.6524)
 
 butterfly-DRU SM lane (column pass in the DRU, row kernel only) vs Cheddar, each design at its fastest measured config:
-time saved = 1 - f4b_sm / Cheddar; alone = best standalone configs; co-run = best co-run configs beside the SPU-like
 row-burst aggressor at each share
-logN batch | Cheddar alone | f4b_sm alone | saved alone | saved co-run @15.0%
   20  16 | 0.1939 | 0.1098 | +43.4% | +47.0% (0.2328 vs 0.1234)
   21  16 | 0.3891 | 0.2224 | +42.8% | +42.0% (0.4374 vs 0.2539)
   22  16 | 0.7881 | 0.4509 | +42.8% | +39.6% (0.8864 vs 0.5355)

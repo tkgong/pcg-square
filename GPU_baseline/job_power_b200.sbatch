@@ -1,16 +1,14 @@
 #!/bin/bash
-# B200 board power per phase (idle, DPF, merge NTT, four-step SM lane; then Cheddar's NTT, the butterfly-DRU SM lane
-# f4b_sm and the four-step SM lane f4c_sm at their best measured configs from results_b200/cheddar_bigN_b200.csv, so
-# run after job_cheddar_b200_all.sbatch) for the system-energy estimate.
+# B200 board power per phase (idle, DPF, merge NTT, four-step SM lane) for the system-energy estimate.
 # Submit from the repo root of the clone:   sbatch GPU_baseline/job_power_b200.sbatch
-# ~9 min of measurement (52 phases x 10 s) plus the builds (~15 min). Deliverables: GPU_baseline/results_b200/power/
+# ~6 min of measurement (25 phases x 10 s) plus the build. Deliverables: GPU_baseline/results_b200/power/
 # {power_trace.csv, phases.csv, gpu.txt, *.log} and this job's .out.
 #SBATCH -p b200-batch
 #SBATCH -N 1
 #SBATCH --gres=gpu:b200:1
 #SBATCH -c 8
 #SBATCH --mem=100G
-#SBATCH -t 01:30:00
+#SBATCH -t 00:40:00
 #SBATCH -J pcg-power-b200
 #SBATCH -o GPU_baseline/job_power_%j.out
 set -u

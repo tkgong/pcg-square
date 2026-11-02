@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-# Usage: plot_cosched_norm2.py COSCHED_SWEEP_JSON OUT_PNG
 # Two flat panels (L40S top, B200 bottom), same total height as the single-panel figure: GPU co-scheduled and
 # PCG^2 co-scheduled normalized to the serial GPU baseline (= 1) vs network bandwidth, 40 Mbps .. 40 Gbps.
+import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
-import json, sys
-OUT = sys.argv[2] if len(sys.argv) > 2 else "fig_cosched_norm2.png"
+OUT = sys.argv[1] if len(sys.argv) > 1 else "fig_cosched_norm2.png"
 BW = [40e9, 20e9, 10e9, 4e9, 2e9, 1e9, 400e6, 200e6, 100e6, 40e6]
-T = {(r["mach"], r["beta"]): r for r in json.load(open(sys.argv[1]))["table"]}   # cosched_sweep.py JSON (geomean ms per bandwidth)
-row = lambda m, b: T[(m, b)]
-D = {m: {"gpu_cos": [row(m, b)["t_gpu_ser"] / row(m, b)["t_gpu_cos"] for b in BW], "pcg_cos": [row(m, b)["t_gpu_ser"] / row(m, b)["t_pcg_cos"] for b in BW]} for m in ("L40S", "B200")}
-D["L40S"].update(ylim=(0.8, 3.0), yt=[1, 2, 3]); D["B200"].update(ylim=(0.8, 8.2), yt=[1, 2, 4, 6, 8])
+D = {
+"L40S": {"gpu_cos": [1.004, 1.009, 1.018, 1.043, 1.082, 1.142, 1.211, 1.245, 1.286, 1.316],
+         "pcg_cos": [2.50, 2.51, 2.53, 2.59, 2.66, 2.67, 2.58, 2.46, 2.27, 1.95], "ylim": (0.8, 3.0), "yt": [1, 2, 3]},
+"B200": {"gpu_cos": [1.010, 1.020, 1.039, 1.092, 1.155, 1.214, 1.283, 1.318, 1.321, 1.300],
+         "pcg_cos": [7.67, 7.68, 7.44, 6.71, 5.83, 4.78, 3.51, 2.75, 2.17, 1.64], "ylim": (0.8, 8.2), "yt": [1, 2, 4, 6, 8]},
+}
 COL = {"L40S": "#C8322B", "B200": "#C9950F"}; MK = {"L40S": "o", "B200": "s"}
 fig, axes = plt.subplots(2, 1, figsize=(3.5, 2.7), sharex=True, gridspec_kw=dict(left=0.13, right=0.98, top=0.86, bottom=0.14, hspace=0.12))
 for ax, mach in zip(axes, ("L40S", "B200")):

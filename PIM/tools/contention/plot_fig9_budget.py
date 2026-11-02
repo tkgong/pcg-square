@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fig. 9 (end-to-end runtime vs SPU budget under six network latencies) regenerated from the final accounting.
 Per cell: SPU lane(N) = per-instance SPU time (co-sim window, H' on the SPU, LSU overlap) x ceil(I / N) x SPU slowdown;
-NTT lane = the card's final NTT (final_choice.json) x NTT slowdown; NIC = (n + 2) alpha; runtime = max of the three;
-y = geomean over the suite. Area = N x SPU (Table III) + one DRU per 8 SPUs (final_design.area_mm2; butterfly units are estimates). Ceilings 192 / 2048
+NTT lane = merge (L40S) / fused four-step + DRU (B200) x NTT slowdown; NIC = (n + 2) alpha; runtime = max of the three;
+y = geomean over the suite. Area = N x 0.253970 mm^2 (SPU, Table III) + one DRU (0.024924) per 8 SPUs. Ceilings 192 / 2048
 (banks / 2). Star = knee = smallest budget within 2% of the 8192-SPU runtime (as in the submission).
 Usage: plot_fig9_budget.py WIN22_DIR OUT_PNG OUT_TXT"""
 import io, contextlib, json, os, sys
@@ -11,17 +11,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e"))
-sys.path.insert(0, HERE)
-import final_design as FD
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_
 W, OUT, TXT = sys.argv[1], sys.argv[2], sys.argv[3]
 def gm(v): v = list(v); return exp(sum(map(log, v)) / len(v))
-DES = {M: (o, FD.des(o, W), FD.NSPU[o]) for o, M in FD.MACH.items()}
+DES = {"L40S": ("l40s", "merge", 192), "B200": ("b200", "f4dru", 2048)}
 NS = [8, 16, 32, 64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192]
 ALPHA = [(100, "100 µs"), (500, "500 µs"), (10000, "10 ms"), (20000, "20 ms"), (30000, "30 ms"), (60000, "60 ms")]
 COL = {100: "#1f3a93", 500: "#6a1b9a", 10000: "#e6a700", 20000: "#2e8b57", 30000: "#e8641b", 60000: "#c62828"}
-AREA = lambda n: FD.area_mm2(n, W)   # SPUs + one DRU per 8 SPUs (butterfly DRU where a card uses it)
+AREA = lambda n: n * 0.253970 + (n / 8) * 0.024924
 R = json.load(open(os.path.join(W, "e2e_nom.json")))
 curves, lines = {}, []
 for mach, (org, des, ceil_n) in DES.items():

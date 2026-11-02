@@ -4,15 +4,14 @@ GPU's SMs (raw 32-bit integer op rate, and the DPF leaf throughput each side act
 the headline speedup to that ratio: the SPU lane is slowed by k (= the SPU/GPU capability ratio divided by k), the
 NTT lane, the network and the co-simulated slowdowns are kept.    Usage: spu_capability_sweep.py WIN22_DIR OUT_TXT"""
 import io, contextlib, json, os, sys
-HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e")); sys.path.insert(0, HERE)
-import final_design as FD
+HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e"))
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
 W, OUT = sys.argv[1], sys.argv[2]
 # SPU datapath as simulated: 8 lanes x (VADD + VXORL) = 16 32-bit ops per cycle at the DRAM clock; ChaCha8 block per
 # lane = 155 cycles (expand), 465 cycles for the fused last level (expand + H' + mod-p + partial sum), 4 cycles per
 # 8-leaf group for the fold (pass 2); 8 SPUs per channel.
-SPU = {"L40S": dict(org="l40s", f=2.25e9, n=192, des=FD.des("l40s", W)), "B200": dict(org="b200", f=2.0e9, n=2048, des=FD.des("b200", W))}
+SPU = {"L40S": dict(org="l40s", f=2.25e9, n=192, des="merge"), "B200": dict(org="b200", f=2.0e9, n=2048, des="f4dru")}
 GPU = {"L40S": dict(sms=142, lanes=64, f=2.52e9), "B200": dict(sms=148, lanes=128, f=1.965e9)}   # INT32 rate as in the paper's roofline: L40S 64 INT32 lanes/SM = 22.9 Tops, B200 128/SM/clk = 37.2 Tops
 OPS_PER_CYCLE = 16
 cyc_per_leaf = (155 + 465) / 16 + 4 / 8                   # tree levels + fused last level + fold, per leaf
@@ -38,7 +37,7 @@ for mach, S in SPU.items():
             rr = [r for r in R if r["tier"] == tier]
             sp = {}
             for r in rr:
-                base = max(r[FD.GPU_KEY], r["nic_ms"]); p = max(k * r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"], r["nic_ms"])
+                base = max(r["gpu_ms"], r["nic_ms"]); p = max(k * r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"], r["nic_ms"])
                 sp.setdefault((r["c"], r["t"]), []).append(base / p)
             per = {ct: gm(v) for ct, v in sp.items()}; allv = [x for v in sp.values() for x in v]
             row.append((max(per.values()), gm(allv)))
@@ -48,7 +47,7 @@ for mach, S in SPU.items():
     lo, hi = 1.0, 200.0
     for _ in range(60):
         k = (lo + hi) / 2
-        g = gm(max(r[FD.GPU_KEY], r["nic_ms"]) / max(k * r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"], r["nic_ms"]) for r in R if r["tier"] == "fast")
+        g = gm(max(r["gpu_ms"], r["nic_ms"]) / max(k * r["spu_ms"] * r["spu_slow"], r["ntt_ms"] * r["ntt_slow"], r["nic_ms"]) for r in R if r["tier"] == "fast")
         lo, hi = (k, hi) if g > 1 else (lo, k)
     L.append(f"      geomean speedup reaches 1.0 at k = {lo:.1f} (raw ratio {spu_ops/gpu_ops/lo:.3f}, DPF ratio {spu_tp/gpu_tp/lo:.2f}); the existing re-simulated points: 1.75/1.5/1.0 GHz = k 1.14/1.33/2.0, single ALU = k 1.8")
     L.append("")

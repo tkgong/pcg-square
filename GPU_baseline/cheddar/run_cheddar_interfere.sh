@@ -7,7 +7,6 @@
 # build of its register cap (rebuilt every run); merge in the uncapped build; the four-step's best standalone config also
 # times the full four-step. Each run gets 30 min (an aggressor of 128 blocks once hung the L40S at 2^20); BLOCKS 8..64
 # reach ~70% of L40S peak.
-# f4b_sm (butterfly DRU: row kernel only on the SMs) gets its best config per row M2 in 3..5, checked through Cheddar's product.
 # Usage: ARCH=sm_100 OUT=../results_b200 TAG=b200 LOGNS="20 21 22 23 24 25 26 27 28" BLOCKS=8,16,32,64,96,128 ./run_cheddar_interfere.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; cd "$HERE"
@@ -23,24 +22,23 @@ MEM_MB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits -i 0 
 # plan: one line per run "logN batch cap victims cheddar_cfg f4c_cfg"
 PLAN=$(python3 - "$OUT/cheddar_bigN_$TAG.csv" "$MEM_MB" $LOGNS <<'PY'
 import csv, sys
-rows = [r for r in csv.DictReader(open(sys.argv[1])) if r["mismatches"] == "0" and r["design"] in ("cheddar", "f4c_sm", "f4b_sm")]
+rows = [r for r in csv.DictReader(open(sys.argv[1])) if r["mismatches"] == "0" and r["design"] in ("cheddar", "f4c_sm")]
 mem = float(sys.argv[2]) * 2**20
 for L in map(int, sys.argv[3:]):
     b = 16 if 6 * 8 * 16 * 2**L + 8 * 2**30 <= mem else 4
     R = [r for r in rows if int(r["logN"]) == L and int(r["batch"]) == b]
     if not R: print(f"# logN {L} batch {b}: no cheddar or f4c_sm row in the big-N csv", file=sys.stderr); continue
-    print(L, b, 0, "merge", "-", "-", "-")
-    for d in ("cheddar", "f4c_sm", "f4b_sm"):
+    print(L, b, 0, "merge", "-", "-")
+    for d in ("cheddar", "f4c_sm"):
         D = [r for r in R if r["design"] == d]
         if not D: continue
         top = min(D, key=lambda r: float(r["ms_per_poly"]))
-        for m in ("3", "4", "5"):   # best config per column M1 (per row M2 for f4b_sm, which has no column kernel)
-            M = [r for r in D if r["M2" if d == "f4b_sm" else "M1"] == m]
+        for m1 in ("3", "4", "5"):
+            M = [r for r in D if r["M1"] == m1]
             if not M: continue
             r = min(M, key=lambda r: float(r["ms_per_poly"]))
-            if d == "cheddar": print(L, b, r["maxrreg"], "cheddar", f"{r['P1']},{r['M1']},{r['B1']},{r['M2']}", "-", "-")
-            elif d == "f4c_sm": print(L, b, r["maxrreg"], "f4c" if r is top else "f4csm", "-", f"{r['P1']},{r['M1']},{r['B1']},{r['M2']}", "-")
-            else: print(L, b, r["maxrreg"], "f4b", "-", "-", f"{r['P1']},{r['M2']}")
+            if d == "cheddar": print(L, b, r["maxrreg"], "cheddar", f"{r['P1']},{r['M1']},{r['B1']},{r['M2']}", "-")
+            else: print(L, b, r["maxrreg"], "f4c" if r is top else "f4csm", "-", f"{r['P1']},{r['M1']},{r['B1']},{r['M2']}")
 PY
 )
 echo "$PLAN"
@@ -51,10 +49,10 @@ while read -r L R; do   # one binary per (logN, register cap), built in parallel
 done <<< "$(awk '{print $1, $3}' <<< "$PLAN" | sort -u)"
 wait
 CSV="$OUT/cheddar_interfere_$TAG.csv"; : > "$CSV"; I=0
-while read -r L B R V C F G; do
+while read -r L B R V C F; do
   I=$((I + 1)); O="bin/interfere_${TAG}_${I}.csv"
-  timeout 1800 "./bin/cheddar_interfere_${L}_r${R}_$ARCH" --batch "$B" --victims "$V" --cheddar "$C" --f4c "$F" --f4b "$G" --blocks "$BLOCKS" --iters 10 \
-    > "$O" || echo "logN $L cap $R ($V $C $F $G): bench exited with $?" >&2
+  timeout 1800 "./bin/cheddar_interfere_${L}_r${R}_$ARCH" --batch "$B" --victims "$V" --cheddar "$C" --f4c "$F" --blocks "$BLOCKS" --iters 10 \
+    > "$O" || echo "logN $L cap $R ($V $C $F): bench exited with $?" >&2
   if [ -s "$CSV" ]; then tail -n +2 "$O"; else cat "$O"; fi >> "$CSV"
 done <<< "$PLAN"
 python3 interfere_summary.py "$TAG"

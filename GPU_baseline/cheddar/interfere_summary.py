@@ -45,20 +45,19 @@ out = [f"{TAG}: silicon interference, ms per polynomial multiply; {bad} of {len(
        "logN batch | design   config (P1 M1 B1 M2 cap)  | alone ms | row burst slowdown | stream slowdown | co-run ms (row burst)"]
 LG = sorted({int(r["logN"]) for r in rows})
 for lg in LG:
-    for vic in ("merge", "cheddar", "f4c_sm", "f4c_full", "f4b_sm"):
+    for vic in ("merge", "cheddar", "f4c_sm", "f4c_full"):
         for c, (t, b, cur) in sorted(runs(lg, vic).items(), key=lambda kv: kv[1][0]):
             out.append(f"  {lg} {b:>3s} | {vic:8s} {'-' if vic == 'merge' else cname(c):24s} | {t:8.4f} | "
                        + " ".join(f"{interp(cur['rowburst'], s):.3f}" for s in SH) + " | " + " ".join(f"{interp(cur['stream'], s):.3f}" for s in SH)
                        + " | " + " ".join(f"{t * interp(cur['rowburst'], s):.4f}" for s in SH))
-for title, vic in (("four-step SM lane (transposes on the DRU)", "f4c_sm"), ("butterfly-DRU SM lane (column pass in the DRU, row kernel only)", "f4b_sm")):
-    out += ["", f"{title} vs Cheddar, each design at its fastest measured config:",
-            f"time saved = 1 - {vic} / Cheddar; alone = best standalone configs; co-run = best co-run configs beside the SPU-like",
-            "row-burst aggressor at each share", f"logN batch | Cheddar alone | {vic} alone | saved alone | " + " | ".join(f"saved co-run @{s:.1%}" for s in SH)]
-    for lg in LG:
-        C, F = runs(lg, "cheddar"), runs(lg, vic)
-        if not C or not F: continue
-        ca, fa = min(v[0] for v in C.values()), min(v[0] for v in F.values())
-        co = lambda D, s: min(t * interp(cur["rowburst"], s) for t, b, cur in D.values())
-        out.append(f"  {lg} {next(iter(C.values()))[1]:>3s} | {ca:.4f} | {fa:.4f} | {1 - fa / ca:+.1%} | "
-                   + " | ".join(f"{1 - co(F, s) / co(C, s):+.1%} ({co(C, s):.4f} vs {co(F, s):.4f})" for s in SH))
+out += ["", "four-step SM lane (transposes on the DRU) vs Cheddar, each design at its fastest measured config:",
+        "time saved = 1 - four-step / Cheddar; alone = best standalone configs; co-run = best co-run configs beside the SPU-like",
+        "row-burst aggressor at each share", "logN batch | Cheddar alone | four-step alone | saved alone | " + " | ".join(f"saved co-run @{s:.1%}" for s in SH)]
+for lg in LG:
+    C, F = runs(lg, "cheddar"), runs(lg, "f4c_sm")
+    if not C or not F: continue
+    ca, fa = min(v[0] for v in C.values()), min(v[0] for v in F.values())
+    co = lambda D, s: min(t * interp(cur["rowburst"], s) for t, b, cur in D.values())
+    out.append(f"  {lg} {next(iter(C.values()))[1]:>3s} | {ca:.4f} | {fa:.4f} | {1 - fa / ca:+.1%} | "
+               + " | ".join(f"{1 - co(F, s) / co(C, s):+.1%} ({co(C, s):.4f} vs {co(F, s):.4f})" for s in SH))
 txt = "\n".join(out) + "\n"; open(f"{RES}/cheddar_interfere_{TAG}.txt", "w").write(txt); print(txt)

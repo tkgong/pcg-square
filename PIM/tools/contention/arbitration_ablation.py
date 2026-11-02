@@ -3,9 +3,7 @@
 window (e2e_window.py run dir). For a cell, co-run the SPU trace with the NTT pipeline under the final
 arbitration and under each alternative, and report the SPU and NTT slowdowns (vs alone) and the GPU
 queueing p99.  Usage: arbitration_ablation.py --sim BIN --run WIN22_DIR --out DIR [--cells b200:4_16_24:f4dru,l40s:4_16_22:merge]"""
-import argparse, concurrent.futures as cf, glob, os, re, subprocess, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import final_design as FD
+import argparse, concurrent.futures as cf, glob, os, re, subprocess
 PIM = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 YAML = {"l40s": os.path.join(PIM, "sim/test/gddr6_dpf_24ch.yaml"), "b200": os.path.join(PIM, "sim/test/hbm3e_dpf_b200d.yaml")}
 TCK = {"l40s": 0.444, "b200": 0.5}
@@ -20,12 +18,11 @@ POLICIES = {
     "final without the age-triggered write drain": dict(wr_max_age=0),
 }
 ap = argparse.ArgumentParser(); ap.add_argument("--sim", required=True); ap.add_argument("--run", required=True); ap.add_argument("--out", required=True)
-ap.add_argument("--cells", default="default"); ap.add_argument("--jobs", type=int, default=24)
+ap.add_argument("--cells", default="b200:4_16_24:f4dru,b200:4_16_24:merge,l40s:4_16_22:merge"); ap.add_argument("--jobs", type=int, default=24)
 a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
-if a.cells == "default": a.cells = f"b200:4_16_24:{FD.des('b200', a.run)},b200:4_16_24:{FD.SM_NTT},l40s:4_16_22:{FD.des('l40s', a.run)}"
 if a.cells == "all":   # every cell of the suite with the final design
     import json
-    a.cells = ",".join(sorted({f'{r["org"]}:{r["c"]}_{r["t"]}_{r["logN"]}:{FD.des(r["org"], a.run)}' for r in json.load(open(os.path.join(a.run, "e2e.json"))) if r["tier"] == "fast"}))
+    a.cells = ",".join(sorted({f'{r["org"]}:{r["c"]}_{r["t"]}_{r["logN"]}:{"f4dru" if r["org"] == "b200" else "merge"}' for r in json.load(open(os.path.join(a.run, "e2e.json"))) if r["tier"] == "fast"}))
 def parse(p): return {m.group(1): float(m.group(2)) for m in re.finditer(r"^\s*([A-Za-z0-9_]+):\s*(-?[0-9.eE+]+)", open(p).read(), re.M)}
 work = []
 for cell in a.cells.split(","):
