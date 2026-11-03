@@ -251,7 +251,7 @@ template <int L, int P2, int M1, int B1, int M2> static void run_ole(Ctx &c) {
         cudaMemset(c.cnt, 0, 8); count_diff<<<4096, 256>>>(c.tmp, c.zrp, N, c.cnt); unsigned long long badp; cudaMemcpy(&badp, c.cnt, 8, cudaMemcpyDeviceToHost);
         printf("%d,%d,olep,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(olep, c.iters) / c2, badp); fflush(stdout);
       }
-      if (c.bh) {   // olepb: b^_ij = a^_i . a^_j precomputed once per public a (Cheddar Seq.2: constant products folded ahead of the kernel)
+      if (c.bh && wantd("olepb")) {   // olepb: b^_ij = a^_i . a^_j precomputed once per public a (Cheddar Seq.2: constant products folded ahead of the kernel)
         // the a transforms are part of that precomputation, so olepb runs only the column pass, the accumulate pass and the inverse
         auto prep = [&] { CC::fwd(t, ahat, cc); RC::fwd(t, ahat, cc); int k = 0;
           for (int i = 0; i < cc; i++) for (int j = i; j < cc; j++, k++) { cudaMemcpyAsync(c.bh + k * N, ahat + i * N, N * 8, cudaMemcpyDeviceToDevice, 0);
@@ -273,6 +273,86 @@ template <int L, int P2, int M1, int B1, int M2> static void run_ole(Ctx &c) {
   }
 }
 
+
+#include "stream_ntt.cuh"
+// strm: PCG^2's streaming multi-pass NTT (stream_ntt.cuh) on the PIM-side pipeline: every pass a register kernel on contiguous
+// groups, the inter-pass re-layouts done by the DRU in memory (here GPU transposes OUTSIDE the timed SM lane), the SPUs write g
+// in pass 0's layout, the b^ product and the accumulate fused into the last pass, one inverse per output.  Paired items with b^
+// precomputed.  strm = SM lane (passes only); strmf = the same pipeline with the re-layouts done by the GPU and timed (no DRU).
+struct PassTimer {
+  std::vector<cudaEvent_t> b, e; size_t n = 0; bool on = false;
+  void beg() { if (!on) return; if (n == b.size()) { cudaEvent_t x, y; cudaEventCreate(&x); cudaEventCreate(&y); b.push_back(x); e.push_back(y); } cudaEventRecord(b[n], 0); }
+  void end() { if (!on) return; cudaEventRecord(e[n], 0); n++; }
+  float ms() { float t = 0; for (size_t i = 0; i < n; i++) { float d; cudaEventElapsedTime(&d, b[i], e[i]); t += d; } return t; }
+};
+template <int M> static void launch_fwd(bool first, bool last, u64 *x, int p, int shift, size_t stepN, const sntt::Plan &pl, size_t N, const u64 *bh, u64 *acc, int items) {
+  const unsigned grid = (unsigned) ((N / (1 << M) + 255) / 256);
+  if (first && last) sntt::pass_fwd<M, true, true><<<grid, 256>>>(x, p, shift, stepN, pl.omegaN, pl.psiN, N, bh, acc, items);
+  else if (first) sntt::pass_fwd<M, true, false><<<grid, 256>>>(x, p, shift, stepN, pl.omegaN, pl.psiN, N, bh, acc, items);
+  else if (last) sntt::pass_fwd<M, false, true><<<grid, 256>>>(x, p, shift, stepN, pl.omegaN, pl.psiN, N, bh, acc, items);
+  else sntt::pass_fwd<M, false, false><<<grid, 256>>>(x, p, shift, stepN, pl.omegaN, pl.psiN, N, bh, acc, items);
+}
+template <int M> static void launch_inv(bool first, bool last, u64 *x, int p, int shift, size_t stepN, const sntt::Plan &pl, size_t N) {
+  const unsigned grid = (unsigned) ((N / (1 << M) + 255) / 256);
+  if (first && last) sntt::pass_inv<M, true, true><<<grid, 256>>>(x, p, shift, stepN, pl.omegaNi, pl.psiNi, N, pl.ninv);
+  else if (first) sntt::pass_inv<M, true, false><<<grid, 256>>>(x, p, shift, stepN, pl.omegaNi, pl.psiNi, N, pl.ninv);
+  else if (last) sntt::pass_inv<M, false, true><<<grid, 256>>>(x, p, shift, stepN, pl.omegaNi, pl.psiNi, N, pl.ninv);
+  else sntt::pass_inv<M, false, false><<<grid, 256>>>(x, p, shift, stepN, pl.omegaNi, pl.psiNi, N, pl.ninv);
+}
+static void fwd_pass(int M, bool first, bool last, u64 *x, int p, int shift, size_t stepN, const sntt::Plan &pl, size_t N, const u64 *bh, u64 *acc, int items) {
+  if (M == 5) launch_fwd<5>(first, last, x, p, shift, stepN, pl, N, bh, acc, items); else launch_fwd<6>(first, last, x, p, shift, stepN, pl, N, bh, acc, items); }
+static void inv_pass(int M, bool first, bool last, u64 *x, int p, int shift, size_t stepN, const sntt::Plan &pl, size_t N) {
+  if (M == 5) launch_inv<5>(first, last, x, p, shift, stepN, pl, N); else launch_inv<6>(first, last, x, p, shift, stepN, pl, N); }
+template <int L> static void run_stream(Ctx &c, int Mmax) {
+  const int c2 = c.batch; int cc = 1; while (cc * cc < c2) cc++; if (cc * cc != c2) return;
+  const int np = cc * (cc + 1) / 2; const size_t N = 1ull << L; const Modulus<Data64> mod = c.mp->modulus;
+  u64 *g = c.a, *ahat = c.b, *z = c.tmp, *gn = c.gn; if (!gn || !c.zrp) return;
+  if (!c.bh && cudaMalloc(&c.bh, (size_t) np * N * 8)) { fprintf(stderr, "strm: b^ does not fit, skipped\n"); cudaGetLastError(); c.bh = nullptr; return; }
+  fprintf(stderr, "strm: start L %d Mmax %d batch %d\n", L, Mmax, c2); fflush(stderr);
+  sntt::Plan pl(L, Mmax, P); const int P_ = pl.P; fprintf(stderr, "strm: plan P %d Mp %d %d %d %d\n", P_, pl.Mp[0], pl.Mp[1], pl.Mp[2], pl.Mp[3]); fflush(stderr);
+  if (pl.Mp[P_ - 1] < 5) { fprintf(stderr, "skip strm L %d Mmax %d: a pass below 5 stages\n", L, Mmax); return; }
+  PassTimer tm;
+  // forward passes 0..P-2 of one item in place (x), re-layouts through the scratch y; returns the buffer holding the result
+  auto fwd_head = [&](u64 *x, u64 *y) {
+    for (int p = 0; p + 1 < P_; p++) {
+      tm.beg(); fwd_pass(pl.Mp[p], p == 0, false, x, p, pl.shift(p), pl.stepN(p), pl, N, nullptr, nullptr, 1); tm.end();
+      const int R = 1 << pl.Mp[p + 1]; T(x, y, R, (int) (N / R), 1); std::swap(x, y);   // DRU: digit d_{p+1} to the least significant position
+    }
+    return x; };
+  auto forward_full = [&](u64 *x, u64 *y) { u64 *r = fwd_head(x, y); tm.beg(); fwd_pass(pl.Mp[P_ - 1], P_ == 1, true, r, P_ - 1, pl.shift(P_ - 1), pl.stepN(P_ - 1), pl, N, nullptr, nullptr, 1); tm.end(); return r; };
+  auto inverse = [&](u64 *x, u64 *y) {   // x holds the accumulated output in the forward's final layout; result: natural order, in x or y
+    for (int p = P_ - 1; p >= 0; p--) {
+      tm.beg(); inv_pass(pl.Mp[p], p == 0, p == P_ - 1, x, p, pl.shift(p), pl.stepN(p), pl, N); tm.end();
+      const int R = 1 << pl.Mp[p]; T(x, y, (int) (N / R), R, 1); std::swap(x, y);   // undo the re-layout (p > 0) / to natural order (p = 0)
+    }
+    return x; };
+  // preparation outside the timed region: g in pass 0's layout (R_0 digit least significant), a^_i, b^_q
+  auto prep = [&] { c.refill_ole(); const int R0 = 1 << pl.Mp[0];
+    for (int q = 0; q < c2; q++) { T(g + q * N, z, R0, (int) (N / R0), 1); cudaMemcpyAsync(g + q * N, z, N * 8, cudaMemcpyDeviceToDevice, 0); }
+    for (int i = 0; i < cc; i++) { T(ahat + i * N, z, R0, (int) (N / R0), 1); u64 *r = forward_full(z, gn); if (r != ahat + i * N) cudaMemcpyAsync(ahat + i * N, r, N * 8, cudaMemcpyDeviceToDevice, 0); }
+    int q = 0; for (int i = 0; i < cc; i++) for (int j = i; j < cc; j++, q++) { cudaMemcpyAsync(c.bh + q * N, ahat + i * N, N * 8, cudaMemcpyDeviceToDevice, 0);
+      fused4::pointwise_kernel<<<static_cast<unsigned>((N + 255) / 256), 256>>>(c.bh + q * N, ahat + j * N, mod, N); }
+    ck(cudaDeviceSynchronize(), "strm prep"); };
+  // one output: heads of all np items (into g or gn per item, item q's result at buffer r_q), then the fused last pass over the items
+  // (they must sit in ONE item-major buffer: copy the odd ones back), then the inverse
+  auto output = [&] {
+    const bool odd = ((P_ - 1) & 1) != 0;   // odd number of re-layouts: the head result lands in the scratch
+    for (int q = 0; q < np; q++) { u64 *r = fwd_head(g + q * N, gn + q * N); if (r != g + q * N) cudaMemcpyAsync(g + q * N, r, N * 8, cudaMemcpyDeviceToDevice, 0); }
+    (void) odd;
+    tm.beg(); fwd_pass(pl.Mp[P_ - 1], P_ == 1, true, g, P_ - 1, pl.shift(P_ - 1), pl.stepN(P_ - 1), pl, N, c.bh, z, np); tm.end();
+    u64 *r = inverse(z, gn); if (r != z) cudaMemcpyAsync(z, r, N * 8, cudaMemcpyDeviceToDevice, 0); };
+  prep(); fprintf(stderr, "strm: prep done\n"); fflush(stderr); output(); ck(cudaDeviceSynchronize(), "strm run"); fprintf(stderr, "strm: output done\n"); fflush(stderr);
+  cudaMemset(c.cnt, 0, 8); count_diff<<<4096, 256>>>(c.tmp, c.zrp, N, c.cnt); unsigned long long bad; cudaMemcpy(&bad, c.cnt, 8, cudaMemcpyDeviceToHost);
+  // timing: SM lane = the pass kernels only (strm); the whole pipeline with the GPU re-layouts (strmf)
+  float lane = 0, full = 0;
+  for (int it = 0; it < c.iters; it++) {
+    prep(); tm.on = true; tm.n = 0; cudaEvent_t e0, e1; cudaEventCreate(&e0); cudaEventCreate(&e1);
+    cudaEventRecord(e0, 0); output(); cudaEventRecord(e1, 0); ck(cudaDeviceSynchronize(), "strm time");
+    float f; cudaEventElapsedTime(&f, e0, e1); full += f; lane += tm.ms(); tm.on = false; cudaEventDestroy(e0); cudaEventDestroy(e1);
+  }
+  printf("%d,%d,strm,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, Mmax, P_, 0, 0, 0, BIGN_MAXRREG, lane / c.iters / c2, bad); fflush(stdout);
+  printf("%d,%d,strmf,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, Mmax, P_, 0, 0, 0, BIGN_MAXRREG, full / c.iters / c2, bad); fflush(stdout);
+}
 #ifndef BIGN_NO_MAIN   // cheddar_interfere.cu reuses everything above
 int main(int argc, char **argv) {
   constexpr int L = BIGN_LOGN; std::vector<int> batches = {4, 16, 64}; int iters = L >= 27 ? 3 : 5; std::string designs = "merge,cheddar,f4c";
@@ -310,7 +390,7 @@ int main(int argc, char **argv) {
       run_cheddar<L, P2, M1, B1, M2>(c); }); }); }); });
     // four-step: P1 in [L-14, 14], M1, M2
     if (want("f4c")) cfor<9, 15>([&](auto P1) { if constexpr (L - P1 >= 7 && L - P1 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) { run_f4c<L, P1, M1, B1, M2>(c); }); }); }); });
-    if (want("ole") || want("olep") || want("olepb")) {   // PCG output z over c^2 = batch polynomials g_ij (c.a) and c public a_i (first c polynomials of c.b, a_0 = 1)
+    if (want("ole") || want("olep") || want("olepb") || want("strm")) {   // PCG output z over c^2 = batch polynomials g_ij (c.a) and c public a_i (first c polynomials of c.b, a_0 = 1)
       int cc = 1; while (cc * cc < batch) cc++;
       if (cc * cc == batch) {
         ck(cudaMalloc(&c.zr, N * 8), "zr");
@@ -326,7 +406,7 @@ int main(int argc, char **argv) {
           addmod_kernel<<<4096, 256>>>(c.zr, c.tmp, N, mp.modulus);
         }
         ck(cudaDeviceSynchronize(), "ole ref");
-        if (want("olep") || want("olepb")) {   // paired reference: z = sum_{i<=j} (a_i a_j) g_k, k enumerating the pairs as the kernel does
+        if (want("olep") || want("olepb") || want("strm")) {   // paired reference: z = sum_{i<=j} (a_i a_j) g_k, k enumerating the pairs as the kernel does
           ck(cudaMalloc(&c.zrp, N * 8), "zrp"); c.refill_ole(); cudaMemset(c.zrp, 0, N * 8); int k = 0;
           for (int i = 0; i < cc; i++) for (int j = i; j < cc; j++, k++) {
             cudaMemcpy(c.tmp, c.b + i * N, N * 8, cudaMemcpyDeviceToDevice); cudaMemcpy(c.tmp + N, c.b + j * N, N * 8, cudaMemcpyDeviceToDevice);
@@ -335,10 +415,11 @@ int main(int argc, char **argv) {
             addmod_kernel<<<4096, 256>>>(c.zrp, c.tmp, N, mp.modulus);
           }
           ck(cudaDeviceSynchronize(), "olep ref");
-          if (want("olepb") && cudaMalloc(&c.bh, (size_t) (cc * (cc + 1) / 2) * N * 8)) { fprintf(stderr, "olepb: b^ does not fit, skipped\n"); cudaGetLastError(); c.bh = nullptr; }
+          if ((want("olepb") || want("strm")) && cudaMalloc(&c.bh, (size_t) (cc * (cc + 1) / 2) * N * 8)) { fprintf(stderr, "olepb: b^ does not fit, skipped\n"); cudaGetLastError(); c.bh = nullptr; }
         }
         if (c.gn) cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
           run_ole<L, P2, M1, B1, M2>(c); }); }); }); });
+        if (want("strm")) { run_stream<L>(c, 6); run_stream<L>(c, 5); }
         if (ref_busy) cudaFree(c.gn);
         cudaFree(c.zr); cudaFree(c.zrp); cudaFree(c.bh); c.zr = c.zrp = c.gn = c.bh = nullptr;
       } else fprintf(stderr, "ole: batch %d is not a square c^2, skipped\n", batch);
