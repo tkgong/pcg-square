@@ -54,7 +54,7 @@ def ntt_table(dev):
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
 PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16),
            "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16),   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
-           "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
+           "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24), "tp": (48, 16)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
 
 
 # Cheddar's NTT kernels (scale-snu/cheddar-fhe 8df8b26, GPU_baseline/cheddar), measured per multiply, best config per
@@ -92,7 +92,7 @@ F4C_SM_BOUND = False   # set by e2e_window.py --f4c-sm-bound
 # multiply-accumulate epilogue (G partial sums), the partial-sum reduction, one inverse transform.  ole = g_ij read in
 # Cheddar's natural layout; ole_t = g_ij read in the column-contiguous layout the SPUs write.  The csv's ms_per_poly is per
 # g_ij (time per output / c^2); the table holds (ms per OUTPUT, P1 of that config) per design, best config per (logN, batch).
-OLE = ("ole", "ole_t", "olep", "olepb")   # olep: the SPUs accumulated g_ij + g_ji into one buffer -> c(c+1)/2 unordered pairs
+OLE = ("ole", "ole_t", "olep", "olepb", "tp")   # olep: the SPUs accumulated g_ij + g_ji into one buffer -> c(c+1)/2 unordered pairs; tp: two-pass streaming NTT (SM passes contiguous, DRU re-layout in flight)
 _OLE = {}
 def ole_table(dev):
     dev = base(dev)
@@ -202,7 +202,16 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
         # polynomials (L2 reuse is what the DRAM-fraction calibration absorbs).  No DPF->NTT gather: the column pass reads
         # the SPUs' output directly (ole_t: in the column-contiguous layout they write, the same bytes).
         to, P1 = ole_table(dev)[(logN, batch)][OLE.index(design)]
-        c = int(round(batch ** 0.5)); items = c * (c + 1) // 2 if design in ("olep", "olepb") else batch; G = ole_groups(logN, P1, items)
+        c = int(round(batch ** 0.5)); items = c * (c + 1) // 2 if design in ("olep", "olepb", "tp") else batch; G = ole_groups(logN, P1, items)
+        if design == "tp":
+            # two-pass streaming NTT, paired items, b^ precomputed: column pass in place over the items (8N rd + 8N wr each,
+            # contiguous), the DRU re-lays out in flight (no bus bytes of its own), row pass + product + accumulate (reads
+            # the column output 8N and b^ 8N per item, writes the sum 8N once), inverse: row pass 16N + column pass 16N
+            parts = [(16 * items, 0.5), (16 * items + 8, 16 * items / (16 * items + 8)), (16, 0.5), (16, 0.5)]
+            tot = sum(b for b, _ in parts)
+            ph = [(0, 1, by(b), rf, window, gap, run, 16384, ck(to * b / tot)) for b, rf in parts]
+            if handoff: ph[0] = ph[0] + (SPU_G_ROW,)
+            return ph
         if design == "olepb":   # b^_ij precomputed once per public a: no a transforms; the accumulate pass reads g and one b^ per item
             parts = [(16 * items, 0.5), (16 * items + 8 * G, 16 * items / (16 * items + 8 * G))]
         else:
