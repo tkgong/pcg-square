@@ -128,7 +128,7 @@ def main():
         s = r * TS[org] / (n * mul_ck)
         ph = phases(org, d, lg, g or c * c, scale=s, window=a.ntt_window or None, handoff=a.handoff)
         hr = (SPU_G_ROW,) if a.handoff else ()   # handoff: the read side of the g-reading phase starts at the SPUs' g rows
-        if a.gather and d not in OLE:   # ole: the column pass reads the SPUs' output directly (no gather pass)
+        if a.gather and d not in OLE and d != "cheddar_t":   # ole / cheddar_t: the column pass reads the SPUs' output directly (no gather pass)
             m = (t if a.occupancy == "range" else max(1, min(t, (c * c * t * t) // NSPU[org]))) if a.spu_presum else 1
             gb = int(round(8 * (2 * (1 << lg) * t) / 2 / m / DEV[org]["ch"] * s))
             if a.gather_dru and any(p[0] == 1 for p in ph):

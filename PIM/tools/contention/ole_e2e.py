@@ -17,7 +17,7 @@ W, OUT = sys.argv[1], sys.argv[2]            # W: one window dir, or several com
 ROWS = [r for w in W.split(",") for r in json.load(open(f"{w}/e2e.json"))]
 MACH = {"l40s": "L40S", "b200": "B200"}
 TIERS = (("500us", "alpha = 500 us"), ("fast", "40 Gbps"), ("slow", "400 Mbps"))
-DES = [d for d in ("merge", "cheddar", "ole", "ole_t", "olep", "olepb", "oleu", "olepu") if any(r["design"] == d for r in ROWS)]
+DES = [d for d in ("merge", "cheddar", "cheddar_t", "ole", "ole_t", "olep", "olepb", "oleu", "olepu") if any(r["design"] == d for r in ROWS)]
 
 
 def cells(org, des, tier="fast"):
@@ -65,7 +65,7 @@ for org in ("b200", "l40s"):
         nb = sum(lane(D[d][k]) >= D[d][k]["spu_ms"] * D[d][k]["spu_slow"] for k in ks)
         L.append(f"      {d:8s}: co-run NTT slowdown {min(sl):.3f}-{max(sl):.3f} (geo {gm(sl):.3f}), SPU slowdown beside it {min(ss):.3f}-{max(ss):.3f} (geo {gm(ss):.3f}),"
                  f" standalone sim lane / measured {er:.3f}, NTT-bound cells {nb}/{len(ks)}")
-COLS = [(d, k) for d, k in (("cheddar", "gpu_cheddar_ms"), ("ole", "gpu_cheddar_ms"), ("ole", "gpu_ole_ms"), ("ole_t", "gpu_ole_ms"), ("olep", "gpu_cheddar_ms"),
+COLS = [(d, k) for d, k in (("cheddar", "gpu_cheddar_ms"), ("cheddar_t", "gpu_cheddar_ms"), ("ole", "gpu_cheddar_ms"), ("ole", "gpu_ole_ms"), ("ole_t", "gpu_ole_ms"), ("olep", "gpu_cheddar_ms"),
                            ("olep", "gpu_olep_ms"), ("olepb", "gpu_cheddar_ms"), ("olepb", "gpu_olep_ms"), ("oleu", "gpu_cheddar_ms"), ("oleu", "gpu_ole_ms"),
                            ("olepu", "gpu_cheddar_ms"), ("olepu", "gpu_olep_ms")) if d in DES]
 COLS_H = [f"base {'Cheddar' if k == 'gpu_cheddar_ms' else k[4:-3]}, PCG^2 {d}" for d, k in COLS]

@@ -208,8 +208,22 @@ template <int L, int P2, int M1, int B1, int M2> static void run_cheddar(Ctx &c)
     const Tables &t = *c.t; const int batch = c.batch;
     auto mul = [&] { CC::fwd(t, c.a, batch); RC::fwd(t, c.a, batch); CC::fwd(t, c.b, batch); RC::fwd(t, c.b, batch);
       fused4::pointwise_kernel<<<static_cast<unsigned>((c.tot + 255) / 256), 256>>>(c.a, c.b, c.mp->modulus, c.tot); RC::inv(t, c.a, batch); CC::inv(t, c.a, batch); };
-    c.refill(); mul(); if (!launched("cheddar", P1, P2, M1, B1, M2)) return; const unsigned long long bad = diff(c);
-    printf("%d,%d,cheddar,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(mul, c.iters) / batch, bad); fflush(stdout);
+    if (wantd("cheddar")) {
+      c.refill(); mul(); if (!launched("cheddar", P1, P2, M1, B1, M2)) return; const unsigned long long bad = diff(c);
+      printf("%d,%d,cheddar,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(mul, c.iters) / batch, bad); fflush(stdout);
+    }
+    if (wantd("cheddar_t")) {   // cheddar_t: the same multiply inside PCG^2 - the g operand (b) is read by the column kernel directly in the
+      // column-contiguous layout the SPUs write (ColsContigIn, out of place into tmp); everything else is Cheddar's pipeline unchanged
+      using CI = ColsContigIn<L, P1, M1, B1>;
+      if (!CI::setup(c.maxs)) { fprintf(stderr, "skip cheddar_t P1 %d P2 %d M1 %d B1 %d M2 %d: cannot launch\n", P1, P2, M1, B1, M2); return; }
+      const size_t N = 1ull << L;
+      auto mul_t = [&] { CC::fwd(t, c.a, batch); RC::fwd(t, c.a, batch); CI::fwd(t, c.b, c.tmp, batch); RC::fwd(t, c.tmp, batch);
+        fused4::pointwise_kernel<<<static_cast<unsigned>((c.tot + 255) / 256), 256>>>(c.a, c.tmp, c.mp->modulus, c.tot); RC::inv(t, c.a, batch); CC::inv(t, c.a, batch); };
+      c.refill();   // the SPUs' layout for b, prepared outside the timed region
+      for (int k = 0; k < batch; k++) { T(c.b + k * N, c.tmp, 1 << P1, 1 << P2, 1); cudaMemcpyAsync(c.b + k * N, c.tmp, N * 8, cudaMemcpyDeviceToDevice, 0); }
+      mul_t(); if (!launched("cheddar_t", P1, P2, M1, B1, M2)) return; const unsigned long long badt = diff(c);
+      printf("%d,%d,cheddar_t,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(mul_t, c.iters) / batch, badt); fflush(stdout);
+    }
   }
 }
 template <int L, int P1, int M1, int B1, int M2> static void run_f4c(Ctx &c) {
@@ -324,7 +338,7 @@ int main(int argc, char **argv) {
     ck(cudaMalloc(&c.cnt, 8), "cnt");
     c.refill = [&] { fill<<<4096, 256>>>(c.a, c.tot, 111 + L * 7 + batch); fill<<<4096, 256>>>(c.b, c.tot, 999 + L * 13 + batch); };
     const size_t N = 1ull << L;
-    if (want("merge") || want("cheddar") || want("f4c")) {
+    if (want("merge") || want("cheddar") || want("cheddar_t") || want("f4c")) {
       // reference: merge one polynomial at a time
       c.refill();
       for (int i = 0; i < batch; i++) mp.multiply(c.a + i * N, c.b + i * N, 1);
@@ -334,7 +348,7 @@ int main(int argc, char **argv) {
     }
     // Cheddar: P2 in [L-14, 14], M1, B1, M2
     // M1, M2 in 3..6 (3..5 in the original sweep; 6 = 64 elements per thread), B1 in 0..4 (0..3 originally)
-    if (want("cheddar")) cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
+    if (want("cheddar") || want("cheddar_t")) cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
       run_cheddar<L, P2, M1, B1, M2>(c); }); }); }); });
     // four-step: P1 in [L-14, 14], M1, M2
     if (want("f4c")) cfor<9, 15>([&](auto P1) { if constexpr (L - P1 >= 7 && L - P1 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) { run_f4c<L, P1, M1, B1, M2>(c); }); }); }); });
@@ -342,7 +356,7 @@ int main(int argc, char **argv) {
       int cc = 1; while (cc * cc < batch) cc++;
       if (cc * cc == batch) {
         ck(cudaMalloc(&c.zr, N * 8), "zr");
-        const bool ref_busy = want("merge") || want("cheddar") || want("f4c");   // c.r holds the per-multiply reference: ole_t's natural-layout output needs its own buffer
+        const bool ref_busy = want("merge") || want("cheddar") || want("cheddar_t") || want("f4c");   // c.r holds the per-multiply reference: ole_t's natural-layout output needs its own buffer
         if (ref_busy) { if (cudaMalloc(&c.gn, c.tot * 8)) { printf("%d,%d,OOM,0,0,0,0,0,%d,0,0\n", L, batch, BIGN_MAXRREG); fflush(stdout); cudaGetLastError(); c.gn = nullptr; } } else c.gn = c.r;
         c.refill_ole = [&, cc] { c.refill(); set_one<<<4096, 256>>>(c.b, N); };
         // reference: z = sum_ij (a_i a_j) g_ij with merge, one product at a time (tmp[0], tmp[1] scratch; batch >= 4 polynomials)

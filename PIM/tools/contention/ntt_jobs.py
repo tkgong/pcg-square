@@ -54,7 +54,7 @@ def ntt_table(dev):
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
 PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16),
            "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16),   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
-           "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24), "oleu": (48, 16), "olepu": (48, 16)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
+           "cheddar_t": (64, 24), "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24), "oleu": (48, 16), "olepu": (48, 16)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
 
 
 # Cheddar's NTT kernels (scale-snu/cheddar-fhe 8df8b26, GPU_baseline/cheddar), measured per multiply, best config per
@@ -73,14 +73,14 @@ def cheddar_table(dev):
         path = os.path.join(res, f"cheddar_f4dru_{dev}.csv")
     t = {}
     for r in csv.DictReader(l for l in open(path) if not l.startswith("#")):
-        if r["design"] not in ("cheddar", "f4c_sm", "f4c_full") or int(r["mismatches"]) != 0: continue
-        k = (int(r["logN"]), int(r["batch"])); i = ("cheddar", "f4c_sm", "f4c_full").index(r["design"])
-        v = list(t.get(k, (1e9, 1e9, 1e9))); v[i] = min(v[i], float(r["ms_per_poly"])); t[k] = tuple(v)
+        if r["design"] not in ("cheddar", "f4c_sm", "f4c_full", "cheddar_t") or int(r["mismatches"]) != 0: continue
+        k = (int(r["logN"]), int(r["batch"])); i = ("cheddar", "f4c_sm", "f4c_full", "cheddar_t").index(r["design"])
+        v = list(t.get(k, (1e9, 1e9, 1e9, 1e9))); v[i] = min(v[i], float(r["ms_per_poly"])); t[k] = tuple(v)
     if F4C_SM_BOUND:
         # the four-step's SM kernels are Cheddar's kernels (row kernel as is, column kernel on contiguous columns), same 7
         # launches, 120N B and butterflies per multiply: Cheddar's measured time bounds them from above, so the port's
         # launch-shape loss (no warp batching before b1b5653) is not charged; the SM transposes keep their measured extra
-        t = {k: (ch, min(sm, ch), full - sm + min(sm, ch)) for k, (ch, sm, full) in t.items()}
+        t = {k: (ch, min(sm, ch), full - sm + min(sm, ch), cht) for k, (ch, sm, full, cht) in t.items()}
     _CH[dev] = t; return t
 
 
@@ -154,6 +154,8 @@ def sq_table(dev):
 
 def mul_ms(dev, design, logN, batch):
     """measured per-multiply NTT time the lane is sized from (sqdru: the SM side only, the DRU runs in parallel)"""
+    if design == "cheddar_t":   # one of the two multiplies per g_ij reads g in the SPUs' layout (cheddar_t), the other is plain Cheddar
+        t = cheddar_table(dev)[(logN, batch)]; return (t[0] + t[3]) / 2
     if design in ("merge", "f4dru", "f4sm"): return ntt_table(dev)[(logN, batch)][{"merge": 0, "f4dru": 1, "f4sm": 2}[design]]
     if design in ("cheddar", "f4c", "f4csm"): return cheddar_table(dev)[(logN, batch)][{"cheddar": 0, "f4c": 1, "f4csm": 2}[design]]
     if design in OLE: return ole_table(dev).get((logN, batch), ((1e9, 0),) * len(OLE))[OLE.index(design)][0]   # per OUTPUT (c^2 = batch polynomials)
@@ -202,11 +204,16 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
         MK = lambda: (0, 1, by(16), 0.5, window, gap, run, 16384, ck(tm * 16 / 168))
         MPW = (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tm * 24 / 168))
         return [MK(), MK(), MK(), MK(), MK(), MK(), MPW, MK(), MK(), MK()]
-    if design == "cheddar":
+    if design in ("cheddar", "cheddar_t"):
         # Cheddar: 2 kernels per transform (8N rd + 8N wr each); poly-mul = fwd a, fwd b, pointwise, inverse -> 7 kernels, 120N B
-        tc = cheddar_table(dev)[(logN, batch)][0]
+        # cheddar_t: the same pipeline in PCG^2 with the PIM-side changes only: the g operand's column pass reads the SPUs'
+        # column-contiguous output directly (measured cheddar_t for the multiply that reads g, cheddar for the other one of
+        # the two per g_ij -> per-multiply time = their mean), no DPF->NTT gather, handoff at the SPUs' rows
+        tc = mul_ms(dev, design, logN, batch)
         CK = lambda: (0, 1, by(16), 0.5, window, gap, run, 16384, ck(tc * 16 / 120))
-        return [CK(), CK(), CK(), CK(), (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tc * 24 / 120)), CK(), CK()]
+        ph = [CK(), CK(), CK(), CK(), (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tc * 24 / 120)), CK(), CK()]
+        if handoff and design == "cheddar_t": ph[2] = ph[2] + (SPU_G_ROW,)
+        return ph
     if design in OLE:
         # PCG output on Cheddar's kernels, per output (c^2 = batch polynomials g_ij, c public a_i), 7 launches:
         #   Cols a (16N c B) | Rows a (16N c) | Cols g (16N c^2) | RowsAcc (reads g 8N c^2 + a^_i, a^_j 16N c^2, writes G partials 8N G)
