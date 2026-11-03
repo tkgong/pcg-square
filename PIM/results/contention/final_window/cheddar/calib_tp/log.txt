@@ -1,0 +1,15 @@
+('l40s', 'tp', 20, 4): sim/silicon at f=1 1.324 -> f=0.753 -> 1.003
+('l40s', 'tp', 20, 16): sim/silicon at f=1 1.008 -> f=0.993 -> 1.005
+('l40s', 'tp', 20, 64): sim/silicon at f=1 1.001 -> f=1.000 -> 1.001
+('l40s', 'tp', 21, 4): sim/silicon at f=1 1.098 -> f=0.909 -> 1.004
+('l40s', 'tp', 21, 16): sim/silicon at f=1 1.002 -> f=1.000 -> 1.002
+('l40s', 'tp', 21, 64): sim/silicon at f=1 1.003 -> f=0.999 -> 1.004
+('l40s', 'tp', 22, 4): sim/silicon at f=1 1.000 -> f=1.000 -> 1.000
+('l40s', 'tp', 22, 16): sim/silicon at f=1 1.020 -> f=0.976 -> 1.003
+('l40s', 'tp', 22, 64): sim/silicon at f=1 1.046 -> f=0.954 -> 1.002
+('l40s', 'tp', 23, 4): sim/silicon at f=1 1.000 -> f=1.000 -> 1.000
+('l40s', 'tp', 23, 16): sim/silicon at f=1 1.029 -> f=0.970 -> 1.003
+('l40s', 'tp', 23, 64): sim/silicon at f=1 1.057 -> f=0.944 -> 1.003
+('l40s', 'tp', 24, 4): sim/silicon at f=1 1.000 -> f=1.000 -> 1.000
+('l40s', 'tp', 24, 16): sim/silicon at f=1 1.000 -> f=1.000 -> 1.000
+('l40s', 'tp', 24, 64): sim/silicon at f=1 1.000 -> f=1.000 -> 1.000
