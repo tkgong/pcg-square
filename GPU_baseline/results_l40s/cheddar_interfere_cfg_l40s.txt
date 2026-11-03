@@ -1,0 +1,19 @@
+l40s: Cheddar NTT configs under SPU-like DRAM interference, ms per polynomial multiply (batch 16); 0 of 5922 rows have mismatches
+net slowdown = beside row-burst aggressor / beside sleep-only control (same blocks), at the SPUs' share of 864 GB/s: 15.0%
+
+share 15.0%: best standalone config vs best co-run config (chosen by alone ms x slowdown)
+logN | configs | best alone: config, ms, slowdown, co-run ms | best co-run: config, ms, slowdown, co-run ms | co-run gain | slowdown min..max
+  20 | 116 | 8+ M3 B4 M2 3 R128       0.1933 x1.187 = 0.2294 | 11+ M3 B1 M2 3 R128      0.2076 x1.030 = 0.2139 | +7.2% | 1.030..1.259
+  21 |  85 | 9+ M3 B3 M2 3 R128       0.3888 x1.228 = 0.4775 | 10+ M5 B3 M2 3 R128      0.3942 x1.108 = 0.4368 | +9.3% | 1.060..1.301
+  22 |  53 | 10+ M5 B3 M2 3 R0        0.7865 x1.123 = 0.8831 | 10+ M5 B3 M2 3 R128      0.7889 x1.099 = 0.8671 | +1.8% | 1.054..1.270
+  23 |  17 | 10+ M5 B3 M2 3 R0        1.5718 x1.101 = 1.7308 | 10+ M5 B3 M2 3 R0        1.5718 x1.101 = 1.7308 | +0.0% | 1.048..1.286
+  24 |  11 | 11+ M5 B2 M2 3 R0        3.7221 x1.038 = 3.8653 | 11+ M5 B2 M2 3 R0        3.7221 x1.038 = 3.8653 | +0.0% | 1.038..1.268
+
+slowdown by knob (mean over the configs with that value), per logN:
+logN | M1=3 M1=4 M1=5 M1=6 | B1=0 B1=1 B1=2 B1=3 B1=4 | M2=3 M2=4 M2=5 M2=6 | R0 R64 R128
+  20 | 1.182 1.182 1.164 1.084 |   -   1.134 1.212 1.188 1.154 | 1.175   -     -     -   | 1.169 1.184 1.176
+  21 | 1.204 1.199 1.189 1.083 |   -   1.146 1.236 1.203 1.174 | 1.194   -     -     -   | 1.189 1.204 1.193
+  22 | 1.205 1.206 1.138 1.068 |   -   1.159 1.204 1.202 1.165 | 1.186   -     -     -   | 1.178 1.212 1.168
+  23 | 1.221 1.204 1.074 1.058 |   -   1.152 1.176 1.217   -   | 1.181   -     -     -   | 1.175 1.228 1.069
+  24 | 1.193 1.232 1.038 1.095 |   -   1.154 1.213   -     -   | 1.181   -     -     -   | 1.161 1.216   -  
+

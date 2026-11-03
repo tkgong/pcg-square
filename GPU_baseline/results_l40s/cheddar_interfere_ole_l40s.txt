@@ -1,0 +1,17 @@
+l40s: PCG-output NTT under DRAM interference, ms per g_ij (batch 16 = c^2, c = 4); 0 of 360 rows have mismatches
+net slowdown = beside aggressor / beside sleep-only control (same blocks), at the SPUs' share of 864 GB/s: 15.0%
+Cheddar (old algorithm) = 2 multiplies per g_ij at its best co-run config (row burst) of the config sweep
+
+share 15.0%:
+logN | design  config                   | alone ms | row burst | stream | co-run ms | 2 x Cheddar co-run ms (config) | gain
+  20 | ole    10+ M3 B3 M2 3 R0        |   0.0646 |   1.137 |  1.156 |    0.0734 | 0.4278 (11+ M3 B1 M2 3 R128) | 5.82x
+  20 | ole_t  10+ M3 B2 M2 3 R128      |   0.0627 |   1.133 |  1.153 |    0.0710 | 0.4278 (11+ M3 B1 M2 3 R128) | 6.02x
+  21 | ole    10+ M3 B3 M2 3 R0        |   0.1349 |   1.140 |  1.193 |    0.1537 | 0.8735 (10+ M5 B3 M2 3 R128) | 5.68x
+  21 | ole_t  11+ M3 B2 M2 3 R0        |   0.1339 |   1.126 |  1.160 |    0.1508 | 0.8735 (10+ M5 B3 M2 3 R128) | 5.79x
+  22 | ole    11+ M3 B2 M2 3 R0        |   0.2935 |   1.128 |  1.165 |    0.3310 | 1.7341 (10+ M5 B3 M2 3 R128) | 5.24x
+  22 | ole_t  11+ M3 B1 M2 3 R128      |   0.2763 |   1.131 |  1.123 |    0.3126 | 1.7341 (10+ M5 B3 M2 3 R128) | 5.55x
+  23 | ole    11+ M3 B1 M2 3 R128      |   0.6431 |   1.029 |  1.122 |    0.6615 | 3.4616 (10+ M5 B3 M2 3 R0) | 5.23x
+  23 | ole_t  11+ M3 B1 M2 3 R128      |   0.5891 |   1.134 |  1.129 |    0.6682 | 3.4616 (10+ M5 B3 M2 3 R0) | 5.18x
+  24 | ole    11+ M3 B2 M2 3 R64       |   1.5329 |   1.191 |  1.187 |    1.8256 | 7.7306 (11+ M5 B2 M2 3 R0) | 4.23x
+  24 | ole_t  12+ M3 B1 M2 3 R0        |   1.3425 |   1.167 |  1.157 |    1.5663 | 7.7306 (11+ M5 B2 M2 3 R0) | 4.94x
+

@@ -17,7 +17,7 @@ Usage: e2e_window.py --sim BIN --out DIR [--clock nom|1.0|0.5] [--gather --spu-p
 import argparse, concurrent.futures as cf, io, contextlib, json, math, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "e2e"))
-from ntt_jobs import DEV, base, mul_ms, ntt_table, cheddar_table, phases, write_jobs
+from ntt_jobs import DEV, base, mul_ms, ntt_table, cheddar_table, ole_table, muls_per_output, OLE, phases, write_jobs, SPU_G_ROW
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, LOGN, alpha_bw, gm
     from fig8 import BETA
@@ -39,9 +39,21 @@ def main():
     ap.add_argument("--clock", default="nom"); ap.add_argument("--orgs", default="l40s,b200")
     ap.add_argument("--designs", default="merge,f4dru"); ap.add_argument("--jobs", type=int, default=60)
     ap.add_argument("--gather", action="store_true"); ap.add_argument("--spu-presum", action="store_true")
+    ap.add_argument("--spu-extra", default="", help="extra arguments for gen_dpf_tree_trace.py (e.g. '--pass2-placement trickle', '--skip-pass2')")
+    ap.add_argument("--spu-tag", default="", help="tag appended to the SPU trace name when --spu-extra changes it")
+    ap.add_argument("--ntt-release", action="store_true",
+                    help="pipeline dependency: the co-run NTT jobs are released in win_inst rounds at the SPU rounds' boundaries (round r's jobs "
+                         "start at (r+1)/win_inst of the SPU window, when its polynomials exist) instead of all at cycle 0; the standalone lane stays unreleased. Adds "
+                         "tail_ms = NTT work left after the SPUs finish (real ms) to every row")
+    ap.add_argument("--ntt-window", type=int, default=0,
+                    help="reads in flight per channel for every NTT-lane phase (0 = each design's fitted pattern): throttles the SMs' "
+                         "DRAM demand, e.g. to run the NTT at the SPUs' production rate instead of full burst")
     ap.add_argument("--f4c-sm-bound", action="store_true",
                     help="four-step SM kernel time = min(measured four-step SM lane, measured Cheddar): same kernels, launches, "
                          "bytes and butterflies, so Cheddar's time bounds it; the SM transposes keep their measured extra")
+    ap.add_argument("--handoff", action="store_true",
+                    help="DPF -> NTT handoff at the SPUs' rows: the phase that reads g (gather, the DRU's fused gather, or the ole "
+                         "column pass over g) reads rows from SPU_G_ROW in every bank, where the SPUs' pass 2 wrote g")
     ap.add_argument("--gather-dru", action="store_true",
                     help="designs with DRU transposes: the DRU's first transpose reads the SPUs' bank-local output directly "
                          "(the t/m pre-summed vectors, summed on the way) and writes the transposed polynomial, so the SM "
@@ -88,13 +100,13 @@ def main():
         return ctrl + ["-p", f"MemorySystem.Controller.dru_bus_slot={slot}"]
 
     def spu_trace(org, f, tag):
-        tr = os.path.join(a.out, f"spu_{org}_{a.reduce}_x{a.alu_mult:g}_i{a.win_inst}_n{a.win_depth}_{tag}.trace"); o = tr[:-6] + ".out"
+        tr = os.path.join(a.out, f"spu_{org}_{a.reduce}_x{a.alu_mult:g}_i{a.win_inst}_n{a.win_depth}{'_' + a.spu_tag if a.spu_tag else ''}_{tag}.trace"); o = tr[:-6] + ".out"
         if not os.path.exists(tr):
             subprocess.run([sys.executable, GEN, "-n", str(a.win_depth), "-C", "2", "-P", "8", "-I", str(16 * a.win_inst), "--mode", "instances", "--seed-bits", "128",
                             "--reread", "--broadcast", "--cl", str(round(155 * FNOM[base(org)] / f / a.alu_mult)), "--reduce", a.reduce,
                             "--convert-cl", str(round(465 * FNOM[base(org)] / f / a.alu_mult)),
                             "--modmul-cl", str(round(32 * FNOM[base(org)] / f / a.alu_mult)),
-                            "--add64m-cl", str(max(1, round(4 * FNOM[base(org)] / f / a.alu_mult))), "-o", tr], check=True, stderr=subprocess.DEVNULL)
+                            "--add64m-cl", str(max(1, round(4 * FNOM[base(org)] / f / a.alu_mult))), "-o", tr] + a.spu_extra.split(), check=True, stderr=subprocess.DEVNULL)
         if not (os.path.exists(o) and "pim_done_cycles" in open(o).read()):
             with open(o, "w") as fo: subprocess.run([a.sim, "-f", YAML[base(org)], "-t", tr] + ctrl_for(org), stdout=fo, stderr=subprocess.STDOUT)
         return tr, parse(o)["pim_done_cycles"]
@@ -110,9 +122,11 @@ def main():
         tm = mul_ms(org, d, lg, g or c * c)
         mul_ck = tm * 1e6 / DEV[org]["tck"]                                  # real per-mul CK
         n = 2 * c * c // g if g else max(1, int(r * TS[org] / (10 * KERNEL_MIN_CK)))
+        if a.ntt_release: n = max(n, a.win_inst)      # at least one job per SPU round (kernels may fall below KERNEL_MIN_CK: the tail is an upper bound)
         s = r * TS[org] / (n * mul_ck)
-        ph = phases(org, d, lg, g or c * c, scale=s)
-        if a.gather:
+        ph = phases(org, d, lg, g or c * c, scale=s, window=a.ntt_window or None, handoff=a.handoff)
+        hr = (SPU_G_ROW,) if a.handoff else ()   # handoff: the read side of the g-reading phase starts at the SPUs' g rows
+        if a.gather and d not in OLE:   # ole: the column pass reads the SPUs' output directly (no gather pass)
             m = (t if a.occupancy == "range" else max(1, min(t, (c * c * t * t) // NSPU[org]))) if a.spu_presum else 1
             gb = int(round(8 * (2 * (1 << lg) * t) / 2 / m / DEV[org]["ch"] * s))
             if a.gather_dru and any(p[0] == 1 for p in ph):
@@ -120,21 +134,24 @@ def main():
                 # bank-local SPU output) instead of one 8N-B polynomial; its write side (8N B, transposed) is unchanged
                 i = next(k for k, p in enumerate(ph) if p[0] == 1); p = ph[i]
                 wr = int(round(p[2] * (1 - p[3])))
-                ph = ph[:i] + [(p[0], p[1], gb + wr, gb / (gb + wr)) + p[4:]] + ph[i + 1:]
+                ph = ph[:i] + [(p[0], p[1], gb + wr, gb / (gb + wr)) + p[4:9] + hr] + ph[i + 1:]
             else:
-                ph = [(0, 1, gb, 1.0, 48, 0, 16, 20000, 0)] + ph
+                ph = [(0, 1, gb, 1.0, 48, 0, 16, 20000, 0) + hr] + ph
         jp = os.path.join(a.out, f"{org}_{c}_{t}_{lg}_{d}{f'_g{g}' if g else ''}.jobs")
         if a.dru_stream and any(p[0] == 1 for p in ph):
             write_jobs(jp, [(n, 0, [p for p in ph if p[0] == 0]), (n, 0, [(0,) + p[1:] for p in ph if p[0] == 1])])
         else:
             write_jobs(jp, [(n, 0, ph)])                              # NTT-only pipeline (the NTT lane)
+        if a.ntt_release:   # the co-run copy: jobs released per SPU round (round r of win_inst at r/win_inst of the SPU window)
+            R = a.win_inst; per = [n // R + (r < n % R) for r in range(R)]
+            write_jobs(jp[:-5] + "_rel.jobs", [(k, int((r + 1) * TS[org] / R), [p for p in ph if p[0] == 0]) for r, k in enumerate(per) if k > 0])   # round r's polynomials exist at the END of round r
         if a.dpf_split:
             # SM lane = NTT kernels + a (1-x0) share of the DPF (measured GPU expand+convert kernel),
             # sequential on the SMs: appended to every job as one phase. ~88 B/leaf of DRAM traffic
             # (tree levels 48 B, two H' passes + scatter 40 B), 55% reads, issued at the kernel's own
             # bandwidth (gap-throttled: L40S ~38%, B200 ~30% of peak); compute floor = its measured time.
             L = L_(MACH[base(org)])[(c, t, lg)]; spu_ms = SPU_MS[(org, c, t, lg)]
-            Tg, Tn0 = L["gpu_dpf_g"], tm * 2 * c * c
+            Tg, Tn0 = L["gpu_dpf_g"], tm * muls_per_output(d, c)
             x0 = min(1.0, (Tn0 + Tg) / (spu_ms + Tg))
             share_ms = (1 - x0) * Tg
             dpf_ck = share_ms / spu_ms * TS[org]                       # window CK for the SM's DPF share
@@ -176,7 +193,7 @@ def main():
                              for g in ([g for g in (4, 16, 64) if g <= c * c and (lg, g) in ntt_table(org)] if a.sub_batch else [None])]:
                     tm = mul_ms(org, d, lg, g or c * c)
                     if tm >= 1e8: continue                                        # design not measured on this card (no row in its csv)
-                    r = tm * 2 * c * c / spu_ms                                   # real lane ratio (pre-gather)
+                    r = tm * muls_per_output(d, c) / spu_ms                      # real lane ratio (pre-gather); ole: tm is per output
                     jp, n, s = build(org, d, lg, c, t, r, g)
                     d = f"{d}_g{g}" if g else d
                     cells[(org, c, t, lg, d)] = dict(L=L, spu_ms=spu_ms, n=n, s=s, tm=tm, g=g)
@@ -185,17 +202,19 @@ def main():
                         js = jp[:-5] + "_split.jobs"
                         work += [(f"{org}_{c}_{t}_{lg}_{d}", TR[org], js, org), (f"{org}_{c}_{t}_{lg}_{d}_splitalone", eoc, js, org)]
                     else:
-                        work += [(f"{org}_{c}_{t}_{lg}_{d}", TR[org], jp, org)]
+                        work += [(f"{org}_{c}_{t}_{lg}_{d}", TR[org], jp[:-5] + "_rel.jobs" if a.ntt_release else jp, org)]
     R = {}
     with cf.ThreadPoolExecutor(a.jobs) as ex:
         for (tag, *_), d in zip(work, ex.map(lambda w: sim(*w), work)): R[tag] = d
 
-    fin = lambda o: max(o["pipe0_finish_max"], o.get("pipe1_finish_max", 0))   # NTT lane: SM and (--dru-stream) DRU pipelines
+    fin = lambda o: max(v for k, v in o.items() if re.fullmatch(r"pipe\d+_finish_max", k))   # NTT lane: all pipelines (SM, DRU, per-round releases)
     rows = []
     for (org, c, t, lg, d), cd in cells.items():
         tck = DEV[org]["tck"]; x = R[f"{org}_{c}_{t}_{lg}_{d}"]; y = R[f"{org}_{c}_{t}_{lg}_{d}_alone"]
-        ntt_lane = fin(y) / cd["s"] / cd["n"] * 2 * c * c * tck / 1e6   # real ms, incl. gather
+        K = muls_per_output(d.rsplit("_g", 1)[0] if "_g" in d else d, c)
+        ntt_lane = fin(y) / cd["s"] / cd["n"] * K * tck / 1e6   # real ms, incl. gather
         spu_slow = x["pim_done_cycles"] / TS[org]
+        tail_ms = max(0.0, fin(x) - x["pim_done_cycles"]) / cd["s"] / cd["n"] * K * tck / 1e6 if a.ntt_release else 0.0   # NTT work after the SPUs finish
         ntt_slow = fin(x) / fin(R[f"{org}_{c}_{t}_{lg}_{d}_splitalone"] if a.dpf_split else y)
         mm = ntt_table(org)[(lg, c * c)][0]
         mc = cheddar_table(org).get((lg, c * c), (float("nan"),))[0]          # Cheddar's NTT as the GPU baseline's NTT
@@ -204,6 +223,8 @@ def main():
             nic = (cd["L"]["n"] + 2) * alpha_bw(c, t, BETA[tier])
             gpu = cd["L"]["gpu_dpf_g"] + mm * 2 * c * c
             gpu_ch = cd["L"]["gpu_dpf_g"] + mc * 2 * c * c
+            ot = ole_table(org).get((lg, c * c), ((float("nan"), 0),) * 3)          # the GPU baseline with the PCG-output algorithm (ole / olep, same kernels)
+            gpu_ole = cd["L"]["gpu_dpf_g"] + ot[0][0]; gpu_olep = cd["L"]["gpu_dpf_g"] + ot[2][0]
             if a.dpf_split:
                 # window: SM lane = NTT + (1-x0) DPF share; its co-run slowdown applies to both parts
                 x0 = X0[(org, c, t, lg, d)]; Tg = cd["L"]["gpu_dpf_g"]; Ts = cd["spu_ms"]
@@ -215,11 +236,12 @@ def main():
             else:
                 pcg = max(cd["spu_ms"] * spu_slow, ntt_lane * ntt_slow, nic)
             rows.append(dict(org=org, c=c, t=t, logN=lg, tier=tier, design=d, spu_ms=cd["spu_ms"], ntt_ms=ntt_lane,
-                             ntt_meas_ms=cd["tm"] * 2 * c * c, spu_slow=spu_slow, ntt_slow=ntt_slow, nic_ms=nic,
+                             ntt_meas_ms=cd["tm"] * K, spu_slow=spu_slow, ntt_slow=ntt_slow, nic_ms=nic,
                              pcg_ms=pcg, pcg_nocont_ms=max(cd["spu_ms"], ntt_lane, nic), gpu_ms=gpu,
                              spu_share=xs, sm_slow=sm_slow,
                              base_serial_ms=gpu + nic, base_overlap_ms=max(gpu, nic),
                              gpu_cheddar_ms=gpu_ch, base_overlap_cheddar_ms=max(gpu_ch, nic),
+                             gpu_ole_ms=gpu_ole, base_overlap_ole_ms=max(gpu_ole, nic), gpu_olep_ms=gpu_olep, tail_ms=tail_ms,
                              base_paper_ms=cd["L"]["gpu_dpf_g"] + cd["L"]["ntt_dev"] + nic, g=cd["g"], n=cd["n"]))
     if a.sub_batch:   # each design at the sub-batch of its fastest co-run NTT lane
         best = {}
@@ -233,6 +255,7 @@ def main():
         for tier in ("fast", "slow"):
             for d in a.designs.split(","):
                 rr = [r for r in rows if r["org"] == org and r["tier"] == tier and r["design"] == d]
+                if not rr: continue                                           # design not measured on this card
                 def hb(key):
                     per = {}
                     for r in rr: per.setdefault((r["c"], r["t"]), []).append(r[key] / r["pcg_ms"])

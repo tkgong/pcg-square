@@ -1,0 +1,31 @@
+
+L40S (4,16) 2^22, ole: SPU slowdown | NTT slowdown | GPU queueing mean/p99 ns | GPU read latency p99 ns | SPU queueing mean ns
+  final: class-fair, GPU 64-cycle burst window, PIM row protection, age write drain SPU x1.003 | NTT x1.650 |   179/  3064 |   3082 |   3409
+  strict PIM priority                                                      SPU x1.003 | NTT x1.628 |   176/  3072 |   3089 |   3412
+  strict GPU priority                                                      SPU x1.009 | NTT x2.282 |   259/  3304 |   3322 |   3779
+  final without the GPU burst window (class_min_run=0)                     SPU x1.005 | NTT x1.652 |   178/  3059 |   3075 |   3406
+  final without PIM row protection                                         SPU x1.008 | NTT x1.670 |   186/  3727 |   3755 |   3402
+  final without the age-triggered write drain                              LIVELOCK: the controller's watchdog fired (reads wait behind posted writes that never reach the drain watermark)
+
+L40S (4,16) 2^22, cheddar: SPU slowdown | NTT slowdown | GPU queueing mean/p99 ns | GPU read latency p99 ns | SPU queueing mean ns
+  final: class-fair, GPU 64-cycle burst window, PIM row protection, age write drain SPU x1.005 | NTT x1.411 |   189/  2311 |   2336 |   3392
+  strict PIM priority                                                      SPU x1.003 | NTT x1.386 |   185/  2214 |   2242 |   3398
+  strict GPU priority                                                      SPU x1.059 | NTT x1.689 |   229/  2443 |   2461 |   4126
+  final without the GPU burst window (class_min_run=0)                     SPU x1.008 | NTT x1.415 |   190/  2500 |   2526 |   3391
+  final without PIM row protection                                         SPU x1.031 | NTT x1.493 |   201/  2533 |   2555 |   3692
+  final without the age-triggered write drain                              LIVELOCK: the controller's watchdog fired (reads wait behind posted writes that never reach the drain watermark)
+
+L40S (8,4) 2^24, ole: SPU slowdown | NTT slowdown | GPU queueing mean/p99 ns | GPU read latency p99 ns | SPU queueing mean ns
+  final: class-fair, GPU 64-cycle burst window, PIM row protection, age write drain SPU x1.006 | NTT x1.048 |   157/  2203 |   2224 |   3412
+  strict PIM priority                                                      SPU x1.003 | NTT x1.039 |   152/  1674 |   2608 |   3414
+  strict GPU priority                                                      SPU x1.030 | NTT x1.107 |   181/  2070 |   2178 |   3814
+  final without the GPU burst window (class_min_run=0)                     SPU x1.006 | NTT x1.043 |   157/  2187 |   2208 |   3399
+  final without PIM row protection                                         SPU x1.017 | NTT x1.020 |   160/  2246 |   2262 |   3503
+  final without the age-triggered write drain                              LIVELOCK: the controller's watchdog fired (reads wait behind posted writes that never reach the drain watermark)
+
+Geomean over all cells, SPU slowdown / NTT slowdown (max over cells in brackets):
+  L40S final without PIM row protection                                         SPU x1.019 [1.031] | NTT x1.365 [1.670]  (3 cells)
+  L40S final without the GPU burst window (class_min_run=0)                     SPU x1.006 [1.008] | NTT x1.346 [1.652]  (3 cells)
+  L40S final: class-fair, GPU 64-cycle burst window, PIM row protection, age write drain SPU x1.005 [1.006] | NTT x1.346 [1.650]  (3 cells)
+  L40S strict GPU priority                                                      SPU x1.033 [1.059] | NTT x1.622 [2.282]  (3 cells)
+  L40S strict PIM priority                                                      SPU x1.003 [1.003] | NTT x1.328 [1.628]  (3 cells)

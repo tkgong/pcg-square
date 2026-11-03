@@ -70,6 +70,13 @@ class HBM2 : public IDRAM, public Implementation {
       // (refresh/hierarchy naming) does not affect the GGM compute-bound cycle analysis.
       //                 rate  nBL nCL nRCDRD nRCDWR nRP nRAS nRC nWR nRTPS nRTPL nCWL nCCDS nCCDL nRRDS nRRDL nWTRS nWTRL nRTW nFAW nRFC nRFCSB nREFI nREFISB nRREFD tCK_ps
       {"HBM3_6400Mbps", {3200,  2,  20,   31,    15,  26,  45,  72,  33,   9,    9,   10,    2,    4,    4,    5,    7,    10,   20,  24,  -1,  320,  6240,    -1,    8,    625}},
+      // Refresh (GDDR6_18Gbps): SK hynix H56G42AS 16Gb GDDR6 datasheet Rev 1.1, Table 69 (18 Gbps @1.35 V):
+      // tRFCab = 160 ns -> 361 CK at 444 ps (JEDEC rounding), tREFI = 1.9 us -> 4280 CK (Table 15: 16K/32 ms),
+      // tRFCpb = 60 ns -> 136 CK, tREFIpb = tREFI/16 -> 268 CK, tRREFD = max(10 ns, 8 tCK) -> 23 CK.
+      // Only the all-bank values are used (RefreshManager AllBank in the YAML).
+      // Refresh share of channel time = 160/1900 = 8.4 % (was 450/1900 = 23.7 % when the HBM2 16Gb tRFC row
+      // overwrote this preset). The L40S 48 GB clamshell puts two 16Gb devices (8Gb per channel) on each
+      // 16-bit channel; both refresh together, so tRFCab of one device applies.
       // GDDR6 18 Gbps (L40S): command clock CK = 18/8 = 2.25 GHz ("rate"=4500 keeps the
       // tCK=1e6/(rate/2) convention -> tCK=444ps). nBL=2 -> one 256b PU column occupies the
       // x16 data bus 2 CK = 16B/CK = 36 GB/s/channel (x24 = 864 GB/s card peak = L40S).
@@ -77,7 +84,7 @@ class HBM2 : public IDRAM, public Implementation {
       // tCCDL=3 (same-BG b2b), tCCDS=2 (data-bus limit), tFAW~14ns=32, tREFI~1.9us=4280.
       // Refresh fields are second-order for our us-scale measurement windows.
       //               rate  nBL nCL nRCDRD nRCDWR nRP nRAS nRC nWR nRTPS nRTPL nCWL nCCDS nCCDL nRRDS nRRDL nWTRS nWTRL nRTW nFAW nRFC nRFCSB nREFI nREFISB nRREFD tCK_ps
-      {"GDDR6_18Gbps", {4500,  2,  32,   32,    20,  32,  63,  95,  34,   4,    6,    8,    2,    3,    4,    6,    6,    8,   18,  32,  -1,  248,  4280,    -1,    8,    444}},
+      {"GDDR6_18Gbps", {4500,  2,  32,   32,    20,  32,  63,  95,  34,   4,    6,    8,    2,    3,    4,    6,    6,    8,   18,  32,  361,  136,  4280,   268,   23,    444}},
       // HBM2e 3.2 GT/s (A100): command clock 1.6 GHz (tCK=625ps). ns->CK at
       // 625ps: tRCD~14ns=22, tRP=22, tRAS~33ns=53, tRC~47ns=75, tWR~16ns=26,
       // tFAW~16ns=26. Per-PC data path 16B/CK = 25.6 GB/s (nBL=2).
@@ -338,6 +345,8 @@ class HBM2 : public IDRAM, public Implementation {
 
     };
 
+    bool m_is_gddr_preset = false;   // GDDR presets carry datasheet refresh timings; skip the HBM2 tRFC table
+
     void set_timing_vals() {
       m_timing_vals.resize(m_timings.size(), -1);
       m_command_latencies.resize(m_commands.size(), -1);
@@ -348,6 +357,7 @@ class HBM2 : public IDRAM, public Implementation {
         if (timing_presets.count(*preset_name) > 0) {
           m_timing_vals = timing_presets.at(*preset_name);
           preset_provided = true;
+          m_is_gddr_preset = preset_name->rfind("GDDR", 0) == 0;
         } else {
           throw ConfigurationError("Unrecognized timing preset \"{}\" in {}!", *preset_name, get_name());
         }
@@ -386,8 +396,12 @@ class HBM2 : public IDRAM, public Implementation {
         }
       }(m_organization.density);
 
-      m_timing_vals("nRFC")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
-      m_timing_vals("nREFISB")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
+      // The tRFC table above is the HBM2 one. GDDR presets carry their own nRFC/nREFI from the vendor
+      // datasheet (see timing_presets), so the HBM2 table must not overwrite them.
+      if (!m_is_gddr_preset) {
+        m_timing_vals("nRFC")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
+        m_timing_vals("nREFISB")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
+      }
 
       // Overwrite timing parameters with any user-provided value
       // Rate and tCK should not be overwritten

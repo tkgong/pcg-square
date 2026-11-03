@@ -66,11 +66,11 @@ struct Agg {
     unsigned long long b = 0; cudaMemcpy(&b, d_bytes, 8, cudaMemcpyDeviceToHost); return b / sec / 1e9;
   }
 };
-struct Bufs { u64 *a, *b, *a0, *b0, *tmp; size_t tot; int batch; };
+struct Bufs { u64 *a, *b, *a0, *b0, *tmp; size_t tot; int batch; u64 *gn = nullptr, *zr = nullptr; int c = 0; };   // gn, zr, c: PCG-output victims
 using Mul = std::function<void()>;
 template <int L> static bool make_cheddar(int p1, int m1, int b1, int m2, const Tables &t, Bufs &x, Mul &out) {   // Cheddar
   bool found = false;
-  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 6>([&](auto M2) {
+  cfor<7, 15>([&](auto P1) { cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
     constexpr int P2 = L - P1;
     if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && P2 >= M2 && thr_ok(P1 - M1 + B1) && thr_ok(P2 - M2)) {
       if (P1 == p1 && M1 == m1 && B1 == b1 && M2 == m2) {
@@ -83,9 +83,27 @@ template <int L> static bool make_cheddar(int p1, int m1, int b1, int m2, const 
     } }); }); }); });
   return found;
 }
+template <int L> static bool make_ole(int p1, int m1, int b1, int m2, bool tiled, const Tables &t, Bufs &x, Mul &out) {   // PCG output (cheddar_bigN_bench.cu run_ole)
+  bool found = false;
+  cfor<7, 15>([&](auto P1) { cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
+    constexpr int P2 = L - P1;
+    if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && P2 >= M2 && thr_ok(P1 - M1 + B1) && thr_ok(P2 - M2)) {
+      if (P1 == p1 && M1 == m1 && B1 == b1 && M2 == m2) {
+        using CC = Cols<L, P1, M1, B1>; using CI = ColsContigIn<L, P1, M1, B1>; using RC = Rows<L, P2, M2>; using RA = RowsAcc<L, P2, M2>;
+        if (!CC::setup(1 << 30) || !RC::setup(1 << 30) || !RA::setup(1 << 30) || (tiled && !CI::setup(1 << 30))) return;
+        found = true; const Tables *tp = &t; Bufs *bp = &x; const int G = RA::groups(x.batch);
+        out = [tp, bp, G, tiled] { const Tables &t = *tp; Bufs &x = *bp; const size_t N = 1ull << L; const Modulus<Data64> mod(P);
+          CC::fwd(t, x.b, x.c); RC::fwd(t, x.b, x.c);                                     // a^_i (x.b: c polynomials, a_0 = 1)
+          const u64 *g = x.a; if (tiled) { CI::fwd(t, x.a, x.gn, x.batch); g = x.gn; } else CC::fwd(t, x.a, x.batch);
+          RA::fwd(t, g, x.b, x.c, x.batch, x.tmp, G, mod); if (G > 1) reduce_partials<<<4096, 256>>>(x.tmp, G, N, mod);
+          RC::inv(t, x.tmp, 1); CC::inv(t, x.tmp, 1); };
+      }
+    } }); }); }); });
+  return found;
+}
 template <int L> static bool make_f4c(int p1, int m1, int b1, int m2, bool full, const Tables &t, Bufs &x, Mul &out) {   // four-step
   bool found = false;
-  cfor<7, 15>([&](auto P1) { cfor<3, 6>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 6>([&](auto M2) {
+  cfor<7, 15>([&](auto P1) { cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
     constexpr int P2 = L - P1;
     if constexpr (P2 >= 7 && P2 <= 14 && P1 >= M1 && P2 >= M2 && P2 >= B1 && thr_ok(P1 - M1 + B1) && thr_ok(P2 - M2)) {
       if (P1 == p1 && M1 == m1 && B1 == b1 && M2 == m2) {
@@ -106,14 +124,18 @@ template <int L> static bool make_f4c(int p1, int m1, int b1, int m2, bool full,
 }
 static std::vector<int> ints(const char *s) { std::vector<int> v; for (const char *p = s; *p;) { v.push_back(atoi(p)); while (*p && *p != ',') p++; if (*p) p++; } return v; }
 int main(int argc, char **argv) {
-  constexpr int L = BIGN_LOGN; int batch = 16, iters = 10; std::vector<int> ch = {L / 2, 3, 0, 3}, fc = {L / 2, 3, 0, 3}, blocks = {8, 16, 32, 64, 128};
+  constexpr int L = BIGN_LOGN; int batch = 16, iters = 10; std::vector<int> ch = {L / 2, 3, 0, 3}, fc = {L / 2, 3, 0, 3}, ol = {L / 2, 3, 0, 3}, olt = {L / 2, 3, 0, 3}, blocks = {8, 16, 32, 64, 128};
   std::string victims = "merge,cheddar,f4c";
   std::vector<unsigned> sleeps = {0, 10000, 30000};
+  std::vector<int> modes = {1, 0, 3};   // sleep-only control, streaming, SPU-like row burst (--modes 1,3 = row burst only)
   for (int i = 1; i + 1 < argc; i++) {
     if (!strcmp(argv[i], "--batch")) batch = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--modes")) modes = ints(argv[++i]);
     else if (!strcmp(argv[i], "--iters")) iters = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--cheddar")) ch = ints(argv[++i]);
     else if (!strcmp(argv[i], "--f4c")) fc = ints(argv[++i]);
+    else if (!strcmp(argv[i], "--ole")) ol = ints(argv[++i]);     // PCG-output victim config (P1,M1,B1,M2), g_ij in the natural layout
+    else if (!strcmp(argv[i], "--olet")) olt = ints(argv[++i]);   // the same victim reading the SPUs' column-contiguous layout (ole_t); run in its own invocation
     else if (!strcmp(argv[i], "--blocks")) blocks = ints(argv[++i]);
     else if (!strcmp(argv[i], "--victims")) victims = argv[++i];
   }
@@ -143,6 +165,20 @@ int main(int argc, char **argv) {
     else fprintf(stderr, "f4c P1 %d M1 %d B1 %d M2 %d: not instantiated or cannot launch\n", fc[0], fc[1], fc[2], fc[3]);
     if (make_f4c<L>(fc[0], fc[1], fc[2], fc[3], true, t, x, m)) { if (want("f4c")) vs.push_back({"f4c_full", fc[0], fc[1], fc[2], fc[3], m}); else check_full = m; }
   }
+  if (want("ole") || want("ole_t")) {   // PCG output: g_ij = x.a (batch = c^2), a_i = first c polynomials of x.b (a_0 = 1), z in x.tmp[0..N)
+    if (want("ole") && want("ole_t")) { fprintf(stderr, "--victims ole and ole_t need separate invocations (different input layouts)\n"); return 1; }
+    int cc = 1; while (cc * cc < batch) cc++; if (cc * cc != batch) { fprintf(stderr, "ole: batch %d is not a square\n", batch); return 1; }
+    x.c = cc; ck(cudaMalloc(&x.zr, N * 8), "zr"); ck(cudaMalloc(&x.gn, x.tot * 8), "gn"); set_one<<<4096, 256>>>(x.b0, N); load();
+    cudaMemset(x.zr, 0, N * 8);   // reference: sum_ij (a_i a_j) g_ij with merge, one product at a time (tmp[0], tmp[1] scratch)
+    for (int i = 0; i < cc; i++) for (int j = 0; j < cc; j++) {
+      cudaMemcpy(x.tmp, x.b + i * N, N * 8, cudaMemcpyDeviceToDevice); cudaMemcpy(x.tmp + N, x.b + j * N, N * 8, cudaMemcpyDeviceToDevice); mp.multiply(x.tmp, x.tmp + N, 1);
+      cudaMemcpy(x.tmp + N, x.a + (i * cc + j) * N, N * 8, cudaMemcpyDeviceToDevice); mp.multiply(x.tmp, x.tmp + N, 1); addmod_kernel<<<4096, 256>>>(x.zr, x.tmp, N, mp.modulus); }
+    ck(cudaDeviceSynchronize(), "ole ref");
+    const std::vector<int> &o = want("ole") ? ol : olt; const bool tiled = want("ole_t");
+    if (tiled) for (int k = 0; k < batch; k++) { T(x.a0 + k * N, x.tmp, 1 << o[0], 1 << (L - o[0]), 1); cudaMemcpy(x.a0 + k * N, x.tmp, N * 8, cudaMemcpyDeviceToDevice); }   // the SPUs' layout
+    if (make_ole<L>(o[0], o[1], o[2], o[3], tiled, t, x, m)) vs.push_back({tiled ? "ole_t" : "ole", o[0], o[1], o[2], o[3], m});
+    else fprintf(stderr, "ole P1 %d M1 %d B1 %d M2 %d: not instantiated or cannot launch\n", o[0], o[1], o[2], o[3]);
+  }
   Agg agg(1ull << 30);
   auto victim_ms = [&](const Mul &mul) {   // per polynomial; operand reload outside the timed region
     cudaEvent_t c1, e; cudaEventCreate(&c1); cudaEventCreate(&e); load(); mul(); float tot = 0;
@@ -152,7 +188,8 @@ int main(int argc, char **argv) {
   printf("gpu,victim,logN,batch,P1,M1,B1,M2,maxrreg,blocks,sleep_ns,mode,agg_GBps,victim_ms,slowdown_raw,mismatches\n");
   std::vector<unsigned long long> bads;
   for (auto &v : vs) {   // the SM lane alone leaves the product in four-step order: it is checked through f4c_full (same kernels)
-    load(); v.mul(); ck(cudaDeviceSynchronize(), v.name); cudaMemset(cnt, 0, 8); count_diff<<<4096, 256>>>(x.a, ref, x.tot, cnt);
+    load(); v.mul(); ck(cudaDeviceSynchronize(), v.name); cudaMemset(cnt, 0, 8);
+    if (!strncmp(v.name, "ole", 3)) count_diff<<<4096, 256>>>(x.tmp, x.zr, N, cnt); else count_diff<<<4096, 256>>>(x.a, ref, x.tot, cnt);
     unsigned long long b; cudaMemcpy(&b, cnt, 8, cudaMemcpyDeviceToHost); bads.push_back(b);
   }
   unsigned long long full_bad = ~0ull;
@@ -162,7 +199,7 @@ int main(int argc, char **argv) {
     auto &v = vs[vi]; const unsigned long long bad = bads[vi];
     const double base = victim_ms(v.mul);
     printf("%s,%s,%d,%d,%d,%d,%d,%d,%d,0,-,none,0,%.4f,1.000,%llu\n", gpu.c_str(), v.name, L, batch, v.p1, v.m1, v.b1, v.m2, BIGN_MAXRREG, base, bad);
-    for (int b : blocks) for (int mode : {1, 0, 3}) for (unsigned sl : sleeps) {
+    for (int b : blocks) for (int mode : modes) for (unsigned sl : sleeps) {
       if (mode == 1 && sl != 0) continue;
       agg.start(b, sl, mode); std::this_thread::sleep_for(std::chrono::milliseconds(20));
       const double tm = victim_ms(v.mul), bw = agg.stop_GBps();

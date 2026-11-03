@@ -53,7 +53,8 @@ def ntt_table(dev):
 #   merge : W=48 R=16 -> standalone +5.2% (logN 22) / +2.7% (24), interference rms 0.053
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
 PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16),
-           "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16)}   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
+           "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16),   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
+           "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
 
 
 # Cheddar's NTT kernels (scale-snu/cheddar-fhe 8df8b26, GPU_baseline/cheddar), measured per multiply, best config per
@@ -86,6 +87,41 @@ def cheddar_table(dev):
 F4C_SM_BOUND = False   # set by e2e_window.py --f4c-sm-bound
 
 
+# PCG output on Cheddar's kernels (cheddar_bigN_bench.cu --designs ole): z = INTT( sum_ij a^_i a^_j NTT(g_ij) ) per output,
+# c^2 = batch polynomials g_ij: c forward transforms of the public a_i, one column pass over the g_ij, the row pass with the
+# multiply-accumulate epilogue (G partial sums), the partial-sum reduction, one inverse transform.  ole = g_ij read in
+# Cheddar's natural layout; ole_t = g_ij read in the column-contiguous layout the SPUs write.  The csv's ms_per_poly is per
+# g_ij (time per output / c^2); the table holds (ms per OUTPUT, P1 of that config) per design, best config per (logN, batch).
+OLE = ("ole", "ole_t", "olep", "olepb")   # olep: the SPUs accumulated g_ij + g_ji into one buffer -> c(c+1)/2 unordered pairs
+_OLE = {}
+def ole_table(dev):
+    dev = base(dev)
+    if dev in _OLE: return _OLE[dev]
+    path = os.path.abspath(os.path.join(HERE, "..", "..", "..", "GPU_baseline", f"results_{dev}", f"cheddar_bigN_{dev}.csv"))
+    t = {}
+    if os.path.exists(path):
+        for r in csv.DictReader(l for l in open(path) if not l.startswith("#")):
+            if r["design"] not in OLE or int(r["mismatches"]) != 0: continue
+            k = (int(r["logN"]), int(r["batch"])); i = OLE.index(r["design"]); ms = float(r["ms_per_poly"]) * k[1]
+            v = list(t.get(k, ((1e9, 0),) * len(OLE)))
+            if ms < v[i][0]: v[i] = (ms, int(r["P1"]))
+            t[k] = tuple(v)
+    _OLE[dev] = t; return t
+
+
+def muls_per_output(design, c):
+    """how many `mul_ms` units one PCG output takes: 2c^2 multiplies (old algorithm), one output (ole designs)"""
+    return 1 if design in OLE else 2 * c * c
+
+
+def ole_groups(logN, P1, items):
+    """partial-sum groups of the RowsAcc kernel (cheddar_bigN_bench.cu RowsAcc::groups): 2^P1 row blocks x G >= 1024, G <= items, G | items"""
+    G = 1
+    while (1 << P1) * G < 1024 and G < items: G *= 2
+    while items % G: G -= 1
+    return G
+
+
 # The submission's own NTT: the square four-step (poly_mul_gpuntt_square.cu, standalone bit-reversal), measured per
 # stage in ntt_stages.csv. Per multiply: pre-twist a, b | 3 transforms, each [transpose, brev, sub-NTT, twiddle,
 # transpose, brev, sub-NTT] | pointwise | post-twist = 25 DRAM passes, 408N B. "sq" runs everything on the SMs;
@@ -107,6 +143,7 @@ def mul_ms(dev, design, logN, batch):
     """measured per-multiply NTT time the lane is sized from (sqdru: the SM side only, the DRU runs in parallel)"""
     if design in ("merge", "f4dru", "f4sm"): return ntt_table(dev)[(logN, batch)][{"merge": 0, "f4dru": 1, "f4sm": 2}[design]]
     if design in ("cheddar", "f4c", "f4csm"): return cheddar_table(dev)[(logN, batch)][{"cheddar": 0, "f4c": 1, "f4csm": 2}[design]]
+    if design in OLE: return ole_table(dev).get((logN, batch), ((1e9, 0),) * len(OLE))[OLE.index(design)][0]   # per OUTPUT (c^2 = batch polynomials)
     if design == "sqdruh": design = "sqdru"
     tot, st = sq_table(dev)[(logN, batch)]; ssum = sum(st.values())
     return tot * (1.0 if design == "sq" else (ssum - st["transpose"] - st["brev"]) / ssum)
@@ -118,7 +155,13 @@ _BS_PATH = os.path.join(HERE, "ntt_dram_fraction.json")
 DRAM_FRACTION = __import__("json").load(open(_BS_PATH)) if os.path.exists(_BS_PATH) else {}
 
 
-def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dru_window=64, frac=None):
+# First DRAM row of the SPUs' g output in every bank (gen_dpf_tree_trace.py, pass 2: all-bank GGM_REDUCE writes at
+# g_row = (1 << 10) + 512 + ...). With handoff=True the phase that reads g (the DPF -> NTT handoff) reads these rows
+# (optional 10th phase field rd_row_base) instead of a private region, so it meets the SPUs' rows in the same banks.
+SPU_G_ROW = (1 << 10) + 512
+
+
+def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dru_window=64, frac=None, handoff=False):
     window = window or PATTERN[design][0]; run = run or PATTERN[design][1]
     if frac is None:
         frac = DRAM_FRACTION.get(f"{base(dev)}/{design}/{logN}/{batch}", 1.0)
@@ -151,6 +194,27 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
         tc = cheddar_table(dev)[(logN, batch)][0]
         CK = lambda: (0, 1, by(16), 0.5, window, gap, run, 16384, ck(tc * 16 / 120))
         return [CK(), CK(), CK(), CK(), (0, 1, by(24), 16 / 24, window, gap, run, 16384, ck(tc * 24 / 120)), CK(), CK()]
+    if design in OLE:
+        # PCG output on Cheddar's kernels, per output (c^2 = batch polynomials g_ij, c public a_i), 7 launches:
+        #   Cols a (16N c B) | Rows a (16N c) | Cols g (16N c^2) | RowsAcc (reads g 8N c^2 + a^_i, a^_j 16N c^2, writes G partials 8N G)
+        #   | reduce (G partials -> 1: 8N G + 8N; absent when G = 1) | Rows inv (16N) | Cols inv (16N)
+        # compute floor = measured per-output time split by bytes (as the other designs); the a^ reads are c distinct
+        # polynomials (L2 reuse is what the DRAM-fraction calibration absorbs).  No DPF->NTT gather: the column pass reads
+        # the SPUs' output directly (ole_t: in the column-contiguous layout they write, the same bytes).
+        to, P1 = ole_table(dev)[(logN, batch)][OLE.index(design)]
+        c = int(round(batch ** 0.5)); items = c * (c + 1) // 2 if design in ("olep", "olepb") else batch; G = ole_groups(logN, P1, items)
+        if design == "olepb":   # b^_ij precomputed once per public a: no a transforms; the accumulate pass reads g and one b^ per item
+            parts = [(16 * items, 0.5), (16 * items + 8 * G, 16 * items / (16 * items + 8 * G))]
+        else:
+            parts = [(16 * c, 0.5), (16 * c, 0.5), (16 * items, 0.5), (24 * items + 8 * G, 24 * items / (24 * items + 8 * G))]
+        if G > 1: parts.append((8 * G + 8, 8 * G / (8 * G + 8)))
+        parts += [(16, 0.5), (16, 0.5)]
+        tot = sum(b for b, _ in parts)
+        ph = [(0, 1, by(b), rf, window, gap, run, 16384, ck(to * b / tot)) for b, rf in parts]
+        if handoff:   # the column pass over g (index 0 for olepb, 2 otherwise) reads the SPUs' g rows
+            i = 0 if design == "olepb" else 2
+            ph[i] = ph[i] + (SPU_G_ROW,)
+        return ph
     if design in ("f4c", "f4csm"):
         # four-step on Cheddar's kernels: per mul  T K T K (a) | T K T K (b) | PW | K T K T; SM kernels 6 x 16N + PW 24N = 120N B,
         # 6 transposes x 16N B on the DRU (f4c) or on the SMs (f4csm, floor = measured f4c_full - f4c_sm)

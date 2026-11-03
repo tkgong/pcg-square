@@ -1,0 +1,3 @@
+kernels: 4, config edits: 4, twiddle edits: 6, leftover per-limb twiddle indexing: 0, 64-bit offsets: 8, leftover 32-bit offsets: 0
+contiguous column kernels written to gen/cheddar_ntt_contig.cuh (all address edits applied)
+gen/cheddar_ntt_acc.cuh: NTTPhase2Acc, NTTPhase1ContigIn and NTTPhase1RegIn written, 14 edits applied

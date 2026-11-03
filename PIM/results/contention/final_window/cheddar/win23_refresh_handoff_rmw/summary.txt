@@ -1,0 +1,22 @@
+PCG-output NTT (ole) in the final accounting (co-simulation window, contention included). Geomean over the suite's cells.
+
+1. NTT lane (kernels x co-run slowdown; cheddar/merge include the DPF->NTT gather, ole reads the SPU output directly), ms geomean:
+  B200: no common cells
+  L40S: cheddar 37.70 | ole 7.81 | olep 5.91
+      Cheddar/ole: 4.826 (range 2.60-7.08); per logN 2^20 4.679, 2^21 4.811, 2^22 4.647, 2^23 4.728, 2^24 5.592
+      Cheddar/olep: 6.383 (range 2.72-12.15); per logN 2^20 5.997, 2^21 6.210, 2^22 6.138, 2^23 6.250, 2^24 8.140
+      cheddar : co-run NTT slowdown 1.188-2.732 (geo 1.453), SPU slowdown beside it 1.004-1.034 (geo 1.014), standalone sim lane / measured 1.067, NTT-bound cells 0/22
+      ole     : co-run NTT slowdown 1.108-2.560 (geo 1.592), SPU slowdown beside it 1.001-1.007 (geo 1.003), standalone sim lane / measured 1.020, NTT-bound cells 0/22
+      olep    : co-run NTT slowdown 1.143-2.846 (geo 1.733), SPU slowdown beside it 1.001-1.006 (geo 1.003), standalone sim lane / measured 1.028, NTT-bound cells 0/22
+
+2. End-to-end speedup, best (c,t) / geomean; PCG^2 = SPU DPF + the design's NTT on the SMs; baselines = GPU DPF + NTT, network co-scheduled:
+        network         |  base Cheddar (old alg.), PCG^2 cheddar |  base Cheddar (old alg.), PCG^2 ole |  base ole (same alg.), PCG^2 ole |  base ole, PCG^2 ole_t |  base Cheddar, PCG^2 olep |  base olep, PCG^2 olep
+  B200  alpha = 500 us  |               nan /   nan              |             nan /   nan             |             nan /   nan          |         nan /   nan      |         nan /   nan      |        nan /   nan
+  B200  40 Gbps         |               nan /   nan              |             nan /   nan             |             nan /   nan          |         nan /   nan      |         nan /   nan      |        nan /   nan
+  B200  400 Mbps        |               nan /   nan              |             nan /   nan             |             nan /   nan          |         nan /   nan      |         nan /   nan      |        nan /   nan
+  L40S  alpha = 500 us  |              3.27 /  2.56              |            3.35 /  2.59             |            2.93 /  2.44          |         nan /   nan      |        3.36 /  2.59      |       2.90 /  2.43
+  L40S  40 Gbps         |              3.27 /  2.56              |            3.35 /  2.59             |            2.93 /  2.44          |         nan /   nan      |        3.36 /  2.59      |       2.90 /  2.43
+  L40S  400 Mbps        |              3.27 /  2.18              |            3.35 /  2.21             |            2.93 /  2.08          |         nan /   nan      |        3.36 /  2.21      |       2.90 /  2.07
+
+GPU baseline geomean ms (DPF + NTT), Cheddar old algorithm -> ole:
+  L40S: 584.1 -> 549.5  (NTT share of the old baseline: 7.8% geomean)

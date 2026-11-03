@@ -75,7 +75,7 @@ protected:
     // Host job pipelines (GPU/DRU kernels with compute time and dependencies).
     // Spec file (host_jobs), '#' comments:
     //   jobs <count> <start_ck>                       -- starts a pipeline
-    //   phase <res> <class> <bytes_per_ch> <rd_frac> <window> <gap_ck> <run_cols> <row_base> <min_ck>
+    //   phase <res> <class> <bytes_per_ch> <rd_frac> <window> <gap_ck> <run_cols> <row_base> <min_ck> [rd_row_base]
     // Every job runs the pipeline's phases in order. Each resource (res = 0, 1, ...;
     // e.g. 0 = SMs, 1 = DRU) executes one phase at a time, lowest job first, so
     // jobs pipeline across resources. A phase ends when its bytes are transferred
@@ -83,6 +83,8 @@ protected:
     // started (the kernel's compute time). Replicated per channel.
     struct PhaseSpec {
         int res; int cls; uint64_t bytes; double rd_frac; int window; int gap; int run; int row_base; Clk_t min_ck;
+        int rd_row_base = -1;   // optional 10th field: first row of the READ stream (default row_base). Lets a phase
+                                // read a buffer another agent wrote (the SPUs' g rows) while writing its own region.
     };
     struct PipeSpec { int jobs; Clk_t start; std::vector<PhaseSpec> phases; int nres = 0; };
     struct ResState { bool busy = false; int job = -1; int phase = -1; Clk_t t0 = 0; StreamState st; Clk_t busy_ck = 0; };
@@ -321,6 +323,8 @@ public:
                 if (!(is >> ph.res >> ph.cls >> ph.bytes >> ph.rd_frac >> ph.window >> ph.gap >> ph.run >> ph.row_base >> mck))
                     throw ConfigurationError("host_jobs: bad phase line");
                 ph.min_ck = mck;
+                int rb = -1;
+                ph.rd_row_base = (is >> rb) ? rb : ph.row_base;
                 if (ph.window < 1) ph.window = 1;
                 if (ph.run < 1) ph.run = 1;
                 m_pipes.back().phases.push_back(ph);
@@ -356,7 +360,7 @@ public:
             StreamState *sps = &st;
             if (is_read) {
                 r.callback = [sps](Request &) { sps->outstanding -= 1; };
-                advance(st.bank, st.row, st.col, st.run_pos, ph.run, ph.row_base);
+                advance(st.bank, st.row, st.col, st.run_pos, ph.run, ph.rd_row_base);
             } else {
                 r.callback = [sps](Request &) { sps->wr_outstanding -= 1; };
                 advance(st.wbank, st.wrow, st.wcol, st.wrun_pos, ph.run, ph.row_base + 4096);
@@ -409,7 +413,7 @@ public:
                         StreamState fresh;
                         fresh.cols_left = (ph.bytes + 31) / 32;
                         fresh.next_issue = m_clk;
-                        fresh.row = ph.row_base; fresh.wrow = ph.row_base + 4096;
+                        fresh.row = ph.rd_row_base; fresh.wrow = ph.row_base + 4096;
                         fresh.bank = fresh.wbank = ch % m_nbanks_total;
                         rs.st = fresh;
                         issue_phase(rs.st, ph, ch);

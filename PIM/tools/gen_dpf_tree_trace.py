@@ -408,7 +408,7 @@ def gen_instances(f, n, instances, channels, cl, modmul_cl, reduce_mode,
                   xpose_timing="tap", sm_timing="tap", sm_passes=1, xpose_passes=1,
                   net_mode="off", net_alpha=0,
                   net_beaver=True, net_gang=1, net_beta=0,
-                  pass2_placement="block"):
+                  pass2_placement="block", skip_pass2=False, pass2_rmw=False):
     """I independent depth-n trees, instance m -> channel m%C, sequential per channel.
 
     pus_per_ch=P > 1 (multi-PU channels, e.g. GDDR6_L40S 16 banks/ch -> P=8 at
@@ -681,7 +681,7 @@ def gen_instances(f, n, instances, channels, cl, modmul_cl, reduce_mode,
                 for ln in group:
                     f.write(ln)
             f.write("AiM SYNC\n")
-        elif reduce_mode == "chacha":
+        elif reduce_mode == "chacha" and not skip_pass2:   # skip_pass2: probe without the scatter pass (contention attribution)
             # ---- PASS 2 (scatter): the OTHER half of the output layer -------
             # The fused CONVERT above is pass 1 only: expand + H' + mod-reduce
             # + partial SUM, materialising C (8B/leaf) in the double-buffered
@@ -710,6 +710,18 @@ def gen_instances(f, n, instances, channels, cl, modmul_cl, reduce_mode,
                 done = 0
                 while done < c_cols:
                     w = min(COLS_PER_ROW, c_cols - done)
+                    if pass2_rmw:
+                        # accumulate = read-modify-write: the g columns this scatter updates are READ first
+                        # (all-bank read, no compute: cl=-2 -> no FPU op, normal column reads). Charged on
+                        # every scatter (conservative: the first instance into a fresh g needs no read).
+                        emit_reduce(buf2, ch, cbank ^ 1,
+                                    (1 << 10) + 512 + done // (2 * COLS_PER_ROW),
+                                    (done // 2) % COLS_PER_ROW, max(1, w // 2),
+                                    g_row=(1 << 10) + 512 + done // (2 * COLS_PER_ROW),
+                                    g_col=(done // 2) % COLS_PER_ROW,
+                                    wrsize=0, cl=-2, nbanks=2 * P)
+                        stats["pass2_rmw"] = stats.get("pass2_rmw", 0) + 1
+                        total += 1
                     emit_reduce(buf2, ch, cbank,
                                 c_base + done // COLS_PER_ROW,
                                 done % COLS_PER_ROW, w,
@@ -722,12 +734,14 @@ def gen_instances(f, n, instances, channels, cl, modmul_cl, reduce_mode,
                     stats["pass2"] = stats.get("pass2", 0) + 1
                     total += 1
             buf2.write("AiM SYNC\n")
-            if net_mode == "sched":
+            if net_mode == "sched" or pass2_placement == "trickle":
                 # CO-SCHEDULED pass 2: block k's CW arrives on the pipelined
                 # NIC timeline; its scatter is DEFERRED into round k+1's
                 # window (after that round's NET_WAIT), so the SPU fills the
                 # 2-RTT gap with round k+1's expansion. Double-buffered C
                 # parity makes the deferral safe. Last round drains at EOC.
+                # (no net, placement 'trickle': the same deferral, pass 2 interleaved into round k+1's fused level -- an
+                # SPU-side schedule that spreads the scatter's bus bursts under the compute-bound level)
                 pass2_pending = buf2.getvalue()
             else:
                 # serial (or no net): the Beaver rungs just blocked above, so
@@ -735,9 +749,9 @@ def gen_instances(f, n, instances, channels, cl, modmul_cl, reduce_mode,
                 f.write(buf2.getvalue())
     if net_mode == "sched":
         f.write("AiM NET_WAIT\n")     # drain the last round's Beaver rungs
-        if pass2_pending:
-            f.write(pass2_pending)     # last round's scatter, exposed (1/R)
-            pass2_pending = ""
+    if pass2_pending:
+        f.write(pass2_pending)     # last round's scatter, exposed (1/R)
+        pass2_pending = ""
     return total, stats
 
 
@@ -826,9 +840,11 @@ def main():
                          "coalesced exchange per level (amortizes alpha by G; "
                          "message grows xG -> see --net-beta-ck-per-block). "
                          "G=1 = per-round schedule (byte-exact degeneration)")
+    ap.add_argument("--skip-pass2", action="store_true", help="probe: omit the scatter pass (pass 2) entirely")
+    ap.add_argument("--pass2-rmw", action="store_true", help="pass 2 reads the g columns it accumulates into before writing them (read-modify-write)")
     ap.add_argument("--pass2-placement", choices=["block", "trickle"],
                     default="block",
-                    help="sched-mode placement of the deferred scatter pass: "
+                    help="placement of the deferred scatter pass (sched mode, or any net mode with 'trickle'): "
                          "'block' = one contiguous block at the next round's "
                          "head (conservative); 'trickle' = interleaved between "
                          "the next round's CONVERT ops so pass 2's memory "
@@ -915,7 +931,8 @@ def main():
                                          net_beaver=(a.net_beaver == "on"),
                                          net_gang=a.net_gang,
                                          net_beta=a.net_beta_ck_per_block,
-                                         pass2_placement=a.pass2_placement)
+                                         pass2_placement=a.pass2_placement, skip_pass2=a.skip_pass2,
+                                         pass2_rmw=a.pass2_rmw)
         f.write("AiM SYNC\nAiM EOC\n")
 
     lv = {k: v for k, v in stats.items() if isinstance(k, int)}

@@ -6,7 +6,7 @@ in L2 (the simulator has no L2); f = 1 where the kernel is compute-bound. Writes
 ntt_dram_fraction.json next to this script."""
 import argparse, concurrent.futures as cf, json, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-from ntt_jobs import DEV, ntt_table, mul_ms, phases, write_jobs
+from ntt_jobs import DEV, ntt_table, ole_table, OLE, mul_ms, phases, write_jobs
 PIM = os.path.dirname(os.path.dirname(HERE))
 YAML = {"l40s": os.path.join(PIM, "sim/test/gddr6_dpf_24ch.yaml"), "b200": os.path.join(PIM, "sim/test/hbm3e_dpf_b200d.yaml")}
 ap = argparse.ArgumentParser(); ap.add_argument("--sim", required=True); ap.add_argument("--out", required=True)
@@ -38,7 +38,8 @@ def fit(key):
         else: lo = mid
     f = (lo + hi) / 2
     return key, round(f, 4), r1, t_sim(dev, design, lg, b, round(f, 4))
-keys = [(d, g, lg, b) for d in a.devs.split(",") for g in a.designs.split(",") for (lg, b) in sorted(ntt_table(d))]
+keys = [(d, g, lg, b) for d in a.devs.split(",") for g in a.designs.split(",") for (lg, b) in sorted(ole_table(d) if g in OLE else ntt_table(d))
+        if mul_ms(d, g, lg, b) < 1e8]
 res = {}
 with cf.ThreadPoolExecutor(a.jobs) as ex:
     for key, f, r1, rf in ex.map(fit, keys):

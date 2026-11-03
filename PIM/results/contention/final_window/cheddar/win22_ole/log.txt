@@ -1,0 +1,22 @@
+clock=nom  (best (c,t) / geomean over all cells; GPU baseline = DPF + merge NTT, network co-scheduled)
+  L40S fast merge : serial-net base 3.32/2.59 | overlap-net base 3.32/2.57 | paper base 4.51/3.01 | no-cont geo 2.65 | SPU slow 1.00-1.05 NTT slow 1.37-2.53 | sim NTT lane/measured 1.06
+  L40S fast cheddar: serial-net base 3.42/2.61 | overlap-net base 3.42/2.60 | paper base 4.65/3.04 | no-cont geo 2.65 | SPU slow 1.00-1.04 NTT slow 1.37-2.96 | sim NTT lane/measured 1.08
+  L40S fast ole   : serial-net base 3.53/2.64 | overlap-net base 3.53/2.63 | paper base 4.79/3.08 | no-cont geo 2.65 | SPU slow 1.00-1.01 NTT slow 1.03-2.86 | sim NTT lane/measured 1.03
+  L40S fast ole_t : serial-net base 3.53/2.64 | overlap-net base 3.52/2.63 | paper base 4.79/3.08 | no-cont geo 2.65 | SPU slow 1.00-1.01 NTT slow 1.17-2.78 | sim NTT lane/measured 1.02
+  L40S slow merge : serial-net base 3.42/2.67 | overlap-net base 3.32/2.20 | paper base 4.61/3.08 | no-cont geo 2.73 | SPU slow 1.00-1.05 NTT slow 1.37-2.53 | sim NTT lane/measured 1.06
+  L40S slow cheddar: serial-net base 3.52/2.69 | overlap-net base 3.42/2.22 | paper base 4.75/3.11 | no-cont geo 2.73 | SPU slow 1.00-1.04 NTT slow 1.37-2.96 | sim NTT lane/measured 1.08
+  L40S slow ole   : serial-net base 3.63/2.72 | overlap-net base 3.53/2.25 | paper base 4.90/3.14 | no-cont geo 2.73 | SPU slow 1.00-1.01 NTT slow 1.03-2.86 | sim NTT lane/measured 1.03
+  L40S slow ole_t : serial-net base 3.63/2.72 | overlap-net base 3.52/2.25 | paper base 4.90/3.14 | no-cont geo 2.73 | SPU slow 1.00-1.01 NTT slow 1.17-2.78 | sim NTT lane/measured 1.02
+  B200 fast merge : serial-net base 9.69/7.67 | overlap-net base 9.66/7.59 | paper base 10.19/8.07 | no-cont geo 7.76 | SPU slow 1.00-1.03 NTT slow 1.01-1.05 | sim NTT lane/measured 1.01
+  B200 fast cheddar: serial-net base 9.76/8.53 | overlap-net base 9.73/8.45 | paper base 10.28/8.98 | no-cont geo 8.62 | SPU slow 1.00-1.03 NTT slow 1.01-1.07 | sim NTT lane/measured 1.01
+Traceback (most recent call last):
+  File "/home/tkgong/pcg-square/PIM/tools/contention/e2e_window.py", line 258, in <module>
+    main()
+    ~~~~^^
+  File "/home/tkgong/pcg-square/PIM/tools/contention/e2e_window.py", line 250, in main
+    print(f"  {MACH[base(org)]} {tier} {d:6s}: serial-net base {hb('base_serial_ms')[0]:.2f}/{hb('base_serial_ms')[1]:.2f}"
+                                                                ~~^^^^^^^^^^^^^^^^^^
+  File "/home/tkgong/pcg-square/PIM/tools/contention/e2e_window.py", line 247, in hb
+    return max(gm(v) for v in per.values()), gm(allv)
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: max() iterable argument is empty
