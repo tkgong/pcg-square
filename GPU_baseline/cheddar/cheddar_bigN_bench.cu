@@ -69,14 +69,6 @@ __global__ void transpose(const u64 *__restrict__ src, u64 *__restrict__ dst, in
   for (int k = 0; k < 32; k += 8) dst[(size_t) (r + k) * R + c] = t[threadIdx.x][threadIdx.y + k];
 }
 static void T(const u64 *s, u64 *d, int R, int C, int batch) { transpose<<<dim3(C / 32, R / 32, batch), dim3(32, 8)>>>(s, d, R, C); }
-// column-contiguous layout -> the register order of Cheddar's column kernel (NTTPhase1RegIn): within every column of 2^P1
-// elements, element n1 = s + i * 2^(P1-M) (thread s, register i) moves to s * 2^M + i
-__global__ void perm_reg(const u64 *src, u64 *dst, int P1, int M, size_t n) {
-  for (size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x; idx < n; idx += (size_t) gridDim.x * blockDim.x) {
-    const size_t col = idx >> P1; const int n1 = (int) (idx & ((1u << P1) - 1)); const int i = n1 >> (P1 - M), sidx = n1 & ((1 << (P1 - M)) - 1);
-    dst[(col << P1) + ((size_t) sidx << M) + i] = src[idx];
-  }
-}
 struct MergePlan {   // fused4_bench.cu:73-117
   int logN; NTTParameters<Data64> params; Modulus<Data64> modulus; Root<Data64> *fwd = nullptr, *inv = nullptr; ntt_configuration<Data64> cfg_fwd{}, cfg_inv{};
   static NTTParameters<Data64> make(int lg) {
@@ -181,12 +173,6 @@ template <int L, int P1, int M1, int B1> struct ColsContigIn {   // Cheddar's co
   static void fwd(const Tables &t, const u64 *x, u64 *y, int batch) { cheddar::InputPtrList<i64, 1> s; s.ptrs_[0] = (i64 *) x;
     cheddar::kernel::NTTPhase1ContigIn<u64, L, C><<<dim3(1u << (L - P1 - B1), batch), th, sm>>>((i64 *) y, t.primes, t.qinv, t.tw, 0, batch, 0, 0, s, cheddar::InputPtrList<u64, 1>()); }
 };
-template <int L, int P1, int M1, int B1> struct ColsRegIn {   // Cheddar's column kernel reading its own register order (the SPUs write g_ij in it), storing Cheddar's natural layout
-  using C = CCfg<P1, M1, B1>; static constexpr int th = 1 << (P1 - M1 + B1), sm = th * (1 << M1) * 8;
-  static bool setup(int maxs) { return fits(cheddar::kernel::NTTPhase1RegIn<u64, L, C>, th, sm, maxs); }
-  static void fwd(const Tables &t, const u64 *x, u64 *y, int batch) { cheddar::InputPtrList<i64, 1> s; s.ptrs_[0] = (i64 *) x;
-    cheddar::kernel::NTTPhase1RegIn<u64, L, C><<<dim3(1u << (L - P1 - B1), batch), th, sm>>>((i64 *) y, t.primes, t.qinv, t.tw, 0, batch, 0, 0, s, cheddar::InputPtrList<u64, 1>()); }
-};
 template <typename F> static double time_ms(F &&fn, int iters) {
   fn(); ck(cudaDeviceSynchronize(), "warm"); cudaEvent_t s, e; cudaEventCreate(&s); cudaEventCreate(&e);
   cudaEventRecord(s); for (int i = 0; i < iters; ++i) fn(); cudaEventRecord(e); ck(cudaEventSynchronize(e), "time");
@@ -208,22 +194,8 @@ template <int L, int P2, int M1, int B1, int M2> static void run_cheddar(Ctx &c)
     const Tables &t = *c.t; const int batch = c.batch;
     auto mul = [&] { CC::fwd(t, c.a, batch); RC::fwd(t, c.a, batch); CC::fwd(t, c.b, batch); RC::fwd(t, c.b, batch);
       fused4::pointwise_kernel<<<static_cast<unsigned>((c.tot + 255) / 256), 256>>>(c.a, c.b, c.mp->modulus, c.tot); RC::inv(t, c.a, batch); CC::inv(t, c.a, batch); };
-    if (wantd("cheddar")) {
-      c.refill(); mul(); if (!launched("cheddar", P1, P2, M1, B1, M2)) return; const unsigned long long bad = diff(c);
-      printf("%d,%d,cheddar,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(mul, c.iters) / batch, bad); fflush(stdout);
-    }
-    if (wantd("cheddar_t")) {   // cheddar_t: the same multiply inside PCG^2 - the g operand (b) is read by the column kernel directly in the
-      // column-contiguous layout the SPUs write (ColsContigIn, out of place into tmp); everything else is Cheddar's pipeline unchanged
-      using CI = ColsContigIn<L, P1, M1, B1>;
-      if (!CI::setup(c.maxs)) { fprintf(stderr, "skip cheddar_t P1 %d P2 %d M1 %d B1 %d M2 %d: cannot launch\n", P1, P2, M1, B1, M2); return; }
-      const size_t N = 1ull << L;
-      auto mul_t = [&] { CC::fwd(t, c.a, batch); RC::fwd(t, c.a, batch); CI::fwd(t, c.b, c.tmp, batch); RC::fwd(t, c.tmp, batch);
-        fused4::pointwise_kernel<<<static_cast<unsigned>((c.tot + 255) / 256), 256>>>(c.a, c.tmp, c.mp->modulus, c.tot); RC::inv(t, c.a, batch); CC::inv(t, c.a, batch); };
-      c.refill();   // the SPUs' layout for b, prepared outside the timed region
-      for (int k = 0; k < batch; k++) { T(c.b + k * N, c.tmp, 1 << P1, 1 << P2, 1); cudaMemcpyAsync(c.b + k * N, c.tmp, N * 8, cudaMemcpyDeviceToDevice, 0); }
-      mul_t(); if (!launched("cheddar_t", P1, P2, M1, B1, M2)) return; const unsigned long long badt = diff(c);
-      printf("%d,%d,cheddar_t,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(mul_t, c.iters) / batch, badt); fflush(stdout);
-    }
+    c.refill(); mul(); if (!launched("cheddar", P1, P2, M1, B1, M2)) return; const unsigned long long bad = diff(c);
+    printf("%d,%d,cheddar,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, batch, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(mul, c.iters) / batch, bad); fflush(stdout);
   }
 }
 template <int L, int P1, int M1, int B1, int M2> static void run_f4c(Ctx &c) {
@@ -256,9 +228,9 @@ static unsigned long long diff_z(Ctx &c) {   // the PCG output z (one polynomial
 template <int L, int P2, int M1, int B1, int M2> static void run_ole(Ctx &c) {
   constexpr int P1 = L - P2;
   if constexpr (P1 < M1 || P2 < M2 || !thr_ok(P1 - M1 + B1) || !thr_ok(P2 - M2)) return; else {
-    using CC = Cols<L, P1, M1, B1>; using CI = ColsContigIn<L, P1, M1, B1>; using CR = ColsRegIn<L, P1, M1, B1>; using RC = Rows<L, P2, M2>; using RA = RowsAcc<L, P2, M2>;
+    using CC = Cols<L, P1, M1, B1>; using CI = ColsContigIn<L, P1, M1, B1>; using RC = Rows<L, P2, M2>; using RA = RowsAcc<L, P2, M2>;
     if (!CC::setup(c.maxs) || !RC::setup(c.maxs) || !RA::setup(c.maxs)) { fprintf(stderr, "skip ole P1 %d P2 %d M1 %d B1 %d M2 %d: cannot launch (threads x registers or shared memory)\n", P1, P2, M1, B1, M2); return; }
-    const bool ci_ok = CI::setup(c.maxs), cr_ok = CR::setup(c.maxs);
+    const bool ci_ok = CI::setup(c.maxs);
     const int c2 = c.batch; int cc = 1; while (cc * cc < c2) cc++; if (cc * cc != c2) return;
     if (ext_skip(M1, B1, M2)) return;
     const int G = RA::groups(c2); const size_t N = 1ull << L; const Tables &t = *c.t; const Modulus<Data64> mod = c.mp->modulus;
@@ -266,7 +238,6 @@ template <int L, int P2, int M1, int B1, int M2> static void run_ole(Ctx &c) {
     auto tail = [&](const u64 *gs, int items, int Gi, bool pairs, const u64 *bh = nullptr) { RA::fwd(t, gs, ahat, cc, items, z, Gi, mod, pairs, bh); if (Gi > 1) reduce_partials<<<4096, 256>>>(z, Gi, N, mod); RC::inv(t, z, 1); CC::inv(t, z, 1); };
     auto ole = [&] { CC::fwd(t, ahat, cc); RC::fwd(t, ahat, cc); CC::fwd(t, g, c2); tail(g, c2, G, false); };
     auto ole_t = [&] { CC::fwd(t, ahat, cc); RC::fwd(t, ahat, cc); CI::fwd(t, g, gn, c2); tail(gn, c2, G, false); };
-    auto ole_r = [&] { CC::fwd(t, ahat, cc); RC::fwd(t, ahat, cc); CR::fwd(t, g, gn, c2); tail(gn, c2, G, false); };   // ole_r: g_ij in the column kernel's register order
     // olep: the SPUs accumulated g_ij + g_ji (i < j) into one buffer, so c(c+1)/2 unordered pairs instead of c^2 polynomials
     const int np = cc * (cc + 1) / 2, Gp = RA::groups(np);
     auto olep = [&] { CC::fwd(t, ahat, cc); RC::fwd(t, ahat, cc); CC::fwd(t, g, np); tail(g, np, Gp, true); };
@@ -298,23 +269,10 @@ template <int L, int P2, int M1, int B1, int M2> static void run_ole(Ctx &c) {
       for (int k = 0; k < c2; k++) { T(g + k * N, z, 1 << P1, 1 << P2, 1); cudaMemcpyAsync(g + k * N, z, N * 8, cudaMemcpyDeviceToDevice, 0); }
       ole_t(); if (!launched("ole_t", P1, P2, M1, B1, M2)) return; const unsigned long long badt = diff_z(c);
       printf("%d,%d,ole_t,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(ole_t, c.iters) / c2, badt); fflush(stdout);
-      if (wantd("oleu")) {   // oleu / olepu: the SM lane of the channel-unit design (the per-channel unit does the row pass, the a^ products
-        // and the accumulate in-stream, rows placed whole in a channel by the SPUs): the column pass over the g batch (SPU layout, c^2 or
-        // c(c+1)/2 paired items) + the inverse column pass once per output. Same kernels as ole_t; mismatch count = ole_t's in this config.
-        auto oleu = [&] { CI::fwd(t, g, gn, c2); CC::inv(t, z, 1); }; auto olepu = [&] { CI::fwd(t, g, gn, np); CC::inv(t, z, 1); };
-        printf("%d,%d,oleu,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(oleu, c.iters) / c2, badt); fflush(stdout);
-        printf("%d,%d,olepu,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(olepu, c.iters) / c2, badt); fflush(stdout);
-      }
-    }
-    if (wantd("ole_r")) {
-      if (!cr_ok) { fprintf(stderr, "skip ole_r P1 %d P2 %d M1 %d B1 %d M2 %d: cannot launch\n", P1, P2, M1, B1, M2); return; }
-      c.refill_ole();   // the SPUs' layout: every g_ij in the column kernel's register order (column-contiguous, then per-column s/i transpose), outside the timed region
-      for (int k = 0; k < c2; k++) { T(g + k * N, z, 1 << P1, 1 << P2, 1); perm_reg<<<4096, 256>>>(z, g + k * N, P1, M1, N); }
-      ole_r(); if (!launched("ole_r", P1, P2, M1, B1, M2)) return; const unsigned long long badr = diff_z(c);
-      printf("%d,%d,ole_r,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(ole_r, c.iters) / c2, badr); fflush(stdout);
     }
   }
 }
+
 #ifndef BIGN_NO_MAIN   // cheddar_interfere.cu reuses everything above
 int main(int argc, char **argv) {
   constexpr int L = BIGN_LOGN; std::vector<int> batches = {4, 16, 64}; int iters = L >= 27 ? 3 : 5; std::string designs = "merge,cheddar,f4c";
@@ -338,7 +296,7 @@ int main(int argc, char **argv) {
     ck(cudaMalloc(&c.cnt, 8), "cnt");
     c.refill = [&] { fill<<<4096, 256>>>(c.a, c.tot, 111 + L * 7 + batch); fill<<<4096, 256>>>(c.b, c.tot, 999 + L * 13 + batch); };
     const size_t N = 1ull << L;
-    if (want("merge") || want("cheddar") || want("cheddar_t") || want("f4c")) {
+    if (want("merge") || want("cheddar") || want("f4c")) {
       // reference: merge one polynomial at a time
       c.refill();
       for (int i = 0; i < batch; i++) mp.multiply(c.a + i * N, c.b + i * N, 1);
@@ -348,15 +306,15 @@ int main(int argc, char **argv) {
     }
     // Cheddar: P2 in [L-14, 14], M1, B1, M2
     // M1, M2 in 3..6 (3..5 in the original sweep; 6 = 64 elements per thread), B1 in 0..4 (0..3 originally)
-    if (want("cheddar") || want("cheddar_t")) cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
+    if (want("cheddar")) cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
       run_cheddar<L, P2, M1, B1, M2>(c); }); }); }); });
     // four-step: P1 in [L-14, 14], M1, M2
     if (want("f4c")) cfor<9, 15>([&](auto P1) { if constexpr (L - P1 >= 7 && L - P1 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) { run_f4c<L, P1, M1, B1, M2>(c); }); }); }); });
-    if (want("ole") || want("ole_r") || want("olep") || want("olepb")) {   // PCG output z over c^2 = batch polynomials g_ij (c.a) and c public a_i (first c polynomials of c.b, a_0 = 1)
+    if (want("ole") || want("olep") || want("olepb")) {   // PCG output z over c^2 = batch polynomials g_ij (c.a) and c public a_i (first c polynomials of c.b, a_0 = 1)
       int cc = 1; while (cc * cc < batch) cc++;
       if (cc * cc == batch) {
         ck(cudaMalloc(&c.zr, N * 8), "zr");
-        const bool ref_busy = want("merge") || want("cheddar") || want("cheddar_t") || want("f4c");   // c.r holds the per-multiply reference: ole_t's natural-layout output needs its own buffer
+        const bool ref_busy = want("merge") || want("cheddar") || want("f4c");   // c.r holds the per-multiply reference: ole_t's natural-layout output needs its own buffer
         if (ref_busy) { if (cudaMalloc(&c.gn, c.tot * 8)) { printf("%d,%d,OOM,0,0,0,0,0,%d,0,0\n", L, batch, BIGN_MAXRREG); fflush(stdout); cudaGetLastError(); c.gn = nullptr; } } else c.gn = c.r;
         c.refill_ole = [&, cc] { c.refill(); set_one<<<4096, 256>>>(c.b, N); };
         // reference: z = sum_ij (a_i a_j) g_ij with merge, one product at a time (tmp[0], tmp[1] scratch; batch >= 4 polynomials)

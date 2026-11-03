@@ -67,25 +67,7 @@ head = sub(head, "(i << (log_degree - kStageMerging))", "(i << (kNumStages - kSt
 p1 = head + "  int dst_idx =" + tail
 assert "dst_limb[dst_idx + (i << (log_degree - kNumStages))]" in p1      # the store is Cheddar's strided store
 
-# ---- NTTPhase1RegIn ----
-# Cheddar's column kernel reading the polynomial in the REGISTER order of its own first pass: the 2^M elements a thread
-# holds in registers (column elements s + i * 2^(P1-M), i < 2^M) are contiguous in memory, so each thread does one
-# 16 B-vectorised load per pair of elements instead of 2^M strided 8 B loads. The SPUs write g_ij in this order (their
-# address choice is free); stores are Cheddar's own strided stores (as ContigIn).
-pr = func("NTTPhase1", "__global__ void NTTPhase1(")
-pr = sub(pr, "__global__ void NTTPhase1(", "__global__ void NTTPhase1RegIn(")
-head, tail = pr.split("  int dst_idx =", 1)
-head = sub(head, "(stage_group_idx << (log_degree - kNumStages))", "(stage_group_idx << kStageMerging)")
-head = sub(head, "(blockIdx.x << kLogWarpBatching)", "(blockIdx.x << (kNumStages + kLogWarpBatching))")
-head = sub(head, "batch_idx +", "(batch_idx << kNumStages) +")
-m = re.search(r"for \(int i = 0; i < kPerThreadElems; i\+\+\) \{\s*local\[i\] = basic::StreamingLoad<signed_word>\(\s*load_ptr \+ \(i << \(log_degree - kStageMerging\)\)\);\s*\}", head)
-assert m, "load loop not found"
-head = head[:m.start()] + "basic::VectorizedMove<signed_word, kPerThreadElems>(local, load_ptr);   // register-order layout: one contiguous run per thread" + head[m.end():]
-n[0] += 1
-pr = head + "  int dst_idx =" + tail
-assert "dst_limb[dst_idx + (i << (log_degree - kNumStages))]" in pr
-
 out = ("#pragma once\n#include \"gen/cheddar_ntt_kernels.cuh\"\n#include \"gpuntt/common/modular_arith.cuh\"\n"
-       "namespace cheddar { namespace kernel {\n" + p2 + "\n" + p1 + "\n" + pr + "} }\n")
+       "namespace cheddar { namespace kernel {\n" + p2 + "\n" + p1 + "} }\n")
 open(sys.argv[2], "w").write(out)
-print(f"{sys.argv[2]}: NTTPhase2Acc, NTTPhase1ContigIn and NTTPhase1RegIn written, {n[0]} edits applied")
+print(f"{sys.argv[2]}: NTTPhase2Acc and NTTPhase1ContigIn written, {n[0]} edits applied")

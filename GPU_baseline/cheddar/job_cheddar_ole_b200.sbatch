@@ -1,5 +1,5 @@
 #!/bin/bash
-# B200, one job: the PCG-output NTT designs on Cheddar's kernels (cheddar_bigN_bench.cu --designs ole,ole_r,olep,olepb):
+# B200, one job: the PCG-output NTT designs on Cheddar's kernels (cheddar_bigN_bench.cu --designs ole,olep,olepb):
 # z = INTT( sum_ij a^_i a^_j NTT(g_ij) ), swept over Cheddar's own config space at logN 20..24, batch 4/16/64, register caps
 # 0/128/64, every output checked against merge; then the interference run of the ole / ole_t victims beside the aggressors.
 # Rows are appended to ../results_b200/cheddar_bigN_b200.csv (same columns as the Cheddar rows already there).
@@ -16,5 +16,5 @@ set -eu
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 nvidia-smi
 export ARCH=sm_100 OUT=../results_b200 TAG=b200 NVCC="${NVCC:-$HOME/opt/cuda-13.0/bin/nvcc}" GPUNTT_LIB="${GPUNTT_LIB:-$HOME/.local/lib64}"
-LOGNS="20 21 22 23 24" DESIGNS=ole,ole_r,olep,olepb ./run_cheddar_ole.sh
+LOGNS="20 21 22 23 24" DESIGNS=ole,olep,olepb ./run_cheddar_ole.sh
 LOGNS="20 21 22 23 24" BLOCKS=8,16,32,64,96,128 ./run_cheddar_interfere_ole.sh

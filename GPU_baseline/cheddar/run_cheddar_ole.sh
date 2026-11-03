@@ -7,7 +7,7 @@
 # Usage: GPUS="0 1 2 3" LOGNS="20 21 22 23 24" [DESIGNS=ole,olep] [EXTRA=--ext] ./run_cheddar_ole.sh   (ARCH=sm_100 OUT=../results_b200 TAG=b200 on B200)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; cd "$HERE"
-ARCH="${ARCH:-sm_89}"; OUT="${OUT:-../results_l40s}"; TAG="${TAG:-l40s}"; LOGNS="${LOGNS:-20 21 22 23 24}"; REGCAPS="${REGCAPS:-0 128 64}"; GPUS="${GPUS:-0}"; DESIGNS="${DESIGNS:-ole}"; EXTRA="${EXTRA:-}"; SUF="${SUF:-}"   # DESIGNS=ole,ole_r,olep,olepb; EXTRA=--ext (only M=6 / B1=4 configs); SUF: write to cheddar_bigN_<tag><SUF>.csv (no summary)
+ARCH="${ARCH:-sm_89}"; OUT="${OUT:-../results_l40s}"; TAG="${TAG:-l40s}"; LOGNS="${LOGNS:-20 21 22 23 24}"; REGCAPS="${REGCAPS:-0 128 64}"; GPUS="${GPUS:-0}"; DESIGNS="${DESIGNS:-ole}"; EXTRA="${EXTRA:-}"; SUF="${SUF:-}"   # DESIGNS=ole,olep,olepb; EXTRA=--ext (only M=6 / B1=4 configs); SUF: write to cheddar_bigN_<tag><SUF>.csv (no summary)
 NVCC="${NVCC:-/usr/local/cuda-12.6/bin/nvcc}"
 GPUNTT_INC="${GPUNTT_INC:-$HOME/.local/include/GPUNTT-1.0}"; GPUNTT_LIB="${GPUNTT_LIB:-$HOME/.local/lib}"
 [ -d cheddar-fhe ] || git clone -q https://github.com/scale-snu/cheddar-fhe.git cheddar-fhe
