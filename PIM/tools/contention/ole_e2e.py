@@ -6,18 +6,18 @@ column-contiguous layout the SPUs write.
   1. NTT lane per machine (kernels x co-run slowdown; ole has no gather pass), per logN, and the co-run slowdowns.
   2. End-to-end speedup of PCG^2 (SPU DPF + the design's NTT on the SMs) over the GPU baseline with the SAME NTT algorithm
      (GPU DPF + ole, network co-scheduled), and over the baseline with Cheddar's old algorithm; best (c,t) / geomean.
-Usage: ole_e2e.py WIN_DIR OUT_TXT"""
+Usage: ole_e2e.py WIN_DIR[,WIN_DIR2] OUT_TXT"""
 import io, contextlib, json, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "e2e"))
 with contextlib.redirect_stdout(io.StringIO()):
     from reproduce import L_, CFG, gm
     from lanes import alpha_bw
     from fig8 import BETA
-W, OUT = sys.argv[1], sys.argv[2]
-ROWS = json.load(open(f"{W}/e2e.json"))
+W, OUT = sys.argv[1], sys.argv[2]            # W: one window dir, or several comma-separated (one per machine)
+ROWS = [r for w in W.split(",") for r in json.load(open(f"{w}/e2e.json"))]
 MACH = {"l40s": "L40S", "b200": "B200"}
 TIERS = (("500us", "alpha = 500 us"), ("fast", "40 Gbps"), ("slow", "400 Mbps"))
-DES = [d for d in ("merge", "cheddar", "ole", "ole_t", "olep") if any(r["design"] == d for r in ROWS)]
+DES = [d for d in ("merge", "cheddar", "ole", "ole_t", "olep", "olepb", "oleu", "olepu") if any(r["design"] == d for r in ROWS)]
 
 
 def cells(org, des, tier="fast"):
@@ -65,15 +65,17 @@ for org in ("b200", "l40s"):
         nb = sum(lane(D[d][k]) >= D[d][k]["spu_ms"] * D[d][k]["spu_slow"] for k in ks)
         L.append(f"      {d:8s}: co-run NTT slowdown {min(sl):.3f}-{max(sl):.3f} (geo {gm(sl):.3f}), SPU slowdown beside it {min(ss):.3f}-{max(ss):.3f} (geo {gm(ss):.3f}),"
                  f" standalone sim lane / measured {er:.3f}, NTT-bound cells {nb}/{len(ks)}")
+COLS = [(d, k) for d, k in (("cheddar", "gpu_cheddar_ms"), ("ole", "gpu_cheddar_ms"), ("ole", "gpu_ole_ms"), ("ole_t", "gpu_ole_ms"), ("olep", "gpu_cheddar_ms"),
+                           ("olep", "gpu_olep_ms"), ("olepb", "gpu_cheddar_ms"), ("olepb", "gpu_olep_ms"), ("oleu", "gpu_cheddar_ms"), ("oleu", "gpu_ole_ms"),
+                           ("olepu", "gpu_cheddar_ms"), ("olepu", "gpu_olep_ms")) if d in DES]
+COLS_H = [f"base {'Cheddar' if k == 'gpu_cheddar_ms' else k[4:-3]}, PCG^2 {d}" for d, k in COLS]
 L += ["", "2. End-to-end speedup, best (c,t) / geomean; PCG^2 = SPU DPF + the design's NTT on the SMs; baselines = GPU DPF + NTT, network co-scheduled:",
-      "        network         |  base Cheddar (old alg.), PCG^2 cheddar |  base Cheddar (old alg.), PCG^2 ole |  base ole (same alg.), PCG^2 ole |  base ole, PCG^2 ole_t |  base Cheddar, PCG^2 olep |  base olep, PCG^2 olep"]
+      "   (oleu/olepu: the channel-unit design, SM = column passes only, unit = row pass + a^ product + accumulate; same-algorithm baseline = ole / olep on the GPU)",
+      "        network         | " + " | ".join(f"{h:^22s}" for h in COLS_H)]
 for org in ("b200", "l40s"):
     for tier, name in TIERS:
-        a = panel(org, "cheddar", tier, "gpu_cheddar_ms"); b = panel(org, "ole", tier, "gpu_cheddar_ms")
-        c = panel(org, "ole", tier, "gpu_ole_ms"); d = panel(org, "ole_t", tier, "gpu_ole_ms")
-        e = panel(org, "olep", tier, "gpu_cheddar_ms"); g = panel(org, "olep", tier, "gpu_olep_ms")
         f = lambda p: f"{p[0]:6.2f} / {p[1]:5.2f}"
-        L.append(f"  {MACH[org]}  {name:15s} |            {f(a)}              |          {f(b)}             |          {f(c)}          |      {f(d)}      |      {f(e)}      |     {f(g)}")
+        L.append(f"  {MACH[org]}  {name:15s} | " + " | ".join(f"{f(panel(org, d, tier, k)):^22s}" for d, k in COLS))
 L.append("")
 L.append("GPU baseline geomean ms (DPF + NTT), Cheddar old algorithm -> ole:")
 for org in ("b200", "l40s"):

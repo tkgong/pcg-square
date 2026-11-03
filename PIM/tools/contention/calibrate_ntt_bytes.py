@@ -18,7 +18,7 @@ def t_sim(dev, design, lg, b, f):
     target = mul_ms(dev, design, lg, b)                             # silicon per-mul time of the SM side
     sc = 1.5e6 / (MULS * target * 1e6 / DEV[dev]["tck"])
     ph = phases(dev, design, lg, b, scale=sc, frac=f)
-    if design in ("f4dru", "f4c"): ph = [p for p in ph if p[0] == 0]   # SM lane (silicon f4g_sm / f4c_sm)
+    if design in ("f4dru", "f4c", "oleu", "olepu"): ph = [p for p in ph if p[0] == 0]   # SM lane (silicon f4g_sm / f4c_sm)
     tag = f"{dev}_{design}_{lg}_{b}_{f:.4f}"; jp = os.path.join(a.out, tag + ".jobs"); out = os.path.join(a.out, tag + ".out")
     write_jobs(jp, [(MULS, 0, ph)])
     if not (os.path.exists(out) and "pipe0_finish_max" in open(out).read()):

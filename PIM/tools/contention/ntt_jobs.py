@@ -54,7 +54,7 @@ def ntt_table(dev):
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
 PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16),
            "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16),   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
-           "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
+           "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24), "oleu": (48, 16), "olepu": (48, 16)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
 
 
 # Cheddar's NTT kernels (scale-snu/cheddar-fhe 8df8b26, GPU_baseline/cheddar), measured per multiply, best config per
@@ -92,7 +92,10 @@ F4C_SM_BOUND = False   # set by e2e_window.py --f4c-sm-bound
 # multiply-accumulate epilogue (G partial sums), the partial-sum reduction, one inverse transform.  ole = g_ij read in
 # Cheddar's natural layout; ole_t = g_ij read in the column-contiguous layout the SPUs write.  The csv's ms_per_poly is per
 # g_ij (time per output / c^2); the table holds (ms per OUTPUT, P1 of that config) per design, best config per (logN, batch).
-OLE = ("ole", "ole_t", "olep", "olepb")   # olep: the SPUs accumulated g_ij + g_ji into one buffer -> c(c+1)/2 unordered pairs
+OLE = ("ole", "ole_t", "olep", "olepb", "oleu", "olepu")   # oleu/olepu: SM lane of the channel-unit design (column passes only)
+UNIT_MULT = 8     # channel unit: modular multipliers per channel (modmul per cycle)
+UNIT_GHZ = 1.0    # channel unit clock
+UNIT_MAX_P2 = 12  # row buffer 2^P2 x 8 B = 32 KB: only configs with P2 <= 12 count for oleu/olepu   # olep: the SPUs accumulated g_ij + g_ji into one buffer -> c(c+1)/2 unordered pairs
 _OLE = {}
 def ole_table(dev):
     dev = base(dev)
@@ -102,11 +105,21 @@ def ole_table(dev):
     if os.path.exists(path):
         for r in csv.DictReader(l for l in open(path) if not l.startswith("#")):
             if r["design"] not in OLE or int(r["mismatches"]) != 0: continue
+            if r["design"] in ("oleu", "olepu") and int(r["P2"]) > UNIT_MAX_P2: continue
             k = (int(r["logN"]), int(r["batch"])); i = OLE.index(r["design"]); ms = float(r["ms_per_poly"]) * k[1]
-            v = list(t.get(k, ((1e9, 0),) * len(OLE)))
-            if ms < v[i][0]: v[i] = (ms, int(r["P1"]))
+            v = list(t.get(k, ((1e9, 0, 1e9),) * len(OLE)))
+            # oleu/olepu: the unit and the SM pipeline per output, so the config is chosen by max(SM measured, unit floor), not by the SM alone
+            score = max(ms, unit_floor_ms(dev, k[0], k[1], k[0] - int(r["P1"]), r["design"])) if r["design"] in ("oleu", "olepu") else ms
+            if score < v[i][2]: v[i] = (ms, int(r["P1"]), score)
             t[k] = tuple(v)
     _OLE[dev] = t; return t
+
+
+def unit_floor_ms(dev, logN, batch, P2, design):
+    """channel unit (oleu/olepu) time per output: P2 row stages + the b^ product per item and the inverse row pass, modmul count
+    over UNIT_MULT multipliers per channel at UNIT_GHZ"""
+    c = int(round(batch ** 0.5)); items = c * (c + 1) // 2 if design == "olepu" else batch; N = 1 << logN
+    return N / DEV[base(dev)]["ch"] * ((P2 / 2 + 1) * items + P2 / 2) / UNIT_MULT / UNIT_GHZ / 1e6
 
 
 def muls_per_output(design, c):
@@ -201,8 +214,23 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
         # compute floor = measured per-output time split by bytes (as the other designs); the a^ reads are c distinct
         # polynomials (L2 reuse is what the DRAM-fraction calibration absorbs).  No DPF->NTT gather: the column pass reads
         # the SPUs' output directly (ole_t: in the column-contiguous layout they write, the same bytes).
-        to, P1 = ole_table(dev)[(logN, batch)][OLE.index(design)]
-        c = int(round(batch ** 0.5)); items = c * (c + 1) // 2 if design in ("olep", "olepb") else batch; G = ole_groups(logN, P1, items)
+        to, P1 = ole_table(dev)[(logN, batch)][OLE.index(design)][:2]
+        c = int(round(batch ** 0.5)); items = c * (c + 1) // 2 if design in ("olep", "olepb", "olepu") else batch; G = ole_groups(logN, P1, items)
+        if design in ("oleu", "olepu"):
+            # Channel unit (UNIT_MULT modmul/cycle at UNIT_GHZ, one 2^P2-element row buffer; rows placed whole in a channel by
+            # the SPUs).  Per output it streams every column-transformed g row (8N items rd) with its b^ row (8N items rd),
+            # does the P2 row stages, the product and the accumulate in the buffer and writes the sum once (8N wr); then the
+            # inverse row pass (16N).  SM (measured to): the column pass over the items + the inverse column pass.
+            # Unit floor = modmul count per channel / (UNIT_MULT x UNIT_GHZ), in DRAM CK; bytes not L2-cached (byd).
+            P2 = logN - P1; per_ch = N / d["ch"]
+            uck = lambda mm: int(round(mm / UNIT_MULT / UNIT_GHZ / d["tck"] * scale))
+            parts = [(16 * items, 0.5), (16, 0.5)]; tot = sum(b for b, _ in parts)
+            sm = [(0, 1, by(b), rf, window, gap, run, 16384, ck(to * b / tot)) for b, rf in parts]
+            un = [(1, 2, byd(16 * items + 8), 16 * items / (16 * items + 8), dru_window, 0, 4, 32768, uck(per_ch * (P2 / 2 + 1) * items)),
+                  (1, 2, byd(16), 0.5, dru_window, 0, 4, 32768, uck(per_ch * P2 / 2))]
+            ph = [sm[0], un[0], un[1], sm[1]]
+            if handoff: ph[0] = ph[0] + (SPU_G_ROW,)
+            return ph
         if design == "olepb":   # b^_ij precomputed once per public a: no a transforms; the accumulate pass reads g and one b^ per item
             parts = [(16 * items, 0.5), (16 * items + 8 * G, 16 * items / (16 * items + 8 * G))]
         else:

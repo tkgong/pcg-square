@@ -82,6 +82,8 @@ def main():
                     help="NTT lane as 2c^2/g jobs of g polynomials (g in 4, 16, 64 up to c^2, measured per-mul time at batch g), "
                          "each design at the g of its fastest co-run lane: the DRU transposes one sub-batch while the SMs run "
                          "another; default: the lane is n identical jobs sized only for kernel length (n = 1 serialises the DRU)")
+    ap.add_argument("--unit-mult", type=int, default=8, help="channel unit (oleu/olepu): modular multipliers per channel")
+    ap.add_argument("--unit-ghz", type=float, default=1.0, help="channel unit clock, GHz")
     ap.add_argument("--dru-stream", action="store_true",
                     help="steady state of a continuous NTT stream (every cell's and query's NTTs back to back): the DRU's "
                          "transposes run as their own pipeline beside the SM kernels (always another sub-batch to transpose), "
@@ -89,7 +91,7 @@ def main():
                          "Kernel sizes stay as in the default window")
     ap.add_argument("--fpu-gate", default="true", help="fpu_gate_issue: true = campaign (serial PU, no load/compute overlap), false = LSU overlap as described in Sec. IV")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
-    import ntt_jobs; ntt_jobs.F4C_SM_BOUND = a.f4c_sm_bound
+    import ntt_jobs; ntt_jobs.F4C_SM_BOUND = a.f4c_sm_bound; ntt_jobs.UNIT_MULT = a.unit_mult; ntt_jobs.UNIT_GHZ = a.unit_ghz
     eoc = os.path.join(a.out, "eoc.trace"); open(eoc, "w").write("AiM EOC\n")
     ctrl = ["-p", f"MemorySystem.Controller.fpu_gate_issue={a.fpu_gate}", "-p", "MemorySystem.Controller.wr_max_age=1000",
             "-p", "MemorySystem.Controller.pim_row_wait=0", "-p", "MemorySystem.Controller.class_priority=0,1,3,2",

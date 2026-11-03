@@ -284,6 +284,13 @@ template <int L, int P2, int M1, int B1, int M2> static void run_ole(Ctx &c) {
       for (int k = 0; k < c2; k++) { T(g + k * N, z, 1 << P1, 1 << P2, 1); cudaMemcpyAsync(g + k * N, z, N * 8, cudaMemcpyDeviceToDevice, 0); }
       ole_t(); if (!launched("ole_t", P1, P2, M1, B1, M2)) return; const unsigned long long badt = diff_z(c);
       printf("%d,%d,ole_t,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(ole_t, c.iters) / c2, badt); fflush(stdout);
+      if (wantd("oleu")) {   // oleu / olepu: the SM lane of the channel-unit design (the per-channel unit does the row pass, the a^ products
+        // and the accumulate in-stream, rows placed whole in a channel by the SPUs): the column pass over the g batch (SPU layout, c^2 or
+        // c(c+1)/2 paired items) + the inverse column pass once per output. Same kernels as ole_t; mismatch count = ole_t's in this config.
+        auto oleu = [&] { CI::fwd(t, g, gn, c2); CC::inv(t, z, 1); }; auto olepu = [&] { CI::fwd(t, g, gn, np); CC::inv(t, z, 1); };
+        printf("%d,%d,oleu,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(oleu, c.iters) / c2, badt); fflush(stdout);
+        printf("%d,%d,olepu,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, P1, P2, M1, B1, M2, BIGN_MAXRREG, time_ms(olepu, c.iters) / c2, badt); fflush(stdout);
+      }
     }
     if (wantd("ole_r")) {
       if (!cr_ok) { fprintf(stderr, "skip ole_r P1 %d P2 %d M1 %d B1 %d M2 %d: cannot launch\n", P1, P2, M1, B1, M2); return; }
