@@ -1,0 +1,6 @@
+# jobs <count> <start_ck> / phase <res> <class> <bytes_per_ch> <rd_frac> <window> <gap> <run> <row_base> <min_ck>
+jobs 1 0
+phase 0 1 589806 0.5000 48 0 16 16384 47372 1536
+phase 0 1 597998 0.9863 48 0 16 16384 48030
+phase 0 1 16384 0.5000 48 0 16 16384 1316
+phase 0 1 16384 0.5000 48 0 16 16384 1316
