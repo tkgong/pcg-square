@@ -1,7 +1,16 @@
 PCG-output NTT (ole) in the final accounting (co-simulation window, contention included). Geomean over the suite's cells.
 
 1. NTT lane (kernels x co-run slowdown; cheddar/merge include the DPF->NTT gather, ole reads the SPU output directly), ms geomean:
-  B200: no common cells
+  B200: cheddar 14.02 | ole 3.45 | olep 2.56 | olepb 1.81 | tp 1.93
+      Cheddar/ole: 4.069 (range 2.99-5.08); per logN 2^20 3.873, 2^21 3.977, 2^22 4.096, 2^23 4.151, 2^24 4.258
+      Cheddar/olep: 5.486 (range 3.12-8.17); per logN 2^20 5.184, 2^21 5.323, 2^22 5.533, 2^23 5.631, 2^24 5.782
+      Cheddar/olepb: 7.750 (range 5.29-10.41); per logN 2^20 7.296, 2^21 7.548, 2^22 7.816, 2^23 7.963, 2^24 8.160
+      Cheddar/tp: 7.254 (range 4.06-10.38); per logN 2^20 7.277, 2^21 7.575, 2^22 7.383, 2^23 7.265, 2^24 6.794
+      cheddar : co-run NTT slowdown 1.003-1.074 (geo 1.029), SPU slowdown beside it 1.003-1.035 (geo 1.015), standalone sim lane / measured 1.011, NTT-bound cells 10/25
+      ole     : co-run NTT slowdown 1.000-1.069 (geo 1.014), SPU slowdown beside it 1.002-1.016 (geo 1.006), standalone sim lane / measured 1.000, NTT-bound cells 0/25
+      olep    : co-run NTT slowdown 1.000-1.226 (geo 1.038), SPU slowdown beside it 1.002-1.011 (geo 1.004), standalone sim lane / measured 1.000, NTT-bound cells 0/25
+      olepb   : co-run NTT slowdown 1.000-1.062 (geo 1.008), SPU slowdown beside it 1.002-1.008 (geo 1.003), standalone sim lane / measured 1.000, NTT-bound cells 0/25
+      tp      : co-run NTT slowdown 1.000-1.266 (geo 1.014), SPU slowdown beside it 1.002-1.006 (geo 1.003), standalone sim lane / measured 1.000, NTT-bound cells 0/25
   L40S: cheddar 37.70 | ole 7.81 | olep 5.91 | olepb 4.51 | tp 4.54
       Cheddar/ole: 4.826 (range 2.60-7.08); per logN 2^20 4.679, 2^21 4.811, 2^22 4.647, 2^23 4.728, 2^24 5.592
       Cheddar/olep: 6.383 (range 2.72-12.15); per logN 2^20 5.997, 2^21 6.210, 2^22 6.138, 2^23 6.250, 2^24 8.140
@@ -15,18 +24,18 @@ PCG-output NTT (ole) in the final accounting (co-simulation window, contention i
 
 2. End-to-end speedup, best (c,t) / geomean; PCG^2 = SPU DPF + the design's NTT on the SMs; baselines = GPU DPF + NTT, network co-scheduled:
         network         | base Cheddar, PCG^2 cheddar | base Cheddar, PCG^2 ole |  base ole, PCG^2 ole   | base Cheddar, PCG^2 olep | base olep, PCG^2 olep  | base Cheddar, PCG^2 olepb | base olep, PCG^2 olepb | base Cheddar, PCG^2 tp |  base olep, PCG^2 tp  
-  B200  alpha = 500 us  |       9.31 /  7.91     |      14.01 /  9.61     |      12.31 /  9.07     |      14.07 /  9.63     |      12.19 /  9.04     |      14.12 /  9.64     |      12.23 /  9.04     |        nan /   nan     |        nan /   nan    
-  B200  40 Gbps         |       9.40 /  8.22     |      15.91 / 10.25     |      13.98 /  9.68     |      15.99 / 10.28     |      13.85 /  9.64     |      16.06 / 10.28     |      13.91 /  9.65     |        nan /   nan     |        nan /   nan    
-  B200  400 Mbps        |       6.39 /  2.89     |      12.59 /  3.39     |      11.06 /  3.21     |      12.65 /  3.40     |      10.95 /  3.20     |      12.67 /  3.40     |      10.98 /  3.20     |        nan /   nan     |        nan /   nan    
+  B200  alpha = 500 us  |       9.31 /  7.91     |      14.01 /  9.61     |      12.31 /  9.07     |      14.07 /  9.63     |      12.19 /  9.04     |      14.12 /  9.64     |      12.23 /  9.04     |      14.11 /  9.64     |      12.22 /  9.04    
+  B200  40 Gbps         |       9.40 /  8.22     |      15.91 / 10.25     |      13.98 /  9.68     |      15.99 / 10.28     |      13.85 /  9.64     |      16.06 / 10.28     |      13.91 /  9.65     |      16.05 / 10.28     |      13.90 /  9.65    
+  B200  400 Mbps        |       6.39 /  2.89     |      12.59 /  3.39     |      11.06 /  3.21     |      12.65 /  3.40     |      10.95 /  3.20     |      12.67 /  3.40     |      10.98 /  3.20     |      12.67 /  3.40     |      10.97 /  3.20    
   L40S  alpha = 500 us  |       3.27 /  2.56     |       3.35 /  2.59     |       2.93 /  2.44     |       3.36 /  2.59     |       2.90 /  2.43     |       3.36 /  2.59     |       2.91 /  2.43     |       3.36 /  2.59     |       2.90 /  2.43    
   L40S  40 Gbps         |       3.27 /  2.56     |       3.35 /  2.59     |       2.93 /  2.44     |       3.36 /  2.59     |       2.90 /  2.43     |       3.36 /  2.59     |       2.91 /  2.43     |       3.36 /  2.59     |       2.90 /  2.43    
   L40S  400 Mbps        |       3.27 /  2.18     |       3.35 /  2.21     |       2.93 /  2.08     |       3.36 /  2.21     |       2.90 /  2.07     |       3.36 /  2.21     |       2.91 /  2.07     |       3.36 /  2.21     |       2.90 /  2.07    
 
 3. The same, with NO overlap inside PCG^2 (SPU DPF, then the NTT on the SMs, standalone times; the GPU baseline is sequential as measured):
         network         | base Cheddar, PCG^2 cheddar | base Cheddar, PCG^2 ole |  base ole, PCG^2 ole   | base Cheddar, PCG^2 olep | base olep, PCG^2 olep  | base Cheddar, PCG^2 olepb | base olep, PCG^2 olepb | base Cheddar, PCG^2 tp |  base olep, PCG^2 tp  
-  B200  alpha = 500 us  |       7.46 /  5.87     |      10.15 /  8.35     |       8.92 /  7.88     |      11.36 /  8.75     |       9.84 /  8.21     |      11.83 /  8.94     |      10.24 /  8.39     |        nan /   nan     |        nan /   nan    
-  B200  40 Gbps         |       7.46 /  5.96     |      10.70 /  8.72     |       9.40 /  8.23     |      12.30 /  9.19     |      10.65 /  8.63     |      12.92 /  9.43     |      11.19 /  8.84     |        nan /   nan     |        nan /   nan    
-  B200  400 Mbps        |       4.67 /  2.47     |       9.61 /  3.14     |       8.45 /  2.97     |      10.73 /  3.23     |       9.30 /  3.04     |      11.07 /  3.27     |       9.59 /  3.07     |        nan /   nan     |        nan /   nan    
+  B200  alpha = 500 us  |       7.46 /  5.87     |      10.15 /  8.35     |       8.92 /  7.88     |      11.36 /  8.75     |       9.84 /  8.21     |      11.83 /  8.94     |      10.24 /  8.39     |      11.80 /  8.92     |      10.22 /  8.37    
+  B200  40 Gbps         |       7.46 /  5.96     |      10.70 /  8.72     |       9.40 /  8.23     |      12.30 /  9.19     |      10.65 /  8.63     |      12.92 /  9.43     |      11.19 /  8.84     |      12.92 /  9.41     |      11.19 /  8.83    
+  B200  400 Mbps        |       4.67 /  2.47     |       9.61 /  3.14     |       8.45 /  2.97     |      10.73 /  3.23     |       9.30 /  3.04     |      11.07 /  3.27     |       9.59 /  3.07     |      11.02 /  3.26     |       9.54 /  3.07    
   L40S  alpha = 500 us  |       2.19 /  2.16     |       3.11 /  2.51     |       2.72 /  2.36     |       3.21 /  2.54     |       2.77 /  2.38     |       3.24 /  2.55     |       2.80 /  2.39     |       3.26 /  2.56     |       2.82 /  2.40    
   L40S  40 Gbps         |       2.19 /  2.16     |       3.11 /  2.51     |       2.72 /  2.36     |       3.21 /  2.54     |       2.77 /  2.38     |       3.24 /  2.55     |       2.80 /  2.39     |       3.26 /  2.56     |       2.82 /  2.40    
   L40S  400 Mbps        |       2.19 /  1.84     |       3.11 /  2.14     |       2.72 /  2.01     |       3.21 /  2.17     |       2.77 /  2.03     |       3.24 /  2.18     |       2.80 /  2.04     |       3.26 /  2.18     |       2.82 /  2.04    
