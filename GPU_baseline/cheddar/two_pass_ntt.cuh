@@ -7,22 +7,31 @@
 // block streams one contiguous 2^P-element line: 2^P/8 threads, 8 elements per thread, 3 radix-2 stages per register
 // phase, shared-memory exchange between phases (padded), the next item's line prefetched into registers while the
 // current one is transformed.  Twiddles: Shoup pairs.  The b^ product: Montgomery (b^ precomputed in Montgomery form).
-// The row pass accumulates over the items in registers; one inverse (row, transpose, column) per output.
+// The row pass accumulates over the items in registers; one inverse (row, transpose, column) per output.  Lazy
+// reduction: the transforms keep values in [0, 2P) (one conditional subtraction per butterfly output, none after the
+// Shoup product); the kernels' outputs are reduced to [0, P) where a consumer needs it (row_fwd, acc, col_inv).
 #pragma once
 namespace tp {
 using u64 = ::u64;
 typedef long long i64;
 typedef unsigned __int128 u128;
 __constant__ u64 tP, tMU, tQI;   // modulus; floor(2^124 / P) (Barrett, table building only); P^-1 mod 2^64 (Montgomery)
-struct Sh { u64 w, q; };
+struct __align__(16) Sh { u64 w, q; };   // one 16-byte load per twiddle
 __device__ __forceinline__ u64 addm(u64 a, u64 b) { u64 s = a + b; return s >= tP ? s - tP : s; }
 __device__ __forceinline__ u64 subm(u64 a, u64 b) { return a >= b ? a - b : a + tP - b; }
 __device__ __forceinline__ u64 mulm(u64 a, u64 b) {
   const u64 hi = __umul64hi(a, b), lo = a * b, x1 = (hi << 4) | (lo >> 60), q = __umul64hi(x1, tMU);
   u64 r = lo - q * tP; while (r >= tP) r -= tP; return r; }
 __device__ __forceinline__ u64 muls(u64 a, Sh w) { const u64 q = __umul64hi(a, w.q), r = a * w.w - q * tP; return r >= tP ? r - tP : r; }
-// x in [0, P), bR = b 2^64 mod P -> x b mod P in [0, P): hi(x bR) - hi(t P) with t = lo(x bR) P^-1 mod 2^64 (no borrow:
-// the low words are equal), the difference lies in (-P, P)
+// Lazy arithmetic (P < 2^62): the line transforms keep every value in [0, 2P).  Shoup's product of a < 2^64 lies in
+// [0, 2P) without the final subtraction; a sum of two such values (< 4P < 2^64) is brought back below 2P by one
+// conditional subtraction of 2P (the sign bit of x - 2P decides: x < 4P < 2^63 + 2P).
+__device__ __forceinline__ u64 mulsl(u64 a, Sh w) { const u64 q = __umul64hi(a, w.q); return a * w.w - q * tP; }
+// [0, 4P) -> [0, 2P) and [0, 2P) -> [0, P): the sign of the high word of x - 2P (x - P) selects (x < 2^63)
+__device__ __forceinline__ u64 red2(u64 x) { const u64 d = x - 2 * tP; return ((int) (d >> 32)) < 0 ? x : d; }
+__device__ __forceinline__ u64 red1(u64 x) { const u64 d = x - tP; return ((int) (d >> 32)) < 0 ? x : d; }
+// x in [0, 2P), bR = b 2^64 mod P -> x b mod P: hi(x bR) - hi(t P) with t = lo(x bR) P^-1 mod 2^64 (no borrow: the low
+// words are equal); the difference lies in (-P, 2P), + P when negative -> [0, 2P)
 __device__ __forceinline__ u64 mont(u64 x, u64 bR) {
   const u64 hi = __umul64hi(x, bR), lo = x * bR, t = lo * tQI, r = hi - __umul64hi(t, tP); return (i64) r < 0 ? r + tP : r; }
 __device__ __forceinline__ u64 powm_d(u64 a, u64 e) { u64 r = 1; while (e) { if (e & 1) r = mulm(r, a); a = mulm(a, a); e >>= 1; } return r; }
@@ -42,7 +51,7 @@ template <int NS> __device__ __forceinline__ void phase(u64 *v, const Sh *__rest
       const int lo = (b / D) * 2 * D + (b % D), hi = lo + D;
       // twiddle index rm * m + i with m = 2^P / (2 d), i = (base + lo s) / (2 d): one index q for the phase's first
       // stage, (q << st) + (b >> (NS - 1 - st)) for the later ones (the group index doubles per stage)
-      const u64 u = v[lo], w = muls(v[hi], tw[(q << st) + (b >> (NS - 1 - st))]); v[lo] = addm(u, w); v[hi] = subm(u, w);
+      const u64 u = v[lo], w = mulsl(v[hi], tw[(q << st) + (b >> (NS - 1 - st))]); v[lo] = red2(u + w); v[hi] = red2(u + 2 * tP - w);
     }
   }
 }
@@ -88,7 +97,7 @@ template <int NS> __device__ __forceinline__ void iphase(u64 *v, const Sh *__res
     for (int b = 0; b < (1 << (NS - 1)); b++) {
       const int lo = (b / D) * 2 * D + (b % D), hi = lo + D;
       // twiddle index rm * h + i, h = 2^P / (2 d): q for the last stage, (q << (NS - 1 - st)) + (b >> st) before it
-      const u64 u = v[lo], w = v[hi]; v[lo] = addm(u, w); v[hi] = muls(subm(u, w), itw[(q << (NS - 1 - st)) + (b >> st)]);
+      const u64 u = v[lo], w = v[hi]; v[lo] = red2(u + w); v[hi] = mulsl(u + 2 * tP - w, itw[(q << (NS - 1 - st)) + (b >> st)]);
     }
   }
 }
@@ -138,7 +147,10 @@ template <int P> __device__ __forceinline__ void st8(u64 *line, const u64 *sm) {
 #ifndef TP_PREF_B
 #define TP_PREF_B 1   // load this item's b^ before the line transform
 #endif
-#define TP_LB(P) __launch_bounds__((1 << (P)) / 8, 4096 >> (P))   // 2^P/8 threads, registers capped at 128 (4 blocks of 128 threads ... 1 block of 512)
+#ifndef TP_THREADS
+#define TP_THREADS 512   // resident threads per SM the register budget is set for (512: 128 registers per thread)
+#endif
+#define TP_LB(P) __launch_bounds__((1 << (P)) / 8, TP_THREADS / ((1 << (P)) / 8))   // 2^P/8 threads per block
 
 // column pass: blockIdx.x = column (contiguous N1 elements at x + item * N + col * N1), blockIdx.y = group of items;
 // in place, the next item's column prefetched
@@ -204,7 +216,7 @@ template <int P2, bool SL> __global__ void TP_LB(P2) row_acc(const u64 *__restri
     ld8<P2>(b, bR + (size_t) it * N + off);
 #endif
 #pragma unroll
-    for (int e = 0; e < 8; e++) a[e] = addm(a[e], mont(sm[pad(threadIdx.x + e * NT)], b[e]));
+    for (int e = 0; e < 8; e++) a[e] = red2(a[e] + mont(sm[pad(threadIdx.x + e * NT)], b[e]));
     __syncthreads();
 #if TP_PREF_X
 #pragma unroll
@@ -212,13 +224,15 @@ template <int P2, bool SL> __global__ void TP_LB(P2) row_acc(const u64 *__restri
 #endif
   }
 #pragma unroll
-  for (int e = 0; e < 8; e++) acc[off + threadIdx.x + e * NT] = a[e];
+  for (int e = 0; e < 8; e++) acc[off + threadIdx.x + e * NT] = red1(a[e]);
 }
 // row pass without the accumulate (the public a, precomputation): in place
 template <int P2, bool SL> __global__ void TP_LB(P2) row_fwd(u64 *__restrict__ x, const Sh *__restrict__ tw, int N1, Twist tz) {
   constexpr int N2 = 1 << P2; extern __shared__ u64 sm[]; u64 *wt = sm + pad(N2) + 8; u64 *line = x + (size_t) blockIdx.x * N2; u64 r[8];
   if (!SL) build_twist<P2>(wt, tz);
-  ld8<P2>(r, line); to_sm_tw<P2, SL>(sm, r, wt); __syncthreads(); line_fwd<P2>(sm, tw, SL ? N1 + blockIdx.x : 1); st8<P2>(line, sm);
+  ld8<P2>(r, line); to_sm_tw<P2, SL>(sm, r, wt); __syncthreads(); line_fwd<P2>(sm, tw, SL ? N1 + blockIdx.x : 1);
+#pragma unroll
+  for (int e = 0; e < 8; e++) { const int i = threadIdx.x + e * (N2 / 8); __stcs(line + i, red1(sm[pad(i)])); }
 }
 // inverse row pass (once per output): bit-reversed in; SL: the row's inverse slice, !SL: cyclic inverse then the inverse twist; in place
 template <int P2, bool SL> __global__ void TP_LB(P2) row_inv(u64 *__restrict__ x, const Sh *__restrict__ itw, int N1, Twist tzi) {
@@ -236,7 +250,7 @@ template <int P1> __global__ void TP_LB(P1) col_inv(u64 *__restrict__ x, const S
   constexpr int N1 = 1 << P1, NT = N1 / 8; extern __shared__ u64 sm[]; u64 *line = x + (size_t) blockIdx.x * N1; u64 r[8];
   ld8<P1>(r, line); to_sm<P1>(sm, r); __syncthreads(); line_inv<P1>(sm, itw, 1);
 #pragma unroll
-  for (int e = 0; e < 8; e++) { const int i = threadIdx.x + e * NT; __stcs(line + i, muls(sm[pad(i)], ninv)); }
+  for (int e = 0; e < 8; e++) { const int i = threadIdx.x + e * NT; __stcs(line + i, red1(mulsl(sm[pad(i)], ninv))); }
 }
 // tables: tw[k] = base^brev_L(k) as a Shoup pair (base = psi for the forward table, psi^-1 for the inverse one)
 __global__ void build_tw(Sh *__restrict__ out, u64 base, int L) {

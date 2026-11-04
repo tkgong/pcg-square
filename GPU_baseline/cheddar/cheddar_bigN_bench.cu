@@ -361,7 +361,7 @@ template <int L> static void run_stream(Ctx &c, int Mmax) {
 // paired items; one inverse per output.  tp = SM lane, tpf = whole pipeline.
 template <int L, int P1, bool SL> static void run_tp(Ctx &c) {   // SL: row twiddles from the merged table's row slices (tp), else twist + cyclic table (tpt)
   constexpr int P2 = L - P1, N1 = 1 << P1, N2 = 1 << P2; const char *nm = SL ? "tp" : "tpt", *nmf = SL ? "tpf" : "tptf";
-  if constexpr (P1 < 10 || P1 > 12 || P2 < 10 || P2 > 12) return; else {   // 512 threads per line at most (register budget)
+  if constexpr (P1 < 9 || P1 > 12 || P2 < 9 || P2 > 12) return; else {   // 64..512 threads per line (register budget)
     const int sm1 = tp::line_smem<P1>(), sm2 = tp::line_smem<P2, SL>();
     if (sm1 > c.maxs || sm2 > c.maxs) return;
     ck(cudaFuncSetAttribute((const void *) tp::col_fwd<P1>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm1), "tp smem");
@@ -469,8 +469,8 @@ int main(int argc, char **argv) {
         if (c.gn) cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
           run_ole<L, P2, M1, B1, M2>(c); }); }); }); });
         if (want("strm")) { run_stream<L>(c, 6); run_stream<L>(c, 5); }
-        if (want("tp")) { run_tp<L, 10, true>(c); run_tp<L, 11, true>(c); run_tp<L, 12, true>(c); }
-        if (want("tpt")) { run_tp<L, 10, false>(c); run_tp<L, 11, false>(c); run_tp<L, 12, false>(c); }
+        if (want("tp")) { run_tp<L, 9, true>(c); run_tp<L, 10, true>(c); run_tp<L, 11, true>(c); run_tp<L, 12, true>(c); }
+        if (want("tpt")) { run_tp<L, 9, false>(c); run_tp<L, 10, false>(c); run_tp<L, 11, false>(c); run_tp<L, 12, false>(c); }
         if (ref_busy) cudaFree(c.gn);
         cudaFree(c.zr); cudaFree(c.zrp); cudaFree(c.bh); c.zr = c.zrp = c.gn = c.bh = nullptr;
       } else fprintf(stderr, "ole: batch %d is not a square c^2, skipped\n", batch);
