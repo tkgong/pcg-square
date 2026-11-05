@@ -402,6 +402,77 @@ template <int L, int P1, bool SL> static void run_tp(Ctx &c) {   // SL: row twid
     printf("%d,%d,%s,%d,%d,%d,%d,%d,%d,%.4f,%llu\n", L, c2, nmf, P1, P2, 0, 0, 0, BIGN_MAXRREG, full / c.iters / c2, bad); fflush(stdout);
   }
 }
+
+#include "multi_pass_ntt.cuh"
+// mp: PCG^2's multi-pass streaming NTT (multi_pass_ntt.cuh): k passes of 2^M-point register transforms (M = 3, 4) on contiguous
+// groups, the k - 1 inter-pass re-layouts per transform done by the DRU in memory (GPU transposes OUTSIDE the timed SM lane
+// here), paired items, b^ precomputed, the b^ product and the accumulate fused into the last pass, one inverse per output.
+// mp = SM lane (pass kernels only), mpf = the whole pipeline with the GPU re-layouts timed (the design without a DRU).
+template <int M> static void mp_fwd(bool first, bool tw, u64 *x, int p, int shift, size_t stepN, const mp::Plan &pl, size_t N, int items) {
+  const dim3 grid((unsigned) (N / (MP_BS << M)), items); const mp::Sh *T1 = pl.T1[p], *T2 = pl.T2[p];
+  if (!tw) { if (first) mp::pass_fwd<M, true, 0><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiSh, T1, T2, N); else mp::pass_fwd<M, false, 0><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiSh, T1, T2, N); }
+  else if (pl.uni(p)) mp::pass_fwd<M, false, 1><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiSh, T1, T2, N);   // pass 0 is never uniform
+  else if (first) mp::pass_fwd<M, true, 2><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiSh, T1, T2, N);
+  else mp::pass_fwd<M, false, 2><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiSh, T1, T2, N);
+}
+template <int M> static void mp_acc(bool first, const u64 *x, int p, size_t N, const u64 *bR, u64 *acc, int items) {
+  const unsigned grid = (unsigned) (N / (MP_BS << M));
+  if (first) mp::pass_acc<M, true><<<grid, MP_BS>>>(x, p, N, bR, acc, items); else mp::pass_acc<M, false><<<grid, MP_BS>>>(x, p, N, bR, acc, items);
+}
+template <int M> static void mp_inv(bool first, bool last, u64 *x, int p, int shift, size_t stepN, const mp::Plan &pl, size_t N) {
+  const unsigned grid = (unsigned) (N / (MP_BS << M)); const mp::Sh *T1 = pl.T1i[p], *T2 = pl.T2i[p];
+  if (last) { if (first) mp::pass_inv<M, true, 0><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiiSh, T1, T2, N, pl.ninv); else mp::pass_inv<M, false, 0><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiiSh, T1, T2, N, pl.ninv); }
+  else if (pl.uni(p)) mp::pass_inv<M, false, 1><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiiSh, T1, T2, N, pl.ninv);
+  else if (first) mp::pass_inv<M, true, 2><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiiSh, T1, T2, N, pl.ninv);
+  else mp::pass_inv<M, false, 2><<<grid, MP_BS>>>(x, p, shift, stepN, pl.psiiSh, T1, T2, N, pl.ninv);
+}
+// the [R] x [C] view of each of `items` polynomials transposed (fwd) or transposed back
+static void mp_xpose(const u64 *s, u64 *d, int R, int C, int items, bool fwd) {
+  if (R == 8) { if (fwd) mp::xpose<8, true><<<dim3(C / 128, 1, items), 256>>>(s, d, C); else mp::xpose<8, false><<<dim3(C / 128, 1, items), 256>>>(s, d, C); }
+  else { if (fwd) mp::xpose<16, true><<<dim3(C / 64, 1, items), 256>>>(s, d, C); else mp::xpose<16, false><<<dim3(C / 64, 1, items), 256>>>(s, d, C); }
+}
+template <int L> static void run_mp(Ctx &c, int k) {
+  const int c2 = c.batch; int cc = 1; while (cc * cc < c2) cc++; if (cc * cc != c2) return;
+  const int np = cc * (cc + 1) / 2; const size_t N = 1ull << L; const Modulus<Data64> mod = c.mp->modulus;
+  u64 *g = c.a, *ahat = c.b, *z = c.tmp, *gn = c.gn; if (!gn || !c.zrp) return;
+  if (!c.bh && cudaMalloc(&c.bh, (size_t) np * N * 8)) { fprintf(stderr, "mp: b^ does not fit, skipped\n"); cudaGetLastError(); c.bh = nullptr; return; }
+  mp::Plan pl(L, k, P); if (pl.Mp[k - 1] < 3 || pl.Mp[0] > 4) { fprintf(stderr, "skip mp L %d k %d: a pass outside 3..4 stages\n", L, k); return; }
+  PassTimer tm;
+  auto fwd = [&](u64 *x, int p, bool tw, int items) { tm.beg();
+    if (pl.Mp[p] == 3) mp_fwd<3>(p == 0, tw, x, p, pl.shift(p), pl.stepN(p), pl, N, items); else mp_fwd<4>(p == 0, tw, x, p, pl.shift(p), pl.stepN(p), pl, N, items); tm.end(); };
+  auto accp = [&](const u64 *x, u64 *acc, int items) { const int p = k - 1; tm.beg();
+    if (pl.Mp[p] == 3) mp_acc<3>(p == 0, x, p, N, c.bh, acc, items); else mp_acc<4>(p == 0, x, p, N, c.bh, acc, items); tm.end(); };
+  auto inv = [&](u64 *x, int p) { tm.beg();
+    if (pl.Mp[p] == 3) mp_inv<3>(p == 0, p == k - 1, x, p, pl.shift(p), pl.stepN(p), pl, N); else mp_inv<4>(p == 0, p == k - 1, x, p, pl.shift(p), pl.stepN(p), pl, N); tm.end(); };
+  // forward passes 0..k-2 of `items` item-major polynomials in x, re-layouts through y; returns the buffer holding the result
+  auto fwd_head = [&](u64 *x, u64 *y, int items) {
+    for (int p = 0; p + 1 < k; p++) { fwd(x, p, true, items); const int R = 1 << pl.Mp[p + 1]; mp_xpose(x, y, R, (int) (N / R), items, true); std::swap(x, y); }   // DRU: digit d_{p+1} least significant
+    return x; };
+  auto forward_full = [&](u64 *x, u64 *y) { u64 *r = fwd_head(x, y, 1); fwd(r, k - 1, false, 1); return r; };
+  auto inverse = [&](u64 *x, u64 *y) {   // x: the accumulated output in the forward's final layout; result in natural order, in x or y
+    for (int p = k - 1; p >= 0; p--) { inv(x, p); const int R = 1 << pl.Mp[p]; mp_xpose(x, y, R, (int) (N / R), 1, false); std::swap(x, y); }   // undo the re-layout (p > 0) / to natural order (p = 0)
+    return x; };
+  // preparation outside the timed region: g in pass 0's layout (R_0 digit least significant), a^_i, b^_q (Montgomery form)
+  auto prep = [&] { c.refill_ole(); const int R0 = 1 << pl.Mp[0];
+    mp_xpose(g, gn, R0, (int) (N / R0), c2, true); cudaMemcpyAsync(g, gn, (size_t) c2 * N * 8, cudaMemcpyDeviceToDevice, 0);
+    for (int i = 0; i < cc; i++) { mp_xpose(ahat + i * N, z, R0, (int) (N / R0), 1, true); u64 *r = forward_full(z, gn); if (r != ahat + i * N) cudaMemcpyAsync(ahat + i * N, r, N * 8, cudaMemcpyDeviceToDevice, 0); }
+    int q = 0; for (int i = 0; i < cc; i++) for (int j = i; j < cc; j++, q++) { cudaMemcpyAsync(c.bh + q * N, ahat + i * N, N * 8, cudaMemcpyDeviceToDevice, 0);
+      fused4::pointwise_kernel<<<static_cast<unsigned>((N + 255) / 256), 256>>>(c.bh + q * N, ahat + j * N, mod, N); }
+    mp::to_mont<<<4096, 256>>>(c.bh, (size_t) np * N, pl.r2);
+    ck(cudaDeviceSynchronize(), "mp prep"); };
+  // one output: the heads of all np items batched, the fused last pass over the items, the inverse
+  auto output = [&] { u64 *r = fwd_head(g, gn, np); accp(r, z, np); u64 *o = inverse(z, gn); if (o != z) cudaMemcpyAsync(z, o, N * 8, cudaMemcpyDeviceToDevice, 0); };
+  prep(); output(); ck(cudaDeviceSynchronize(), "mp run");
+  cudaMemset(c.cnt, 0, 8); count_diff<<<4096, 256>>>(c.tmp, c.zrp, N, c.cnt); unsigned long long bad; cudaMemcpy(&bad, c.cnt, 8, cudaMemcpyDeviceToHost);
+  float lane = 0, full = 0;
+  for (int it = 0; it < c.iters; it++) {
+    prep(); tm.on = true; tm.n = 0; cudaEvent_t e0, e1; cudaEventCreate(&e0); cudaEventCreate(&e1);
+    cudaEventRecord(e0, 0); output(); cudaEventRecord(e1, 0); ck(cudaDeviceSynchronize(), "mp time");
+    float f; cudaEventElapsedTime(&f, e0, e1); full += f; lane += tm.ms(); tm.on = false; cudaEventDestroy(e0); cudaEventDestroy(e1);
+  }
+  printf("%d,%d,mp,%d,%d,0,0,0,%d,%.4f,%llu\n", L, c2, k, pl.Mp[0], BIGN_MAXRREG, lane / c.iters / c2, bad); fflush(stdout);
+  printf("%d,%d,mpf,%d,%d,0,0,0,%d,%.4f,%llu\n", L, c2, k, pl.Mp[0], BIGN_MAXRREG, full / c.iters / c2, bad); fflush(stdout);
+}
 #ifndef BIGN_NO_MAIN   // cheddar_interfere.cu reuses everything above
 int main(int argc, char **argv) {
   constexpr int L = BIGN_LOGN; std::vector<int> batches = {4, 16, 64}; int iters = L >= 27 ? 3 : 5; std::string designs = "merge,cheddar,f4c";
@@ -439,7 +510,7 @@ int main(int argc, char **argv) {
       run_cheddar<L, P2, M1, B1, M2>(c); }); }); }); });
     // four-step: P1 in [L-14, 14], M1, M2
     if (want("f4c")) cfor<9, 15>([&](auto P1) { if constexpr (L - P1 >= 7 && L - P1 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) { run_f4c<L, P1, M1, B1, M2>(c); }); }); }); });
-    if (want("ole") || want("olep") || want("olepb") || want("strm") || want("tp") || want("tpt")) {   // PCG output z over c^2 = batch polynomials g_ij (c.a) and c public a_i (first c polynomials of c.b, a_0 = 1)
+    if (want("ole") || want("olep") || want("olepb") || want("strm") || want("tp") || want("tpt") || want("mp")) {   // PCG output z over c^2 = batch polynomials g_ij (c.a) and c public a_i (first c polynomials of c.b, a_0 = 1)
       int cc = 1; while (cc * cc < batch) cc++;
       if (cc * cc == batch) {
         ck(cudaMalloc(&c.zr, N * 8), "zr");
@@ -455,7 +526,7 @@ int main(int argc, char **argv) {
           addmod_kernel<<<4096, 256>>>(c.zr, c.tmp, N, mp.modulus);
         }
         ck(cudaDeviceSynchronize(), "ole ref");
-        if (want("olep") || want("olepb") || want("strm") || want("tp") || want("tpt")) {   // paired reference: z = sum_{i<=j} (a_i a_j) g_k, k enumerating the pairs as the kernel does
+        if (want("olep") || want("olepb") || want("strm") || want("tp") || want("tpt") || want("mp")) {   // paired reference: z = sum_{i<=j} (a_i a_j) g_k, k enumerating the pairs as the kernel does
           ck(cudaMalloc(&c.zrp, N * 8), "zrp"); c.refill_ole(); cudaMemset(c.zrp, 0, N * 8); int k = 0;
           for (int i = 0; i < cc; i++) for (int j = i; j < cc; j++, k++) {
             cudaMemcpy(c.tmp, c.b + i * N, N * 8, cudaMemcpyDeviceToDevice); cudaMemcpy(c.tmp + N, c.b + j * N, N * 8, cudaMemcpyDeviceToDevice);
@@ -464,13 +535,14 @@ int main(int argc, char **argv) {
             addmod_kernel<<<4096, 256>>>(c.zrp, c.tmp, N, mp.modulus);
           }
           ck(cudaDeviceSynchronize(), "olep ref");
-          if ((want("olepb") || want("strm") || want("tp") || want("tpt")) && cudaMalloc(&c.bh, (size_t) (cc * (cc + 1) / 2) * N * 8)) { fprintf(stderr, "olepb: b^ does not fit, skipped\n"); cudaGetLastError(); c.bh = nullptr; }
+          if ((want("olepb") || want("strm") || want("tp") || want("tpt") || want("mp")) && cudaMalloc(&c.bh, (size_t) (cc * (cc + 1) / 2) * N * 8)) { fprintf(stderr, "olepb: b^ does not fit, skipped\n"); cudaGetLastError(); c.bh = nullptr; }
         }
         if (c.gn) cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
           run_ole<L, P2, M1, B1, M2>(c); }); }); }); });
         if (want("strm")) { run_stream<L>(c, 6); run_stream<L>(c, 5); }
         if (want("tp")) { run_tp<L, 9, true>(c); run_tp<L, 10, true>(c); run_tp<L, 11, true>(c); run_tp<L, 12, true>(c); }
         if (want("tpt")) { run_tp<L, 9, false>(c); run_tp<L, 10, false>(c); run_tp<L, 11, false>(c); run_tp<L, 12, false>(c); }
+        if (want("mp")) for (int k = (L + 3) / 4; k <= L / 3; k++) run_mp<L>(c, k);   // every pass count whose passes have 3..4 stages
         if (ref_busy) cudaFree(c.gn);
         cudaFree(c.zr); cudaFree(c.zrp); cudaFree(c.bh); c.zr = c.zrp = c.gn = c.bh = nullptr;
       } else fprintf(stderr, "ole: batch %d is not a square c^2, skipped\n", batch);

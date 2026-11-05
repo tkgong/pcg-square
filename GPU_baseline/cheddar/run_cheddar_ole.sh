@@ -19,7 +19,8 @@ python3 extract_acc.py gen/cheddar_ntt_kernels.cuh gen/cheddar_ntt_acc.cuh
 FLAGS=(-O3 -std=c++17 -arch="$ARCH" --expt-relaxed-constexpr -diag-suppress 177 -Ishim -Icheddar-fhe/include -I. -I.. -I"$GPUNTT_INC")
 for L in $LOGNS; do for R in $REGCAPS; do
   CAP=(); [ "$R" -gt 0 ] && CAP=(-maxrregcount="$R")
-  "$NVCC" "${FLAGS[@]}" "${CAP[@]}" -DBIGN_LOGN=$L -DBIGN_MAXRREG=$R cheddar_bigN_bench.cu -L"$GPUNTT_LIB" -lntt-1.0 -o "bin/cheddar_bigN_${L}_r${R}_$ARCH" &
+  MPBS=256; [ "$L" -le 21 ] && MPBS=128   # multi-pass kernel: 128-group blocks up to 2^21 (enough blocks per pass), 256 above
+  "$NVCC" "${FLAGS[@]}" "${CAP[@]}" -DBIGN_LOGN=$L -DBIGN_MAXRREG=$R -DMP_BS=$MPBS cheddar_bigN_bench.cu -L"$GPUNTT_LIB" -lntt-1.0 -o "bin/cheddar_bigN_${L}_r${R}_$ARCH" &
 done; done
 wait
 RUNS=(); for L in $LOGNS; do for R in $REGCAPS; do RUNS+=("$L $R"); done; done
