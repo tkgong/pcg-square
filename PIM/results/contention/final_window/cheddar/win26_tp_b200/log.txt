@@ -1,0 +1,5 @@
+clock=nom  (best (c,t) / geomean over all cells; GPU baseline = DPF + merge NTT, network co-scheduled)
+  B200 fast tp    : serial-net base 16.73/10.60 | overlap-net base 16.72/10.49 | paper base 18.56/11.16 | no-cont geo 10.64 | SPU slow 1.00-1.01 NTT slow 1.00-1.43 | sim NTT lane/measured 1.00
+  B200 fast tpt   : serial-net base 16.76/10.60 | overlap-net base 16.75/10.50 | paper base 18.59/11.16 | no-cont geo 10.64 | SPU slow 1.00-1.01 NTT slow 1.00-1.29 | sim NTT lane/measured 1.00
+  B200 slow tp    : serial-net base 13.93/4.44 | overlap-net base 13.21/3.46 | paper base 15.38/4.64 | no-cont geo 4.45 | SPU slow 1.00-1.01 NTT slow 1.00-1.43 | sim NTT lane/measured 1.00
+  B200 slow tpt   : serial-net base 13.95/4.45 | overlap-net base 13.24/3.46 | paper base 15.41/4.64 | no-cont geo 4.45 | SPU slow 1.00-1.01 NTT slow 1.00-1.29 | sim NTT lane/measured 1.00
