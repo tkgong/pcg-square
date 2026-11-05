@@ -174,27 +174,30 @@ template <int P1> __global__ void TP_LB(P1) col_fwd(u64 *__restrict__ x, const S
 #endif
   }
 }
-// Row-pass twiddle modes.  SL (slice): row k1 reads the slice tw[(N1 + k1) m + i] of the merged N-entry table (no twist
-// multiply; 16 N2 bytes per row per pass, from L2/HBM).  !SL (twist): the shared cyclic N2-entry table (L1-resident) and
+// Row-pass twiddle modes (TM).  0 (slice): row k1 reads the slice tw[(N1 + k1) m + i] of the merged N-entry table (no twist
+// multiply; 16 N2 bytes per row per pass, from L2/HBM).  1 (twist): the shared cyclic N2-entry table (L1-resident) and
 // the row's twist zeta^n2, zeta = psi^(2 brev(k1) + 1), built per block in shared memory (Montgomery form) from two small
-// per-row power tables (64 + N2/64 entries), one Montgomery multiply per element per item.  Both compute the same
-// transform (merged table of row k1 = zeta^(N2 / 2m) times the cyclic table); the faster mode differs by GPU.
+// per-row power tables (64 + N2/64 entries), one Montgomery multiply per element per item.  2 (channel): the twist is
+// applied by the memory channel's unit while the row streams to the SM (one modular multiply per element, the factor
+// table read inside the channel), and the inverse twist on the way back after the inverse row pass; the SM runs the
+// cyclic transform only: no table bytes, no twist multiply.  All three compute the same transform (merged table of row
+// k1 = zeta^(N2 / 2m) times the cyclic table); in the bench the channel's twist is a GPU kernel outside the timed lane.
 struct Twist { const u64 *A, *B; };   // A[k1 * 64 + i] = zeta^i, B[k1 * (N2/64) + j] = zeta^(64 j) 2^64 (Montgomery form)
 template <int P2> __device__ __forceinline__ void build_twist(u64 *wt, Twist tz) {   // wt[n2] = zeta^n2 2^64 mod P for this block's row
   constexpr int N2 = 1 << P2, NT = N2 / 8; const u64 *A = tz.A + blockIdx.x * 64, *B = tz.B + blockIdx.x * (N2 / 64);
 #pragma unroll
   for (int e = 0; e < 8; e++) { const int i = threadIdx.x + e * NT; wt[i] = mulm(A[i & 63], B[i >> 6]); }   // each thread writes the entries it reads
 }
-template <int P, bool SL> __device__ __forceinline__ void to_sm_tw(u64 *sm, const u64 *r, const u64 *wt) {
+template <int P, int TM> __device__ __forceinline__ void to_sm_tw(u64 *sm, const u64 *r, const u64 *wt) {
 #pragma unroll
-  for (int e = 0; e < 8; e++) { const int i = threadIdx.x + e * ((1 << P) / 8); sm[pad(i)] = SL ? r[e] : mont(r[e], wt[i]); } }
+  for (int e = 0; e < 8; e++) { const int i = threadIdx.x + e * ((1 << P) / 8); sm[pad(i)] = TM == 1 ? mont(r[e], wt[i]) : r[e]; } }
 // row pass with the multiply-accumulate over the items: blockIdx.x = row k1 (position); the next item's row and this
 // item's b^ (Montgomery form) prefetched; acc[row k1] = sum over items of NTT_row(x) . b^
-template <int P2, bool SL> __global__ void TP_LB(P2) row_acc(const u64 *__restrict__ x, const Sh *__restrict__ tw, size_t N, int N1,
-                                                              const u64 *__restrict__ bR, u64 *__restrict__ acc, int items, Twist tz) {
+template <int P2, int TM> __global__ void TP_LB(P2) row_acc(const u64 *__restrict__ x, const Sh *__restrict__ tw, size_t N, int N1,
+                                                             const u64 *__restrict__ bR, u64 *__restrict__ acc, int items, Twist tz) {
   constexpr int N2 = 1 << P2, NT = N2 / 8; extern __shared__ u64 sm[]; u64 *wt = sm + pad(N2) + 8;
-  const int rm = SL ? N1 + blockIdx.x : 1; const size_t off = (size_t) blockIdx.x * N2;
-  if (!SL) build_twist<P2>(wt, tz);
+  const int rm = TM == 0 ? N1 + blockIdx.x : 1; const size_t off = (size_t) blockIdx.x * N2;
+  if (TM == 1) build_twist<P2>(wt, tz);
   u64 a[8], r[8];
 #pragma unroll
   for (int e = 0; e < 8; e++) a[e] = 0;
@@ -211,7 +214,7 @@ template <int P2, bool SL> __global__ void TP_LB(P2) row_acc(const u64 *__restri
 #if TP_PREF_B
     ld8<P2>(b, bR + (size_t) it * N + off);
 #endif
-    to_sm_tw<P2, SL>(sm, r, wt); __syncthreads(); line_fwd<P2>(sm, tw, rm);
+    to_sm_tw<P2, TM>(sm, r, wt); __syncthreads(); line_fwd<P2>(sm, tw, rm);
 #if !TP_PREF_B
     ld8<P2>(b, bR + (size_t) it * N + off);
 #endif
@@ -227,19 +230,20 @@ template <int P2, bool SL> __global__ void TP_LB(P2) row_acc(const u64 *__restri
   for (int e = 0; e < 8; e++) acc[off + threadIdx.x + e * NT] = red1(a[e]);
 }
 // row pass without the accumulate (the public a, precomputation): in place
-template <int P2, bool SL> __global__ void TP_LB(P2) row_fwd(u64 *__restrict__ x, const Sh *__restrict__ tw, int N1, Twist tz) {
+template <int P2, int TM> __global__ void TP_LB(P2) row_fwd(u64 *__restrict__ x, const Sh *__restrict__ tw, int N1, Twist tz) {
   constexpr int N2 = 1 << P2; extern __shared__ u64 sm[]; u64 *wt = sm + pad(N2) + 8; u64 *line = x + (size_t) blockIdx.x * N2; u64 r[8];
-  if (!SL) build_twist<P2>(wt, tz);
-  ld8<P2>(r, line); to_sm_tw<P2, SL>(sm, r, wt); __syncthreads(); line_fwd<P2>(sm, tw, SL ? N1 + blockIdx.x : 1);
+  if (TM == 1) build_twist<P2>(wt, tz);
+  ld8<P2>(r, line); to_sm_tw<P2, TM>(sm, r, wt); __syncthreads(); line_fwd<P2>(sm, tw, TM == 0 ? N1 + blockIdx.x : 1);
 #pragma unroll
   for (int e = 0; e < 8; e++) { const int i = threadIdx.x + e * (N2 / 8); __stcs(line + i, red1(sm[pad(i)])); }
 }
-// inverse row pass (once per output): bit-reversed in; SL: the row's inverse slice, !SL: cyclic inverse then the inverse twist; in place
-template <int P2, bool SL> __global__ void TP_LB(P2) row_inv(u64 *__restrict__ x, const Sh *__restrict__ itw, int N1, Twist tzi) {
+// inverse row pass (once per output): bit-reversed in; TM 0: the row's inverse slice, 1: cyclic inverse then the inverse twist,
+// 2: cyclic inverse (the channel applies the inverse twist on the way back); in place
+template <int P2, int TM> __global__ void TP_LB(P2) row_inv(u64 *__restrict__ x, const Sh *__restrict__ itw, int N1, Twist tzi) {
   constexpr int N2 = 1 << P2, NT = N2 / 8; extern __shared__ u64 sm[]; u64 *wt = sm + pad(N2) + 8; u64 *line = x + (size_t) blockIdx.x * N2; u64 r[8];
-  if (!SL) build_twist<P2>(wt, tzi);
-  ld8<P2>(r, line); to_sm<P2>(sm, r); __syncthreads(); line_inv<P2>(sm, itw, SL ? N1 + blockIdx.x : 1);
-  if (SL) st8<P2>(line, sm);
+  if (TM == 1) build_twist<P2>(wt, tzi);
+  ld8<P2>(r, line); to_sm<P2>(sm, r); __syncthreads(); line_inv<P2>(sm, itw, TM == 0 ? N1 + blockIdx.x : 1);
+  if (TM != 1) st8<P2>(line, sm);
   else {
 #pragma unroll
     for (int e = 0; e < 8; e++) { const int i = threadIdx.x + e * NT; __stcs(line + i, mont(sm[pad(i)], wt[i])); }
@@ -263,6 +267,14 @@ __global__ void build_twist_tab(u64 *__restrict__ A, u64 *__restrict__ B, u64 ba
   if (t < 64) A[blockIdx.x * 64 + t] = powm_d(z, t);
   else if (t < 64 + N2 / 64) B[blockIdx.x * (N2 / 64) + t - 64] = mulm(powm_d(z, 64ull * (t - 64)), scale);
 }
+// the channel's twist (functional reference, outside the timed lane): x[k1 N2 + n2] *= zeta_k1^n2 for `items` row-major
+// polynomials, the factor from the per-row power tables (Montgomery form), one multiply per element; output in [0, P)
+__global__ void channel_twist(u64 *__restrict__ x, size_t N, int P2, int items, Twist tz) {
+  const size_t n = N * items;
+  for (size_t i = (size_t) blockIdx.x * blockDim.x + threadIdx.x; i < n; i += (size_t) gridDim.x * blockDim.x) {
+    const int k1 = (int) ((i % N) >> P2), n2 = (int) (i & ((1u << P2) - 1));
+    const u64 w = mulm(tz.A[k1 * 64 + (n2 & 63)], tz.B[(size_t) k1 * ((1 << P2) / 64) + (n2 >> 6)]);
+    x[i] = red1(mont(x[i], w)); } }
 // b^ -> Montgomery form (b^ 2^64 mod P), part of the b^ precomputation
 __global__ void to_mont(u64 *__restrict__ x, size_t n, u64 rmodp) {
   for (size_t i = (size_t) blockIdx.x * blockDim.x + threadIdx.x; i < n; i += (size_t) gridDim.x * blockDim.x) x[i] = mulm(x[i], rmodp); }
@@ -298,5 +310,5 @@ struct Plan {
   }
   ~Plan() { for (void *p : {(void *) twf, (void *) itwf, (void *) twc, (void *) itwc, (void *) twA, (void *) twB, (void *) twAi, (void *) twBi}) cudaFree(p); }
 };
-template <int P, bool SL = true> static constexpr int line_smem() { return ((1 << P) + ((1 << P) >> 3) + 8 + (SL ? 0 : (1 << P))) * 8; }
+template <int P, int TM = 0> static constexpr int line_smem() { return ((1 << P) + ((1 << P) >> 3) + 8 + (TM == 1 ? (1 << P) : 0)) * 8; }
 }   // namespace tp

@@ -54,7 +54,7 @@ def ntt_table(dev):
 #   f4dru : W=48 R=16 -> standalone +0.0% / +0.0%, interference rms 0.042
 PATTERN = {"merge": (48, 16), "f4dru": (48, 16), "f4sm": (48, 16), "sq": (48, 16), "sqdru": (48, 16), "sqdruh": (48, 16),
            "cheddar": (64, 24), "f4c": (48, 16), "f4csm": (48, 16),   # cheddar, f4c: fit_ntt_pattern.py on cheddar_interfere_l40s.csv
-           "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24), "tp": (48, 16), "tpt": (48, 16)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
+           "ole": (64, 24), "ole_t": (48, 16), "olep": (64, 24), "olepb": (64, 24), "tp": (48, 16), "tpt": (48, 16), "tpc": (48, 16)}   # ole: Cheddar's strided column kernel dominates -> Cheddar's pattern; ole_t: contiguous column reads -> f4c's (assumption, not refitted)
 
 
 # Cheddar's NTT kernels (scale-snu/cheddar-fhe 8df8b26, GPU_baseline/cheddar), measured per multiply, best config per
@@ -85,6 +85,7 @@ def cheddar_table(dev):
 
 
 F4C_SM_BOUND = False   # set by e2e_window.py --f4c-sm-bound
+DRU_MUL = 1            # modular multipliers per memory channel in the channel unit (tpc: the twist in flight); set by --dru-mul
 
 
 # PCG output on Cheddar's kernels (cheddar_bigN_bench.cu --designs ole): z = INTT( sum_ij a^_i a^_j NTT(g_ij) ) per output,
@@ -92,7 +93,7 @@ F4C_SM_BOUND = False   # set by e2e_window.py --f4c-sm-bound
 # multiply-accumulate epilogue (G partial sums), the partial-sum reduction, one inverse transform.  ole = g_ij read in
 # Cheddar's natural layout; ole_t = g_ij read in the column-contiguous layout the SPUs write.  The csv's ms_per_poly is per
 # g_ij (time per output / c^2); the table holds (ms per OUTPUT, P1 of that config) per design, best config per (logN, batch).
-OLE = ("ole", "ole_t", "olep", "olepb", "tp", "tpt")   # olep: the SPUs accumulated g_ij + g_ji into one buffer -> c(c+1)/2 unordered pairs; tp: two-pass streaming NTT (SM passes contiguous, DRU re-layout in flight)
+OLE = ("ole", "ole_t", "olep", "olepb", "tp", "tpt", "tpc")   # olep: the SPUs accumulated g_ij + g_ji into one buffer -> c(c+1)/2 unordered pairs; tp: two-pass streaming NTT (SM passes contiguous, DRU re-layout in flight)
 _OLE = {}
 def ole_table(dev):
     dev = base(dev)
@@ -202,18 +203,25 @@ def phases(dev, design, logN, batch, scale=1.0, window=None, run=None, gap=0, dr
         # polynomials (L2 reuse is what the DRAM-fraction calibration absorbs).  No DPF->NTT gather: the column pass reads
         # the SPUs' output directly (ole_t: in the column-contiguous layout they write, the same bytes).
         to, P1 = ole_table(dev)[(logN, batch)][OLE.index(design)]
-        c = int(round(batch ** 0.5)); items = c * (c + 1) // 2 if design in ("olep", "olepb", "tp", "tpt") else batch; G = ole_groups(logN, P1, items)
-        if design in ("tp", "tpt"):
+        c = int(round(batch ** 0.5)); items = c * (c + 1) // 2 if design in ("olep", "olepb", "tp", "tpt", "tpc") else batch; G = ole_groups(logN, P1, items)
+        if design in ("tp", "tpt", "tpc"):
             # two-pass streaming NTT, paired items, b^ precomputed: column pass in place over the items (8N rd + 8N wr each,
             # contiguous), the DRU re-lays out in flight (no bus bytes of its own), row pass + product + accumulate (reads
             # the column output 8N and b^ 8N per item, writes the sum 8N once), inverse: row pass 16N, column pass 16N.
             # tp (slice mode) also reads the merged twiddle table's row slices, 16N once per row pass (Shoup pairs, N
             # entries, not L2-resident at large N); tpt (twist mode) reads only L2-resident tables (no bus bytes counted)
+            # tpc (channel twist): the channel unit multiplies every element of a row by its twist factor while the row streams to the
+            # SM (and by the inverse factor on the way back after the inverse row pass): no table bytes and no twist multiply on the
+            # SM; the unit reads the factor (8 B, Montgomery form) per element inside the channel and does one modular multiply
+            # per element, DRU_MUL multipliers per channel at the DRAM clock -> resource-1 phases with that compute floor
             tb = 16 if design == "tp" else 0
             parts = [(16 * items, 0.5), (16 * items + 8 + tb, (16 * items + tb) / (16 * items + 8 + tb)), (16 + tb, (8 + tb) / (16 + tb)), (16, 0.5)]
             tot = sum(b for b, _ in parts)
             ph = [(0, 1, by(b), rf, window, gap, run, 16384, ck(to * b / tot)) for b, rf in parts]
             if handoff: ph[0] = ph[0] + (SPU_G_ROW,)
+            if design == "tpc":
+                TW = lambda n: (1, 2, byd(8 * n), 1.0, dru_window, 0, 4, 32768, int(round(n * N / d["ch"] / DRU_MUL * scale)))
+                ph = [ph[0], TW(items), ph[1], ph[2], TW(1), ph[3]]
             return ph
         if design == "olepb":   # b^_ij precomputed once per public a: no a transforms; the accumulate pass reads g and one b^ per item
             parts = [(16 * items, 0.5), (16 * items + 8 * G, 16 * items / (16 * items + 8 * G))]

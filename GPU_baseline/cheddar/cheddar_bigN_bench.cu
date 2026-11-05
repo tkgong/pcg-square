@@ -359,16 +359,18 @@ template <int L> static void run_stream(Ctx &c, int Mmax) {
 // contiguous), the DRU transposes to row-major in memory (GPU transpose OUTSIDE the timed lane here), row pass with the
 // row's slice of the merged twiddle table, the b^ product (Montgomery form, precomputed) and the accumulate over the
 // paired items; one inverse per output.  tp = SM lane, tpf = whole pipeline.
-template <int L, int P1, bool SL> static void run_tp(Ctx &c) {   // SL: row twiddles from the merged table's row slices (tp), else twist + cyclic table (tpt)
-  constexpr int P2 = L - P1, N1 = 1 << P1, N2 = 1 << P2; const char *nm = SL ? "tp" : "tpt", *nmf = SL ? "tpf" : "tptf";
+// TM: row twiddle mode: 0 slice (tp), 1 twist in shared memory (tpt), 2 twist by the memory channel's unit (tpc: the GPU does it
+// outside the timed lane as the functional reference; tpcf = everything on the GPU, timed)
+template <int L, int P1, int TM> static void run_tp(Ctx &c) {
+  constexpr int P2 = L - P1, N1 = 1 << P1, N2 = 1 << P2; const char *nm = TM == 0 ? "tp" : TM == 1 ? "tpt" : "tpc", *nmf = TM == 0 ? "tpf" : TM == 1 ? "tptf" : "tpcf";
   if constexpr (P1 < 9 || P1 > 12 || P2 < 9 || P2 > 12) return; else {   // 64..512 threads per line (register budget)
-    const int sm1 = tp::line_smem<P1>(), sm2 = tp::line_smem<P2, SL>();
+    const int sm1 = tp::line_smem<P1>(), sm2 = tp::line_smem<P2, TM>();
     if (sm1 > c.maxs || sm2 > c.maxs) return;
     ck(cudaFuncSetAttribute((const void *) tp::col_fwd<P1>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm1), "tp smem");
     ck(cudaFuncSetAttribute((const void *) tp::col_inv<P1>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm1), "tp smem");
-    ck(cudaFuncSetAttribute((const void *) tp::row_acc<P2, SL>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm2), "tp smem");
-    ck(cudaFuncSetAttribute((const void *) tp::row_fwd<P2, SL>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm2), "tp smem");
-    ck(cudaFuncSetAttribute((const void *) tp::row_inv<P2, SL>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm2), "tp smem");
+    ck(cudaFuncSetAttribute((const void *) tp::row_acc<P2, TM>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm2), "tp smem");
+    ck(cudaFuncSetAttribute((const void *) tp::row_fwd<P2, TM>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm2), "tp smem");
+    ck(cudaFuncSetAttribute((const void *) tp::row_inv<P2, TM>, cudaFuncAttributeMaxDynamicSharedMemorySize, sm2), "tp smem");
     const int c2 = c.batch; int cc = 1; while (cc * cc < c2) cc++; if (cc * cc != c2) return;
     const int np = cc * (cc + 1) / 2; const size_t N = 1ull << L; const Modulus<Data64> mod = c.mp->modulus;
     u64 *g = c.a, *ahat = c.b, *z = c.tmp, *gn = c.gn; if (!gn || !c.zrp) return;
@@ -377,10 +379,12 @@ template <int L, int P1, bool SL> static void run_tp(Ctx &c) {   // SL: row twid
     // column pass: N2 columns x G item groups (>= 8192 blocks when the items allow), each block loops over its items with prefetch
     auto colf = [&](u64 *x, int items) { const int G = items < (8192 / N2 > 1 ? 8192 / N2 : 1) ? items : (8192 / N2 > 1 ? 8192 / N2 : 1);
       tm.beg(); tp::col_fwd<P1><<<dim3(N2, G), N1 / 8, sm1>>>(x, pl.twf, N, items); tm.end(); };
-    const tp::Sh *twr = SL ? pl.twf : pl.twc, *itwr = SL ? pl.itwf : pl.itwc;   // row tables of the mode
-    auto rowf = [&](u64 *x) { tm.beg(); tp::row_fwd<P2, SL><<<N1, N2 / 8, sm2>>>(x, twr, N1, pl.tz()); tm.end(); };
-    auto rowacc = [&](const u64 *x, u64 *acc, int items) { tm.beg(); tp::row_acc<P2, SL><<<N1, N2 / 8, sm2>>>(x, twr, N, N1, c.bh, acc, items, pl.tz()); tm.end(); };
-    auto inverse = [&](u64 *x) { tm.beg(); tp::row_inv<P2, SL><<<N1, N2 / 8, sm2>>>(x, itwr, N1, pl.tzi()); tm.end(); T(x, gn, N1, N2, 1);
+    const tp::Sh *twr = TM == 0 ? pl.twf : pl.twc, *itwr = TM == 0 ? pl.itwf : pl.itwc;   // row tables of the mode
+    // the channel's twist (TM 2): the GPU applies it outside the timed lane, forward before a row pass, inverse after the inverse row pass
+    auto chtw = [&](u64 *x, int items, bool inv) { if (TM == 2) tp::channel_twist<<<4096, 256>>>(x, N, P2, items, inv ? pl.tzi() : pl.tz()); };
+    auto rowf = [&](u64 *x) { chtw(x, 1, false); tm.beg(); tp::row_fwd<P2, TM><<<N1, N2 / 8, sm2>>>(x, twr, N1, pl.tz()); tm.end(); };
+    auto rowacc = [&](u64 *x, u64 *acc, int items) { chtw(x, items, false); tm.beg(); tp::row_acc<P2, TM><<<N1, N2 / 8, sm2>>>(x, twr, N, N1, c.bh, acc, items, pl.tz()); tm.end(); };
+    auto inverse = [&](u64 *x) { tm.beg(); tp::row_inv<P2, TM><<<N1, N2 / 8, sm2>>>(x, itwr, N1, pl.tzi()); tm.end(); chtw(x, 1, true); T(x, gn, N1, N2, 1);
       tm.beg(); tp::col_inv<P1><<<N2, N1 / 8, sm1>>>(gn, pl.itwf, pl.ninvs); tm.end(); T(gn, x, N2, N1, 1); };
     auto prep = [&] { c.refill_ole();
       for (int q = 0; q < c2; q++) { T(g + q * N, z, N1, N2, 1); cudaMemcpyAsync(g + q * N, z, N * 8, cudaMemcpyDeviceToDevice, 0); }
@@ -510,7 +514,7 @@ int main(int argc, char **argv) {
       run_cheddar<L, P2, M1, B1, M2>(c); }); }); }); });
     // four-step: P1 in [L-14, 14], M1, M2
     if (want("f4c")) cfor<9, 15>([&](auto P1) { if constexpr (L - P1 >= 7 && L - P1 <= 14) cfor<3, 6>([&](auto M1) { cfor<0, 4>([&](auto B1) { cfor<3, 6>([&](auto M2) { run_f4c<L, P1, M1, B1, M2>(c); }); }); }); });
-    if (want("ole") || want("olep") || want("olepb") || want("strm") || want("tp") || want("tpt") || want("mp")) {   // PCG output z over c^2 = batch polynomials g_ij (c.a) and c public a_i (first c polynomials of c.b, a_0 = 1)
+    if (want("ole") || want("olep") || want("olepb") || want("strm") || want("tp") || want("tpt") || want("tpc") || want("mp")) {   // PCG output z over c^2 = batch polynomials g_ij (c.a) and c public a_i (first c polynomials of c.b, a_0 = 1)
       int cc = 1; while (cc * cc < batch) cc++;
       if (cc * cc == batch) {
         ck(cudaMalloc(&c.zr, N * 8), "zr");
@@ -526,7 +530,7 @@ int main(int argc, char **argv) {
           addmod_kernel<<<4096, 256>>>(c.zr, c.tmp, N, mp.modulus);
         }
         ck(cudaDeviceSynchronize(), "ole ref");
-        if (want("olep") || want("olepb") || want("strm") || want("tp") || want("tpt") || want("mp")) {   // paired reference: z = sum_{i<=j} (a_i a_j) g_k, k enumerating the pairs as the kernel does
+        if (want("olep") || want("olepb") || want("strm") || want("tp") || want("tpt") || want("tpc") || want("mp")) {   // paired reference: z = sum_{i<=j} (a_i a_j) g_k, k enumerating the pairs as the kernel does
           ck(cudaMalloc(&c.zrp, N * 8), "zrp"); c.refill_ole(); cudaMemset(c.zrp, 0, N * 8); int k = 0;
           for (int i = 0; i < cc; i++) for (int j = i; j < cc; j++, k++) {
             cudaMemcpy(c.tmp, c.b + i * N, N * 8, cudaMemcpyDeviceToDevice); cudaMemcpy(c.tmp + N, c.b + j * N, N * 8, cudaMemcpyDeviceToDevice);
@@ -535,13 +539,14 @@ int main(int argc, char **argv) {
             addmod_kernel<<<4096, 256>>>(c.zrp, c.tmp, N, mp.modulus);
           }
           ck(cudaDeviceSynchronize(), "olep ref");
-          if ((want("olepb") || want("strm") || want("tp") || want("tpt") || want("mp")) && cudaMalloc(&c.bh, (size_t) (cc * (cc + 1) / 2) * N * 8)) { fprintf(stderr, "olepb: b^ does not fit, skipped\n"); cudaGetLastError(); c.bh = nullptr; }
+          if ((want("olepb") || want("strm") || want("tp") || want("tpt") || want("tpc") || want("mp")) && cudaMalloc(&c.bh, (size_t) (cc * (cc + 1) / 2) * N * 8)) { fprintf(stderr, "olepb: b^ does not fit, skipped\n"); cudaGetLastError(); c.bh = nullptr; }
         }
         if (c.gn) cfor<9, 15>([&](auto P2) { if constexpr (L - P2 >= 7 && L - P2 <= 14) cfor<3, 7>([&](auto M1) { cfor<0, 5>([&](auto B1) { cfor<3, 7>([&](auto M2) {
           run_ole<L, P2, M1, B1, M2>(c); }); }); }); });
         if (want("strm")) { run_stream<L>(c, 6); run_stream<L>(c, 5); }
-        if (want("tp")) { run_tp<L, 9, true>(c); run_tp<L, 10, true>(c); run_tp<L, 11, true>(c); run_tp<L, 12, true>(c); }
-        if (want("tpt")) { run_tp<L, 9, false>(c); run_tp<L, 10, false>(c); run_tp<L, 11, false>(c); run_tp<L, 12, false>(c); }
+        if (want("tp")) { run_tp<L, 9, 0>(c); run_tp<L, 10, 0>(c); run_tp<L, 11, 0>(c); run_tp<L, 12, 0>(c); }
+        if (want("tpt")) { run_tp<L, 9, 1>(c); run_tp<L, 10, 1>(c); run_tp<L, 11, 1>(c); run_tp<L, 12, 1>(c); }
+        if (want("tpc")) { run_tp<L, 9, 2>(c); run_tp<L, 10, 2>(c); run_tp<L, 11, 2>(c); run_tp<L, 12, 2>(c); }
         if (want("mp")) for (int k = (L + 3) / 4; k <= L / 3; k++) run_mp<L>(c, k);   // every pass count whose passes have 3..4 stages
         if (ref_busy) cudaFree(c.gn);
         cudaFree(c.zr); cudaFree(c.zrp); cudaFree(c.bh); c.zr = c.zrp = c.gn = c.bh = nullptr;
