@@ -1,0 +1,55 @@
+Unified processing unit: the SPU reconfigured to also run AiM's BF16 functions (bf16.v, arx.v, pu.v; one source, three
+configurations).  Yosys 0.71+, NanGate 45 nm open cell library (typical), clock gates, ABC mapping.
+The AiM-function unit is a reconstruction from the public description (16 BF16 multipliers + adder tree per unit, MAC,
+element-wise multiply and add) on an HBM-PIM-style frame (2 x 8 x 256 b registers, 16 x 16 b scalars, 32-instruction
+memory); it is not a vendor netlist.  The SPU follows PIM/docs/pim_isa_assembly.md (dual issue, 16 x 256 b + scalars).
+Not in the RTL: AiM's activation-function table, the last-level fused CONVERT micro-sequence (its mod-ALU hooks are
+in and tested single-stepped).  Areas are post-mapping cell area, no placement, no memory compiler.
+
+1. Function (C++ simulation of the RTL, tb.cc)
+  configuration uni:
+    EXTEND length: 148 ticks (model: 155)
+    ChaCha8 EXTEND, 3 batches back to back, 24 child columns: 0 word mismatches
+    mod-ALU REDP / ADDP, 2000 x 4 lanes each: 0 mismatches
+    BF16 element-wise multiply / add / 3-term MAC: 66000 checks, 0 outside tolerance (worst multiply rel. error 0.0039)
+  configuration spu:
+    EXTEND length: 148 ticks (model: 155)
+    ChaCha8 EXTEND, 3 batches back to back, 24 child columns: 0 word mismatches
+    mod-ALU REDP / ADDP, 2000 x 4 lanes each: 0 mismatches
+  configuration aim:
+    BF16 element-wise multiply / add / 3-term MAC: 66000 checks, 0 outside tolerance (worst multiply rel. error 0.0039)
+
+2. Area (kGE = cell area / NAND2_X1)
+block     | AiM-function |      SPU |  unified | uni - AiM | uni - SPU | flops a/s/u      | content
+rf        |        33.32 |    38.27 |    38.27 |      4.95 |      0.00 | 4096/4096/4096   | register file, 2 groups x 8 x 256 b
+srf       |         2.11 |     3.56 |     3.53 |      1.42 |     -0.03 | 256/384/384      | scalar registers
+ctrl      |         8.51 |     8.58 |     8.51 |      0.00 |     -0.07 | 1045/1045/1045   | instruction memory 32 x 32 b, PC, loop, decode
+bf16_dp   |        22.64 |     0.00 |    22.64 |      0.00 |     22.64 | 417/0/417        | BF16: 16 multipliers, 16 adders, MAC stage 1
+bf16_acc  |        13.46 |     0.00 |    13.34 |     -0.13 |     13.34 | 97/0/97          | BF16: MAC align + sum tree, accumulator, read-out
+xadd      |         0.00 |     2.47 |     2.47 |      2.47 |      0.00 | 0/0/0            | ARX: 8 x 32 b adder array (+ 64 b link, 62 b mask)
+foldk     |         0.00 |     0.10 |     0.10 |      0.10 |      0.00 | 0/0/0            | ARX: sparse-prime fold constant
+vxorl     |         0.00 |     2.65 |     2.65 |      2.65 |      0.00 | 0/0/0            | ARX: 8 x 32 b xor + rotate array
+useq      |         0.00 |     0.21 |     0.22 |      0.22 |      0.01 | 0/10/10          | ARX: ChaCha8 EXTEND micro-sequencer
+lsu       |         0.00 |    16.88 |    16.88 |     16.88 |      0.00 | 0/2071/2071      | ARX: load skid 4 col + store queue 4 col + child pack
+glue      |         4.35 |    10.11 |    11.84 |      7.49 |      1.73 | 256/512/512      | operand / write muxes, forward register, bank latch
+TOTAL     |        84.39 |    82.83 |   120.44 |     36.05 |     37.62 | 6167/8118/8632   | 
+
+(kGE; NanGate45 um^2: AiM-function 67344, SPU 66095, unified 96114)
+ChaCha-specific increment over the AiM-function unit: 36.05 kGE = +42.7% (29.9% of the unified unit)
+BF16 increment over the SPU:                          37.62 kGE = +45.4%
+two separate units 167.22 kGE, unified 120.44 kGE: sharing saves 28.0%
+
+3. Critical paths, ps (same library; absolute speed is not the claim, the comparison between configurations is)
+  AiM-function unit (pu = register read -> BF16 element-wise -> register write; bf16_acc = MAC sum stage)
+   pu_aim      24460 gates     3056 ps   $\u.u_ctrl.crf$rdreg[0]$q [2] -> \u.u_rf.a_wd [227]
+   bf16_acc     8406 gates     3559 ps   \e1 [68] -> \tree [27]
+  unified, BF16 side (ARX blocks cut out of the paths)
+   pu_uni      32673 gates     3058 ps   $\u.u_ctrl.crf$rdreg[0]$q [2] -> \u.u_rf.b_wd [233]
+   bf16_acc     8351 gates     3567 ps   \e1 [106] -> \tree [28]
+   xadd         1254 gates     2622 ps   \b [65] -> \cout [1]
+  SPU (whole unit)
+   pu_spu      22874 gates     3143 ps   $\u.u_ctrl.crf$rdreg[0]$q [2] -> \u.u_rf.a_wd [63]
+  unified, ARX side (BF16 datapath cut out of the paths)
+   pu_uni      24213 gates     3012 ps   $\u.u_ctrl.crf$rdreg[0]$q [3] -> $abc$109128$memory\u.u_rf.gb$wren[1][0][
+   bf16_dp     14051 gates     2219 ps   \a [176] -> \ewadd [176]
+   bf16_acc     8410 gates     3566 ps   \e1 [82] -> \tree [28]
